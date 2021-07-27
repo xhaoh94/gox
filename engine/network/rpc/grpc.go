@@ -10,23 +10,31 @@ import (
 	"google.golang.org/grpc"
 )
 
+type (
+	GRpc struct {
+		rpcAddr   string
+		addr2Conn map[string]*grpc.ClientConn
+		addrMutex sync.Mutex
+		server    *grpc.Server
+		listen    net.Listener
+	}
+)
+
 var (
-	rpcAddr   string
-	addr2Conn map[string]*grpc.ClientConn
-	addrMutex sync.Mutex
-	server    *grpc.Server
-	listen    net.Listener
-	isRun     bool
+	gprc  *GRpc
+	isRun bool
 )
 
 //获取服务地址
 func GetAddr() string {
-	return rpcAddr
+	return gprc.rpcAddr
 }
 
 //Init 初始化
 func Init(addr string) {
-	rpcAddr = addr
+	gprc = &GRpc{
+		rpcAddr: addr,
+	}
 }
 
 //Start 开启服务
@@ -34,23 +42,23 @@ func Start() {
 	if isRun {
 		return
 	}
-	if rpcAddr == "" {
+	if gprc == nil {
 		return
 	}
 	isRun = true
-	addr2Conn = make(map[string]*grpc.ClientConn)
+	gprc.addr2Conn = make(map[string]*grpc.ClientConn)
 
-	if listen == nil {
+	if gprc.listen == nil {
 		var err error
-		listen, err = net.Listen("tcp", rpcAddr)
+		gprc.listen, err = net.Listen("tcp", gprc.rpcAddr)
 		if err != nil {
 			xlog.Fatal("failed to listen: %v", err)
 		}
-		server = grpc.NewServer()
-		xlog.Info("rpc service Waiting for clients. -> [%s]", rpcAddr)
+		gprc.server = grpc.NewServer()
+		xlog.Info("rpc service Waiting for clients. -> [%s]", gprc.rpcAddr)
 		event.Bind("_init_module_ok_", func() {
-			if listen != nil {
-				go server.Serve(listen)
+			if gprc.listen != nil {
+				go gprc.server.Serve(gprc.listen)
 			}
 		})
 	}
@@ -61,22 +69,25 @@ func Stop() {
 	if !isRun {
 		return
 	}
-	if listen != nil {
-		listen.Close()
+	if gprc == nil {
+		return
+	}
+	if gprc.listen != nil {
+		gprc.listen.Close()
 	}
 	isRun = false
 }
 
 //GetServer 获取grpc 服务端
 func GetServer() *grpc.Server {
-	return server
+	return gprc.server
 }
 
 //GetConnByAddr 获取grpc客户端
 func GetConnByAddr(addr string) *grpc.ClientConn {
-	defer addrMutex.Unlock()
-	addrMutex.Lock()
-	conn, ok := addr2Conn[addr]
+	defer gprc.addrMutex.Unlock()
+	gprc.addrMutex.Lock()
+	conn, ok := gprc.addr2Conn[addr]
 	if ok {
 		return conn
 	}
@@ -85,6 +96,6 @@ func GetConnByAddr(addr string) *grpc.ClientConn {
 	if err != nil {
 		xlog.Fatal("did not connect: %v", err)
 	}
-	addr2Conn[addr] = conn
+	gprc.addr2Conn[addr] = conn
 	return conn
 }

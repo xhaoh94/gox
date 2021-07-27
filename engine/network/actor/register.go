@@ -22,9 +22,16 @@ var (
 	actorEs       *etcd.EtcdService
 	actorRegLock  sync.RWMutex
 	keyToActorReg map[string]*actorReg
+	actorPool     *sync.Pool
 )
 
-func registerActor() {
+func onStart() {
+	actorPool = &sync.Pool{
+		New: func() interface{} {
+			return &actorReg{}
+		},
+	}
+
 	var err error
 	actorEs, err = etcd.NewEtcdService(get, put, del)
 	if err != nil {
@@ -33,13 +40,13 @@ func registerActor() {
 	}
 	actorEs.Get(actorPrefix, true)
 }
-func unRegisterActor() {
+func onStop() {
 	if actorEs != nil {
 		actorEs.Close()
 	}
 }
-func newSpaceReg(val []byte) (*actorReg, error) {
-	actor := &actorReg{}
+func newActorReg(val []byte) (*actorReg, error) {
+	actor := actorPool.Get().(*actorReg)
 	if err := json.Unmarshal(val, actor); err != nil {
 		return nil, err
 	}
@@ -61,7 +68,7 @@ func put(kv *mvccpb.KeyValue) {
 		return
 	}
 	key := string(kv.Key)
-	value, err := newSpaceReg(kv.Value)
+	value, err := newActorReg(kv.Value)
 	if err != nil {
 		xlog.Error("put actor err[%v]", err)
 		return
@@ -72,7 +79,8 @@ func del(kv *mvccpb.KeyValue) {
 	actorRegLock.Lock()
 	defer actorRegLock.Unlock()
 	key := string(kv.Key)
-	if _, ok := keyToActorReg[key]; ok {
+	if actor, ok := keyToActorReg[key]; ok {
+		actorPool.Put((actor))
 		delete(keyToActorReg, key)
 	}
 }

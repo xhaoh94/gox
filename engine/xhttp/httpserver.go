@@ -1,4 +1,4 @@
-package httpserver
+package xhttp
 
 import (
 	"log"
@@ -14,7 +14,7 @@ type HttpServer struct {
 	routes map[string]func(w http.ResponseWriter, r *http.Request)
 }
 
-func NewHttpServer(addr string) *HttpServer {
+func NewServer(addr string) *HttpServer {
 	return &HttpServer{
 		addr:   addr,
 		routes: make(map[string]func(w http.ResponseWriter, r *http.Request), 0),

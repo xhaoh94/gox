@@ -18,10 +18,6 @@ import (
 func Start(appConfPath string) {
 	conf.LoadAppConfig(appConfPath)
 	xlog.Init()
-	if app.SID == "" {
-		xlog.Error("It needs to be done first Init ")
-		return
-	}
 	xlog.Info("server start. sid -> [%s]", app.SID)
 	xlog.Info("server type -> [%s]", app.ServiceType)
 	xlog.Info("server version -> [%s]", app.Version)

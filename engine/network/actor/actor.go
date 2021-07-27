@@ -16,13 +16,13 @@ func Start() {
 		return
 	}
 	isRun = true
-	registerActor()
+	onStart()
 }
 func Stop() {
 	if !isRun {
 		return
 	}
-	unRegisterActor()
+	onStop()
 	isRun = false
 }
 func Register(actorID uint32, sessionID string) {
