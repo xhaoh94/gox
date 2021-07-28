@@ -2,7 +2,6 @@ package actor
 
 import (
 	"encoding/json"
-	"sync"
 
 	"github.com/xhaoh94/gox/engine/etcd"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -17,32 +16,18 @@ type actorReg struct {
 	sessionID string
 }
 
-var (
-	actorPrefix   = "location/actor"
-	actorEs       *etcd.EtcdService
-	actorRegLock  sync.RWMutex
-	keyToActorReg map[string]*actorReg
-	actorPool     *sync.Pool
-)
-
-func onStart() {
-	actorPool = &sync.Pool{
-		New: func() interface{} {
-			return &actorReg{}
-		},
-	}
-
+func (atr *Actor) Start() {
 	var err error
-	actorEs, err = etcd.NewEtcdService(get, put, del)
+	atr.actorEs, err = etcd.NewEtcdService(atr.get, atr.put, atr.del)
 	if err != nil {
 		xlog.Fatal("es etcd group err [%v]", err)
 		return
 	}
-	actorEs.Get(actorPrefix, true)
+	atr.actorEs.Get(atr.actorPrefix, true)
 }
-func onStop() {
-	if actorEs != nil {
-		actorEs.Close()
+func (atr *Actor) Stop() {
+	if atr.actorEs != nil {
+		atr.actorEs.Close()
 	}
 }
 func newActorReg(val []byte) (*actorReg, error) {
@@ -53,17 +38,17 @@ func newActorReg(val []byte) (*actorReg, error) {
 	return actor, nil
 }
 
-func get(resp *clientv3.GetResponse) {
+func (atr *Actor) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
 	for i := range resp.Kvs {
-		put(resp.Kvs[i])
+		atr.put(resp.Kvs[i])
 	}
 }
-func put(kv *mvccpb.KeyValue) {
-	actorRegLock.Lock()
-	defer actorRegLock.Unlock()
+func (atr *Actor) put(kv *mvccpb.KeyValue) {
+	atr.actorRegLock.Lock()
+	defer atr.actorRegLock.Unlock()
 	if kv.Value == nil {
 		return
 	}
@@ -73,14 +58,14 @@ func put(kv *mvccpb.KeyValue) {
 		xlog.Error("put actor err[%v]", err)
 		return
 	}
-	keyToActorReg[key] = value
+	atr.keyToActorReg[key] = value
 }
-func del(kv *mvccpb.KeyValue) {
-	actorRegLock.Lock()
-	defer actorRegLock.Unlock()
+func (atr *Actor) del(kv *mvccpb.KeyValue) {
+	atr.actorRegLock.Lock()
+	defer atr.actorRegLock.Unlock()
 	key := string(kv.Key)
-	if actor, ok := keyToActorReg[key]; ok {
+	if actor, ok := atr.keyToActorReg[key]; ok {
 		actorPool.Put((actor))
-		delete(keyToActorReg, key)
+		delete(atr.keyToActorReg, key)
 	}
 }

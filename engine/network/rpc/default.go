@@ -9,10 +9,6 @@ import (
 
 //DefalutRPC 自定义rpcdata
 type (
-	//IDefaultRPC rpc
-	IDefaultRPC interface {
-		Await() bool
-	}
 	DefalutRPC struct {
 		SessionID string
 		RPCID     uint32

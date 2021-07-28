@@ -3,7 +3,9 @@ package service
 import (
 	"sync"
 
+	"github.com/xhaoh94/gox/consts"
 	"github.com/xhaoh94/gox/engine/codec"
+	"github.com/xhaoh94/gox/engine/types"
 )
 
 // 默认
@@ -77,11 +79,11 @@ func (b *ByteArray) AppendString(v string) {
 	b.AppendUint16(uint16(l))
 	b.data = append(b.data, []byte(v)...)
 }
-func (b *ByteArray) AppendMessage(msg interface{}) error {
+func (b *ByteArray) AppendMessage(msg interface{}, cdc types.ICodec) error {
 	if msg == nil {
-		return nil
+		return consts.CodecError
 	}
-	msgData, err := codec.Encode(msg)
+	msgData, err := cdc.Encode(msg)
 	if err != nil {
 		return err
 	}
@@ -140,10 +142,10 @@ func (b *ByteArray) ReadString() string {
 	return string(bytes)
 }
 
-func (b *ByteArray) ReadMessage(msg interface{}) error {
+func (b *ByteArray) ReadMessage(msg interface{}, cdc types.ICodec) error {
 	msgLen := b.Length() - b.Position()
 	msgData := b.ReadBytes(msgLen)
-	if err := codec.Decode(msgData, msg); err != nil {
+	if err := cdc.Decode(msgData, msg); err != nil {
 		return err
 	}
 	return nil

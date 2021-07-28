@@ -7,33 +7,7 @@ import (
 	"io/ioutil"
 
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/consts"
 )
-
-type (
-	ICodec interface {
-		Encode(interface{}) ([]byte, error)
-		Decode([]byte, interface{}) error
-	}
-)
-
-var codec ICodec
-
-func SetCodec(icodec ICodec) {
-	codec = icodec
-}
-func Encode(msg interface{}) ([]byte, error) {
-	if msg == nil {
-		return nil, consts.CodecError
-	}
-	return codec.Encode(msg)
-}
-func Decode(bytes []byte, msg interface{}) error {
-	if msg == nil {
-		return consts.CodecError
-	}
-	return codec.Decode(bytes, msg)
-}
 
 //BytesToUint16 转uint16
 func BytesToUint16(b []byte) uint16 {

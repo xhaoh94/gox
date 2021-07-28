@@ -7,7 +7,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/network/types"
+	"github.com/xhaoh94/gox/engine/types"
 
 	"github.com/xhaoh94/gox/engine/xlog"
 
@@ -21,8 +21,8 @@ type WService struct {
 	server   *http.Server
 }
 
-func (ws *WService) Init(addr string) {
-	ws.Service.Init(addr)
+func (ws *WService) Init(addr string, engine types.IEngine) {
+	ws.Service.Init(addr, engine)
 	ws.Service.ConnectChannelFunc = ws.connectChannel
 }
 

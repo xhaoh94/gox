@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/xhaoh94/gox/engine/module"
-	"github.com/xhaoh94/gox/engine/network"
-	"github.com/xhaoh94/gox/engine/network/types"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/game/netpack"
 )
@@ -19,8 +18,8 @@ type (
 
 //OnInit 初始化
 func (mm *LoginModule) OnInit() {
-	network.Register(111, mm.test)
-	network.RegisterRPC(mm.test2)
+	mm.Register(111, mm.test)
+	mm.RegisterRPC(mm.test2)
 }
 
 func (m *LoginModule) test(ctx context.Context, session types.ISession, req *netpack.ReqTest) {

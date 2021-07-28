@@ -6,7 +6,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/network/types"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xtaci/kcp-go/v5"
 )
@@ -16,8 +16,8 @@ type KService struct {
 	listen *kcp.Listener
 }
 
-func (ks *KService) Init(addr string) {
-	ks.Service.Init(addr)
+func (ks *KService) Init(addr string, engine types.IEngine) {
+	ks.Service.Init(addr, engine)
 	ks.Service.ConnectChannelFunc = ks.connectChannel
 }
 

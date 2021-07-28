@@ -6,7 +6,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/network/types"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 )
 
@@ -16,8 +16,8 @@ type TService struct {
 	listen net.Listener
 }
 
-func (ts *TService) Init(addr string) {
-	ts.Service.Init(addr)
+func (ts *TService) Init(addr string, engine types.IEngine) {
+	ts.Service.Init(addr, engine)
 	ts.Service.ConnectChannelFunc = ts.connectChannel
 }
 

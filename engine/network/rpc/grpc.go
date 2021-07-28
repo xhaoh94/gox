@@ -4,15 +4,16 @@ import (
 	"net"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/event"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 
 	"google.golang.org/grpc"
 )
 
 type (
-	GRpc struct {
+	GRpcServer struct {
 		rpcAddr   string
+		engine    types.IEngine
 		addr2Conn map[string]*grpc.ClientConn
 		addrMutex sync.Mutex
 		server    *grpc.Server
@@ -20,74 +21,55 @@ type (
 	}
 )
 
-var (
-	gprc  *GRpc
-	isRun bool
-)
-
 //获取服务地址
-func GetAddr() string {
-	return gprc.rpcAddr
+func (g *GRpcServer) GetAddr() string {
+	return g.rpcAddr
 }
 
-//Init 初始化
-func Init(addr string) {
-	gprc = &GRpc{
+//NewGrpcServer 初始化
+func NewGrpcServer(addr string, engine types.IEngine) *GRpcServer {
+	return &GRpcServer{
 		rpcAddr: addr,
+		engine:  engine,
 	}
 }
 
 //Start 开启服务
-func Start() {
-	if isRun {
-		return
-	}
-	if gprc == nil {
-		return
-	}
-	isRun = true
-	gprc.addr2Conn = make(map[string]*grpc.ClientConn)
-
-	if gprc.listen == nil {
+func (g *GRpcServer) Start() {
+	g.addr2Conn = make(map[string]*grpc.ClientConn)
+	if g.listen == nil {
 		var err error
-		gprc.listen, err = net.Listen("tcp", gprc.rpcAddr)
+		g.listen, err = net.Listen("tcp", g.rpcAddr)
 		if err != nil {
 			xlog.Fatal("failed to listen: %v", err)
 		}
-		gprc.server = grpc.NewServer()
-		xlog.Info("rpc service Waiting for clients. -> [%s]", gprc.rpcAddr)
-		event.Bind("_init_module_ok_", func() {
-			if gprc.listen != nil {
-				go gprc.server.Serve(gprc.listen)
+		g.server = grpc.NewServer()
+		xlog.Info("rpc service Waiting for clients. -> [%s]", g.rpcAddr)
+		g.engine.GetEvent().Bind("_start_engine_ok_", func() {
+			if g.listen != nil {
+				go g.server.Serve(g.listen)
 			}
 		})
 	}
 }
 
 //Stop 停止服务
-func Stop() {
-	if !isRun {
-		return
+func (g *GRpcServer) Stop() {
+	if g.listen != nil {
+		g.listen.Close()
 	}
-	if gprc == nil {
-		return
-	}
-	if gprc.listen != nil {
-		gprc.listen.Close()
-	}
-	isRun = false
 }
 
 //GetServer 获取grpc 服务端
-func GetServer() *grpc.Server {
-	return gprc.server
+func (g *GRpcServer) GetServer() *grpc.Server {
+	return g.server
 }
 
 //GetConnByAddr 获取grpc客户端
-func GetConnByAddr(addr string) *grpc.ClientConn {
-	defer gprc.addrMutex.Unlock()
-	gprc.addrMutex.Lock()
-	conn, ok := gprc.addr2Conn[addr]
+func (g *GRpcServer) GetConnByAddr(addr string) *grpc.ClientConn {
+	defer g.addrMutex.Unlock()
+	g.addrMutex.Lock()
+	conn, ok := g.addr2Conn[addr]
 	if ok {
 		return conn
 	}
@@ -96,6 +78,6 @@ func GetConnByAddr(addr string) *grpc.ClientConn {
 	if err != nil {
 		xlog.Fatal("did not connect: %v", err)
 	}
-	gprc.addr2Conn[addr] = conn
+	g.addr2Conn[addr] = conn
 	return conn
 }

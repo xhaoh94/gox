@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/consts"
-	"github.com/xhaoh94/gox/engine/network/types"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 )
 
@@ -18,6 +18,7 @@ type (
 		addrToSession map[string]*Session //Connect Map
 		addrMutex     sync.Mutex
 		sessionWg     sync.WaitGroup
+		engine        types.IEngine
 
 		ConnectChannelFunc func(addr string) types.IChannel
 		AcceptWg           sync.WaitGroup
@@ -40,9 +41,10 @@ func init() {
 }
 
 //Init 服务初始化
-func (ser *Service) Init(addr string) {
+func (ser *Service) Init(addr string, engine types.IEngine) {
 	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(context.TODO())
 	ser.addr = addr
+	ser.engine = engine
 	ser.idToSession = make(map[string]*Session)
 	ser.addrToSession = make(map[string]*Session)
 }

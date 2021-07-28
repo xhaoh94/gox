@@ -9,6 +9,9 @@ import (
 var log *ZapLog
 
 func Init() {
+	if log != nil {
+		return
+	}
 	log = new()
 }
 func Destroy() {

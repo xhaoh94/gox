@@ -79,7 +79,6 @@ func LoadAppConfig(appConfPath string) {
 		app.NetEndian = binary.BigEndian
 		break
 	}
-	app.Version = AppCfg.Version
 	app.WebSocketMessageType = AppCfg.WebSocket.WebSocketMessageType
 	app.WebSocketPattern = AppCfg.WebSocket.WebSocketPattern
 	app.SendMsgMaxLen = AppCfg.Network.SendMsgMaxLen

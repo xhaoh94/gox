@@ -6,11 +6,9 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/consts"
-	"github.com/xhaoh94/gox/engine/event"
-	"github.com/xhaoh94/gox/engine/network/actor"
-	"github.com/xhaoh94/gox/engine/network/proto"
+
 	"github.com/xhaoh94/gox/engine/network/rpc"
-	"github.com/xhaoh94/gox/engine/network/types"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/util"
 )
@@ -87,7 +85,7 @@ func (s *Session) Send(cmd uint32, msg interface{}) {
 	defer pkt.Reset()
 	pkt.AppendByte(_csc)
 	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(msg); err != nil {
+	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
 		return
 	}
 	s.SendData(pkt.SendData())
@@ -101,14 +99,14 @@ func (s *Session) Actor(actorID uint32, cmd uint32, msg interface{}) {
 	pkt.AppendByte(_actor)
 	pkt.AppendUint32(actorID)
 	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(msg); err != nil {
+	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
 		return
 	}
 	s.SendData(pkt.SendData())
 }
 
 //Call 呼叫
-func (s *Session) Call(msg interface{}, response interface{}) rpc.IDefaultRPC {
+func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC {
 	nr := &rpc.DefalutRPC{SessionID: s.id, C: make(chan bool), Response: response}
 	if !s.isAct() {
 		defer nr.Run(false)
@@ -122,7 +120,7 @@ func (s *Session) Call(msg interface{}, response interface{}) rpc.IDefaultRPC {
 	pkt.AppendByte(_rpcs)
 	pkt.AppendUint32(msgID)
 	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg); err != nil {
+	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
 		defer nr.Run(false)
 		return nr
 	}
@@ -140,7 +138,7 @@ func (s *Session) Reply(msg interface{}, rpcid uint32) {
 	defer pkt.Reset()
 	pkt.AppendByte(_rpcr)
 	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg); err != nil {
+	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
 		return
 	}
 	s.SendData(pkt.SendData())
@@ -197,7 +195,7 @@ func (s *Session) read(data []byte) {
 		msgData := pkt.ReadBytes(msgLen)
 		bytes := []byte{_csc}
 		bytes = append(bytes, msgData...)
-		go actor.Relay(actorID, bytes)
+		go s.service.engine.GetNetWork().GetActor().Relay(actorID, bytes)
 		break
 	case _csc:
 		cmd := pkt.ReadUint32()
@@ -206,12 +204,12 @@ func (s *Session) read(data []byte) {
 			s.emitMessage(cmd, nil)
 			return
 		}
-		msg := proto.GetMsg(cmd)
+		msg := s.service.engine.GetNetWork().GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("The registered ID was not found [%d]", cmd)
 			return
 		}
-		if err := pkt.ReadMessage(msg); err != nil {
+		if err := pkt.ReadMessage(msg, s.service.engine.GetCodec()); err != nil {
 			xlog.Error("run net event byte2msg mid:[%d] err:[%v]", cmd, err)
 			return
 		}
@@ -225,12 +223,12 @@ func (s *Session) read(data []byte) {
 			go s.emitRpc(cmd, rpcID, nil)
 			return
 		}
-		msg := proto.GetMsg(cmd)
+		msg := s.service.engine.GetNetWork().GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("The registered ID was not found [%d]", cmd)
 			return
 		}
-		if err := pkt.ReadMessage(msg); err != nil {
+		if err := pkt.ReadMessage(msg, s.service.engine.GetCodec()); err != nil {
 			xlog.Error("run net event byte2msg mid:[%d] err:[%v]", cmd, err)
 			return
 		}
@@ -245,7 +243,7 @@ func (s *Session) read(data []byte) {
 				dr.Run(false)
 				return
 			}
-			if err := pkt.ReadMessage(dr.Response); err != nil {
+			if err := pkt.ReadMessage(dr.Response, s.service.engine.GetCodec()); err != nil {
 				xlog.Error("run net event byte2msg err:[%v]", err)
 				dr.Run(false)
 				return
@@ -257,8 +255,26 @@ func (s *Session) read(data []byte) {
 
 }
 
+//callEvt 触发
+func (s *Session) callEvt(event uint32, params ...interface{}) (interface{}, error) {
+	values, err := s.service.engine.GetEvent().Call(event, params...)
+	if err != nil {
+		return nil, err
+	}
+	switch len(values) {
+	case 0:
+		return nil, nil
+	case 1:
+		return values[0].Interface(), nil
+	case 2:
+		return values[0].Interface(), (values[1].Interface()).(error)
+	default:
+		return nil, consts.CallNetError
+	}
+}
+
 func (s *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
-	if r, err := event.CallNet(cmd, s.ctx, msg); err == nil {
+	if r, err := s.callEvt(cmd, s.ctx, msg); err == nil {
 		s.Reply(r, rpc)
 	} else {
 		xlog.Error("emitRpc err:[%v] cmd:[%d]", err, cmd)
@@ -267,7 +283,7 @@ func (s *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
 
 //emitMessage 派发网络消息
 func (s *Session) emitMessage(cmd uint32, msg interface{}) {
-	if _, err := event.CallNet(cmd, s.ctx, s, msg); err != nil {
+	if _, err := s.callEvt(cmd, s.ctx, s, msg); err != nil {
 		xlog.Error("emitMessage err:[%v] cmd:[%d]", err, cmd)
 	}
 }
