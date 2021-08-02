@@ -160,7 +160,7 @@ func (s *Session) onHeartbeat() {
 	id := s.id
 	for s.id != "" && s.id == id {
 		s.sendHeartbeat(_hbs) //发送空的心跳包
-		time.Sleep(app.Heartbeat)
+		time.Sleep(app.GetAppCfg().Network.Heartbeat)
 	}
 }
 func (s *Session) sendHeartbeat(t byte) {
@@ -189,7 +189,7 @@ func (s *Session) read(data []byte) {
 		actorID := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
 		if msgLen == 0 {
-			xlog.Error("actor msglen==0")
+			xlog.Error("actor 数据长度为0")
 			return
 		}
 		msgData := pkt.ReadBytes(msgLen)
@@ -206,11 +206,11 @@ func (s *Session) read(data []byte) {
 		}
 		msg := s.service.engine.GetNetWork().GetRegProtoMsg(cmd)
 		if msg == nil {
-			xlog.Error("The registered ID was not found [%d]", cmd)
+			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
 		}
 		if err := pkt.ReadMessage(msg, s.service.engine.GetCodec()); err != nil {
-			xlog.Error("run net event byte2msg mid:[%d] err:[%v]", cmd, err)
+			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
 		go s.emitMessage(cmd, msg)
@@ -225,11 +225,11 @@ func (s *Session) read(data []byte) {
 		}
 		msg := s.service.engine.GetNetWork().GetRegProtoMsg(cmd)
 		if msg == nil {
-			xlog.Error("The registered ID was not found [%d]", cmd)
+			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
 		}
 		if err := pkt.ReadMessage(msg, s.service.engine.GetCodec()); err != nil {
-			xlog.Error("run net event byte2msg mid:[%d] err:[%v]", cmd, err)
+			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
 		go s.emitRpc(cmd, rpcID, msg)
@@ -244,7 +244,7 @@ func (s *Session) read(data []byte) {
 				return
 			}
 			if err := pkt.ReadMessage(dr.Response, s.service.engine.GetCodec()); err != nil {
-				xlog.Error("run net event byte2msg err:[%v]", err)
+				xlog.Error("解析网络包体失败 err:[%v]", err)
 				dr.Run(false)
 				return
 			}
@@ -277,20 +277,20 @@ func (s *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
 	if r, err := s.callEvt(cmd, s.ctx, msg); err == nil {
 		s.Reply(r, rpc)
 	} else {
-		xlog.Error("emitRpc err:[%v] cmd:[%d]", err, cmd)
+		xlog.Error("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }
 
 //emitMessage 派发网络消息
 func (s *Session) emitMessage(cmd uint32, msg interface{}) {
 	if _, err := s.callEvt(cmd, s.ctx, s, msg); err != nil {
-		xlog.Error("emitMessage err:[%v] cmd:[%d]", err, cmd)
+		xlog.Error("发送消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }
 
 //OnClose 关闭
 func (s *Session) close() {
-	xlog.Info("session close id:[%s] remote:[%s] local:[%s] tag:[%s]", s.id, s.RemoteAddr(), s.LocalAddr(), s.GetTagName())
+	xlog.Info("session 断开 id:[%s] remote:[%s] local:[%s] tag:[%s]", s.id, s.RemoteAddr(), s.LocalAddr(), s.GetTagName())
 	s.ctxCancelFunc()
 	s.service.delSession(s)
 	s.reset()

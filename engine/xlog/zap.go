@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/conf"
+	"github.com/xhaoh94/gox/app"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -40,7 +40,7 @@ func parseLevel(lvl string) zapcore.Level {
 //创建分割日志的writer
 func newHook() *lumberjack.Logger {
 
-	path := conf.AppCfg.Log.LogPath
+	path := app.GetAppCfg().Log.LogPath
 	if err := os.MkdirAll(path, 0766); err != nil {
 		panic(err)
 	}
@@ -49,9 +49,9 @@ func newHook() *lumberjack.Logger {
 
 	return &lumberjack.Logger{
 		Filename:   filepath.Join(path, module),
-		MaxSize:    conf.AppCfg.Log.LogMaxSize,
-		MaxAge:     conf.AppCfg.Log.LogMaxAge,
-		MaxBackups: conf.AppCfg.Log.MaxBackups,
+		MaxSize:    app.GetAppCfg().Log.LogMaxSize,
+		MaxAge:     app.GetAppCfg().Log.LogMaxAge,
+		MaxBackups: app.GetAppCfg().Log.MaxBackups,
 		LocalTime:  true,
 		Compress:   false,
 	}
@@ -81,17 +81,17 @@ func newZapLogger() *zap.Logger {
 	}
 
 	atomicLevel := zap.NewAtomicLevel()
-	atomicLevel.SetLevel(parseLevel(conf.AppCfg.Log.LogLevel))
+	atomicLevel.SetLevel(parseLevel(app.GetAppCfg().Log.LogLevel))
 
 	writers := []zapcore.WriteSyncer{zapcore.AddSync(os.Stdout)}
-	if conf.AppCfg.Log.IsWriteLog {
+	if app.GetAppCfg().Log.IsWriteLog {
 		hook := newHook()
 		writers = append(writers, zapcore.AddSync(hook))
 	}
 
 	core := zapcore.NewCore(zapcore.NewJSONEncoder(encCfg), zapcore.NewMultiWriteSyncer(writers...), atomicLevel)
-	ops := []zap.Option{zap.AddCaller(), zap.AddStacktrace(parseLevel(conf.AppCfg.Log.Stacktrace)), zap.AddCallerSkip(1)}
-	if conf.AppCfg.Log.Development {
+	ops := []zap.Option{zap.AddCaller(), zap.AddStacktrace(parseLevel(app.GetAppCfg().Log.Stacktrace)), zap.AddCallerSkip(2)}
+	if app.GetAppCfg().Log.Development {
 		ops = append(ops, zap.Development())
 	}
 	// // 设置初始化字段

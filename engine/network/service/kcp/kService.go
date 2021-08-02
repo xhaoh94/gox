@@ -1,6 +1,7 @@
 package kcp
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -16,8 +17,8 @@ type KService struct {
 	listen *kcp.Listener
 }
 
-func (ks *KService) Init(addr string, engine types.IEngine) {
-	ks.Service.Init(addr, engine)
+func (ks *KService) Init(addr string, engine types.IEngine, ctx context.Context) {
+	ks.Service.Init(addr, engine, ctx)
 	ks.Service.ConnectChannelFunc = ks.connectChannel
 }
 
@@ -28,12 +29,12 @@ func (ks *KService) Start() {
 		var err error
 		ks.listen, err = kcp.ListenWithOptions(ks.GetAddr(), nil, 10, 3)
 		if err != nil {
-			xlog.Error("#kcp.listen failed! addr:[%s] err:[%v]", ks.GetAddr(), err.Error())
+			xlog.Error("kcp 监听失败 addr:[%s] err:[%v]", ks.GetAddr(), err.Error())
 			ks.Stop()
 			return
 		}
 	}
-	xlog.Info("kcp service Waiting for clients. -> [%s]", ks.GetAddr())
+	xlog.Info("kcp[%s] 等待客户端连接...", ks.GetAddr())
 	go ks.accept()
 }
 
@@ -51,10 +52,10 @@ func (ks *KService) accept() {
 				time.Sleep(time.Millisecond)
 				continue
 			}
-			xlog.Error("#kcp.accept failed:[%v]", err.Error())
+			xlog.Error("kcp 收受失败[%v]", err.Error())
 			break
 		}
-		xlog.Info("kcp connect success:[%s]", conn.RemoteAddr().String())
+		xlog.Info("kcp 连接成功[%s]", conn.RemoteAddr().String())
 		go ks.connection(conn)
 	}
 }
@@ -62,8 +63,8 @@ func (ks *KService) connection(conn *kcp.UDPSession) {
 	kChannel := ks.addChannel(conn)
 	ks.OnAccept(kChannel)
 }
-func (ks *KService) addChannel(conn *kcp.UDPSession) *UChannel {
-	kChannel := channelPool.Get().(*UChannel)
+func (ks *KService) addChannel(conn *kcp.UDPSession) *KChannel {
+	kChannel := channelPool.Get().(*KChannel)
 	kChannel.init(conn)
 	return kChannel
 }
@@ -76,11 +77,11 @@ func (ks *KService) connectChannel(addr string) types.IChannel {
 		if err == nil {
 			return ks.addChannel(conn)
 		}
-		if connCount > app.ReConnectMax {
-			xlog.Info("kcp create channel fail addr:[%s] err:[%v]", addr, err)
+		if connCount > app.GetAppCfg().Network.ReConnectMax {
+			xlog.Info("kcp 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		time.Sleep(app.ReConnectInterval)
+		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
 		connCount++
 		continue
 	}

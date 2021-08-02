@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/xhaoh94/gox/engine/network/actor"
@@ -16,6 +17,9 @@ type (
 		outside  types.IService
 		interior types.IService
 
+		context   context.Context
+		contextFn context.CancelFunc
+
 		grpcServer *rpc.GRpcServer
 		atr        *actor.Actor
 		serviceReg *ServiceReg
@@ -23,12 +27,13 @@ type (
 	}
 )
 
-func New(engine types.IEngine) *NetWork {
+func New(engine types.IEngine, ctx context.Context) *NetWork {
 	nw := new(NetWork)
 	nw.engine = engine
 	nw.atr = actor.New(engine)
 	nw.serviceReg = newServiceReg(nw)
 	nw.msgid2type = make(map[uint32]reflect.Type)
+	nw.context, nw.contextFn = context.WithCancel(ctx)
 	return nw
 }
 
@@ -79,7 +84,7 @@ func (nw *NetWork) GetRpcAddr() string {
 //RegisterType 注册协议消息体类型
 func (nw *NetWork) RegisterType(msgid uint32, protoType reflect.Type) {
 	if _, ok := nw.msgid2type[msgid]; ok {
-		xlog.Error("message %s is already registered", msgid)
+		xlog.Error("重复注册协议 msgid->[%s]", msgid)
 		return
 	}
 	nw.msgid2type[msgid] = protoType
@@ -97,7 +102,7 @@ func (nw *NetWork) GetRegProtoMsg(msgid uint32) interface{} {
 func (nw *NetWork) Start() {
 
 	if nw.interior == nil {
-		xlog.Fatal("service is nil")
+		xlog.Fatal("没有内部网络通信")
 		return
 	}
 	nw.interior.Start()
@@ -107,12 +112,13 @@ func (nw *NetWork) Start() {
 	if nw.grpcServer != nil {
 		nw.grpcServer.Start()
 	}
-	nw.atr.Start()
-	nw.serviceReg.Start()
+	nw.serviceReg.Start(nw.context)
+	nw.atr.Start(nw.context)
 }
 func (nw *NetWork) Stop() {
-	nw.serviceReg.Stop()
+	nw.contextFn()
 	nw.atr.Stop()
+	nw.serviceReg.Stop()
 	if nw.outside != nil {
 		nw.outside.Stop()
 	}
@@ -125,13 +131,13 @@ func (nw *NetWork) Stop() {
 //SetOutsideService 设置外部服务类型
 func (nw *NetWork) SetOutsideService(ser types.IService, addr string) {
 	nw.outside = ser
-	nw.outside.Init(addr, nw.engine)
+	nw.outside.Init(addr, nw.engine, nw.context)
 }
 
 //SetInteriorService 设置内部服务类型
 func (nw *NetWork) SetInteriorService(ser types.IService, addr string) {
 	nw.interior = ser
-	nw.interior.Init(addr, nw.engine)
+	nw.interior.Init(addr, nw.engine, nw.context)
 }
 
 //SetGrpcAddr 设置grpc服务

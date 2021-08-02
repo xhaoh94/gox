@@ -1,25 +1,21 @@
-package conf
+package app
 
 import (
-	"encoding/binary"
 	"log"
 	"time"
-
-	"github.com/xhaoh94/gox/app"
 
 	"github.com/go-ini/ini"
 )
 
 type (
-	AppConf struct {
-		Version   string        `ini:"version"`
-		Log       LogConf       `ini:"log"`
-		MongoDb   MongoDbConf   `ini:"mongodb"`
-		Network   NetworkConf   `ini:"network"`
-		WebSocket WebSocketConf `ini:"webSocket"`
-		Etcd      EtcdConf      `ini:"etcd"`
+	appConf struct {
+		Log       logConf       `ini:"log"`
+		MongoDb   mongoDbConf   `ini:"mongodb"`
+		Network   networkConf   `ini:"network"`
+		WebSocket webSocketConf `ini:"webSocket"`
+		Etcd      etcdConf      `ini:"etcd"`
 	}
-	LogConf struct {
+	logConf struct {
 		LogPath     string `ini:"log_path"`
 		IsWriteLog  bool   `ini:"log_write_open"`
 		Stacktrace  string `ini:"log_stacktrace"`
@@ -29,13 +25,13 @@ type (
 		LogMaxAge   int    `ini:"log_max_age"`
 		Development bool   `ini:"log_development"`
 	}
-	MongoDbConf struct {
+	mongoDbConf struct {
 		Url      string `ini:"url"`
 		User     string `ini:"user"`
 		Password string `ini:"password"`
 		Database string `ini:"database"`
 	}
-	NetworkConf struct {
+	networkConf struct {
 		//SendMsgMaxLen 发送最大长度(websocket的话不能超过126) 默认0 不分片
 		SendMsgMaxLen int `ini:"send_msg_max_len"`
 		//ReadMsgMaxLen 包体最大长度
@@ -52,43 +48,68 @@ type (
 		ReadTimeout time.Duration `ini:"read_timeout"`
 		NetEndian   string        `ini:"net_endian"`
 	}
-	WebSocketConf struct {
+	webSocketConf struct {
 		WebSocketMessageType int    `ini:"websocket_message_type"`
 		WebSocketPattern     string `ini:"websocket_pattern"`
 	}
-	EtcdConf struct {
+	etcdConf struct {
 		EtcdList      []string      `ini:"etcd_list"`
 		EtcdTimeout   time.Duration `ini:"etcd_timeout"`
 		EtcdLeaseTime int64         `ini:"etcd_lease_time"`
 	}
 )
 
-var AppCfg *AppConf
+var appCfg *appConf
+
+func initCfg() {
+	appCfg = &appConf{
+		Log: logConf{
+			LogPath:     "./log/",
+			IsWriteLog:  false,
+			Stacktrace:  "error",
+			LogLevel:    "debug",
+			LogMaxSize:  128,
+			MaxBackups:  30,
+			LogMaxAge:   7,
+			Development: true,
+		},
+		MongoDb: mongoDbConf{
+			Url:      "127.0.0.1:27017",
+			User:     "",
+			Password: "",
+			Database: "gox",
+		},
+		Network: networkConf{
+			SendMsgMaxLen:     0,
+			ReadMsgMaxLen:     2048,
+			ReConnectInterval: 3 * time.Second,
+			Heartbeat:         30 * time.Second,
+			ConnectTimeout:    3 * time.Second,
+			ReadTimeout:       35 * time.Second,
+			NetEndian:         "LittleEndian",
+		},
+		WebSocket: webSocketConf{
+			WebSocketMessageType: 2,
+			WebSocketPattern:     "ws",
+		},
+		Etcd: etcdConf{
+			EtcdList:      []string{"127.0.0.1:2379"},
+			EtcdTimeout:   5 * time.Second,
+			EtcdLeaseTime: 5,
+		},
+	}
+}
 
 func LoadAppConfig(appConfPath string) {
-	AppCfg = new(AppConf)
-	if err := ini.MapTo(AppCfg, appConfPath); err != nil {
+	appCfg = new(appConf)
+	if err := ini.MapTo(appCfg, appConfPath); err != nil {
 		log.Printf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
 		return
 	}
-	switch AppCfg.Network.NetEndian {
-	case "LittleEndian":
-		app.NetEndian = binary.LittleEndian
-		break
-	case "BigEndian":
-		app.NetEndian = binary.BigEndian
-		break
-	}
-	app.WebSocketMessageType = AppCfg.WebSocket.WebSocketMessageType
-	app.WebSocketPattern = AppCfg.WebSocket.WebSocketPattern
-	app.SendMsgMaxLen = AppCfg.Network.SendMsgMaxLen
-	app.ReadMsgMaxLen = AppCfg.Network.ReadMsgMaxLen
-	app.ReConnectInterval = AppCfg.Network.ReConnectInterval * time.Second
-	app.ReConnectMax = AppCfg.Network.ReConnectMax
-	app.Heartbeat = AppCfg.Network.Heartbeat * time.Second
-	app.ConnectTimeout = AppCfg.Network.ConnectTimeout * time.Second
-	app.ReadTimeout = AppCfg.Network.ReadTimeout * time.Second
-	app.EtcdList = AppCfg.Etcd.EtcdList
-	app.EtcdTimeout = AppCfg.Etcd.EtcdTimeout * time.Second
-	app.EtcdLeaseTime = AppCfg.Etcd.EtcdLeaseTime
+
+	appCfg.Network.ReConnectInterval *= time.Second
+	appCfg.Network.Heartbeat *= time.Second
+	appCfg.Network.ConnectTimeout *= time.Second
+	appCfg.Network.ReadTimeout *= time.Second
+	appCfg.Etcd.EtcdTimeout *= time.Second
 }

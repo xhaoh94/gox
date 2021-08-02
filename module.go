@@ -1,4 +1,4 @@
-package module
+package gox
 
 import (
 	"reflect"
@@ -80,25 +80,25 @@ func (m *Module) GetGrpcServer() *grpc.Server {
 }
 
 //Register 注册协议对应消息体和回调函数
-func (m *Module) Register(msgid uint32, fn interface{}) {
+func (m *Module) Register(cmd uint32, fn interface{}) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	switch tFun.NumIn() {
 	case 3:
 		in := tFun.In(2)
 		if in.Kind() != reflect.Ptr {
-			xlog.Error("Register func in != ptr ")
+			xlog.Error("注册协议回调函数参数结构体需要是指针类型 cmd[%d]", cmd)
 			return
 		}
-		m.engine.GetNetWork().RegisterType(msgid, in)
+		m.engine.GetNetWork().RegisterType(cmd, in)
 		break
 	case 2:
 		break
 	default:
-		xlog.Error("Register func parame count fail")
+		xlog.Error("注册协议回调函数参数有误")
 		return
 	}
-	m.engine.GetEvent().Bind(msgid, fn)
+	m.engine.GetEvent().Bind(cmd, fn)
 }
 
 //RegisterRPC 注册rpc
@@ -115,20 +115,20 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 		fn = args[1]
 		break
 	default:
-		xlog.Error("RegisterRPC parame count fail")
+		xlog.Error("注册协议回调函数参数有误")
 		return
 	}
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	out := tFun.Out(0)
 	if out.Kind() != reflect.Ptr {
-		xlog.Error("RegisterRPC func out != ptr ")
+		xlog.Error("注册prc回调函数参数结构体需要是指针类型")
 		return
 	}
 	if tFun.NumIn() == 2 {
 		in := tFun.In(1)
 		if in.Kind() != reflect.Ptr {
-			xlog.Error("RegisterRPC func in != ptr ")
+			xlog.Error("注册prc回调函数参数结构体需要是指针类型")
 			return
 		}
 		if msgid == 0 {

@@ -41,8 +41,8 @@ func init() {
 }
 
 //Init 服务初始化
-func (ser *Service) Init(addr string, engine types.IEngine) {
-	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(context.TODO())
+func (ser *Service) Init(addr string, engine types.IEngine, ctx context.Context) {
+	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(ctx)
 	ser.addr = addr
 	ser.engine = engine
 	ser.idToSession = make(map[string]*Session)
@@ -88,7 +88,7 @@ func (ser *Service) GetSessionByAddr(addr string) types.ISession {
 	}
 	session := ser.onConnect(addr)
 	if session == nil {
-		xlog.Error("create session fail addr:[%s]", addr)
+		xlog.Error("创建session失败 addr:[%s]", addr)
 		return nil
 	}
 	ser.idMutex.Lock()

@@ -1,11 +1,11 @@
 package gate
 
-import "github.com/xhaoh94/gox/engine/module"
+import "github.com/xhaoh94/gox"
 
 type (
 	//GateModule 主模块
 	GateModule struct {
-		module.Module
+		gox.Module
 	}
 )
 

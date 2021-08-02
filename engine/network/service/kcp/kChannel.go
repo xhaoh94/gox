@@ -15,80 +15,81 @@ var channelPool *sync.Pool
 func init() {
 	channelPool = &sync.Pool{
 		New: func() interface{} {
-			return &UChannel{}
+			return &KChannel{}
 		},
 	}
 }
 
 type (
-	//UChannel TCP信道
-	UChannel struct {
+	//KChannel TCP信道
+	KChannel struct {
 		service.Channel
 		connGuard sync.RWMutex
 		conn      *kcp.UDPSession
 	}
 )
 
-func (t *UChannel) init(conn *kcp.UDPSession) {
-	t.conn = conn
-	t.Init(t.write, t.Conn().RemoteAddr().String(), t.Conn().LocalAddr().String())
+func (k *KChannel) init(conn *kcp.UDPSession) {
+	k.conn = conn
+	k.Init(k.write, k.Conn().RemoteAddr().String(), k.Conn().LocalAddr().String())
 }
 
 //Conn 获取通信体
-func (t *UChannel) Conn() *kcp.UDPSession {
-	t.connGuard.RLock()
-	defer t.connGuard.RUnlock()
-	return t.conn
+func (k *KChannel) Conn() *kcp.UDPSession {
+	k.connGuard.RLock()
+	defer k.connGuard.RUnlock()
+	return k.conn
 }
 
 //Start 开启异步接收数据
-func (t *UChannel) Start() {
-	t.Wg.Add(1)
+func (k *KChannel) Start() {
+	k.Wg.Add(1)
 	go func() {
-		defer t.OnStop()
-		t.Wg.Wait()
+		defer k.OnStop()
+		k.Wg.Wait()
 	}()
-	t.IsRun = true
-	go t.recvAsync()
+	k.IsRun = true
+	go k.recvAsync()
 }
-func (t *UChannel) recvAsync() {
-	defer t.Wg.Done()
-	if app.ReadTimeout > 0 {
-		if err := t.Conn().SetReadDeadline(time.Now().Add(app.ReadTimeout)); err != nil {
-			xlog.Info("setReadDeadline failed:[%v]", err)
-			t.Stop()
+func (k *KChannel) recvAsync() {
+	defer k.Wg.Done()
+	readTimeout := app.GetAppCfg().Network.ReadTimeout
+	if readTimeout > 0 {
+		if err := k.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
+			xlog.Info("kpc addr[%s] 接受数据超时[%v]", k.RemoteAddr(), err)
+			k.Stop()
 		}
 	}
-	for t.Conn() != nil && t.IsRun {
-		t.Read(t.Conn(), t.Stop)
-		if t.IsRun && app.ReadTimeout > 0 {
-			if err := t.Conn().SetReadDeadline(time.Now().Add(app.ReadTimeout)); err != nil {
-				xlog.Info("setReadDeadline failed:[%v]", err)
-				t.Stop()
+	for k.Conn() != nil && k.IsRun {
+		k.Read(k.Conn(), k.Stop)
+		if k.IsRun && readTimeout > 0 {
+			if err := k.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
+				xlog.Info("kpc addr[%s] 接受数据超时[%v]", k.RemoteAddr(), err)
+				k.Stop()
 			}
 		}
 	}
 }
 
-func (t *UChannel) write(buf []byte) {
-	_, err := t.Conn().Write(buf)
+func (k *KChannel) write(buf []byte) {
+	_, err := k.Conn().Write(buf)
 	if err != nil {
-		xlog.Error(" tcp channel write err: [%v]", err)
+		xlog.Error("kcp addr[%s]信道写入失败: [%v]", k.RemoteAddr(), err)
 	}
 }
 
 //Stop 停止信道
-func (t *UChannel) Stop() {
-	if !t.IsRun {
+func (k *KChannel) Stop() {
+	if !k.IsRun {
 		return
 	}
-	t.Conn().Close()
-	t.IsRun = false
+	k.Conn().Close()
+	k.IsRun = false
 }
 
 //OnStop 关闭
-func (t *UChannel) OnStop() {
-	t.Channel.OnStop()
-	t.conn = nil
-	channelPool.Put(t)
+func (k *KChannel) OnStop() {
+	k.Channel.OnStop()
+	k.conn = nil
+	channelPool.Put(k)
 }

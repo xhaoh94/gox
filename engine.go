@@ -1,8 +1,9 @@
 package gox
 
 import (
-	"github.com/xhaoh94/gox/engine/conf"
-	"github.com/xhaoh94/gox/engine/event"
+	"context"
+
+	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -16,27 +17,30 @@ type (
 		SetInteriorService(ser types.IService, addr string)
 		SetGrpcAddr(addr string)
 		SetCodec(c types.ICodec)
-		SetModule(m types.IModule)
 	}
 	Engine struct {
 		sid     string
 		stype   string
 		version string
 
-		mol   types.IModule
-		codec types.ICodec
-		event types.IEvent
-		nw    *network.NetWork
+		context   context.Context
+		contextFn context.CancelFunc
+		mol       types.IModule
+		codec     types.ICodec
+		event     types.IEvent
+		nw        *network.NetWork
 	}
 )
 
-func NewEngine(sid string, sType string, version string) IEngine {
+func NewEngine(sid string, sType string, version string, m types.IModule) IEngine {
 	e := new(Engine)
 	e.sid = sid
 	e.stype = sType
 	e.version = version
-	e.nw = network.New(e)
-	e.event = event.New()
+	e.event = NewEvent()
+	e.context, e.contextFn = context.WithCancel(context.Background())
+	e.nw = network.New(e, e.context)
+	e.mol = m
 	return e
 }
 
@@ -64,21 +68,23 @@ func (engine *Engine) GetServiceVersion() string {
 
 //Start 启动
 func (engine *Engine) Start(appConfPath string) {
-	conf.LoadAppConfig(appConfPath)
+	app.LoadAppConfig(appConfPath)
 	xlog.Init()
-	xlog.Info("server start. sid -> [%s]", engine.sid)
-	xlog.Info("server type -> [%s]", engine.stype)
-	xlog.Info("server version -> [%s]", engine.version)
+	xlog.Info("服务启动[%s]", engine.sid)
+	xlog.Info("服务类型[%s]", engine.stype)
+	xlog.Info("服务版本[%s]", engine.version)
 	engine.nw.Start()
 	engine.mol.Start(engine.mol, engine)
 	engine.event.Call("_start_engine_ok_")
+	xlog.Info("服务启动完毕")
 }
 
 //Shutdown 关闭
 func (engine *Engine) Shutdown() {
+	engine.contextFn()
 	engine.mol.Destroy(engine.mol)
 	engine.nw.Stop()
-	xlog.Info("server exit. sid -> [%s]", engine.sid)
+	xlog.Info("服务退出[%s]", engine.sid)
 	xlog.Destroy()
 }
 
@@ -104,9 +110,9 @@ func (engine *Engine) SetCodec(c types.ICodec) {
 	engine.codec = c
 }
 
-//SetModule 设置初始模块
-func (engine *Engine) SetModule(m types.IModule) {
-	engine.mol = m
-}
+// //SetModule 设置初始模块
+// func (engine *Engine) SetModule(m types.IModule) {
+// 	engine.mol = m
+// }
 
 ////////////////////////////////////////////////////////////

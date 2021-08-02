@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -16,8 +17,8 @@ type TService struct {
 	listen net.Listener
 }
 
-func (ts *TService) Init(addr string, engine types.IEngine) {
-	ts.Service.Init(addr, engine)
+func (ts *TService) Init(addr string, engine types.IEngine, ctx context.Context) {
+	ts.Service.Init(addr, engine, ctx)
 	ts.Service.ConnectChannelFunc = ts.connectChannel
 }
 
@@ -28,12 +29,12 @@ func (ts *TService) Start() {
 		var err error
 		ts.listen, err = net.Listen("tcp", ts.GetAddr())
 		if err != nil {
-			xlog.Error("#tcp.listen failed! addr:[%s] err:[%v]", ts.GetAddr(), err.Error())
+			xlog.Error("tcp 监听失败 addr:[%s] err:[%v]", ts.GetAddr(), err.Error())
 			ts.Stop()
 			return
 		}
 	}
-	xlog.Info("tcp service Waiting for clients. -> [%s]", ts.GetAddr())
+	xlog.Info("tcp[%s] 等待客户端连接...", ts.GetAddr())
 	go ts.accept()
 }
 func (ts *TService) accept() {
@@ -50,10 +51,10 @@ func (ts *TService) accept() {
 				time.Sleep(time.Millisecond)
 				continue
 			}
-			xlog.Error("#tcp.accept failed:[%v]", err.Error())
+			xlog.Error("tcp 收受失败[%v]", err.Error())
 			break
 		}
-		xlog.Info("tcp connect success:[%s]", conn.RemoteAddr().String())
+		xlog.Info("tcp 连接成功[%s]", conn.RemoteAddr().String())
 		go ts.connection(&conn)
 	}
 }
@@ -71,15 +72,15 @@ func (ts *TService) addChannel(conn *net.Conn) *TChannel {
 func (ts *TService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
-		conn, err := net.DialTimeout("tcp", addr, app.ConnectTimeout)
+		conn, err := net.DialTimeout("tcp", addr, app.GetAppCfg().Network.ConnectTimeout)
 		if err == nil {
 			return ts.addChannel(&conn)
 		}
-		if connCount > app.ReConnectMax {
-			xlog.Info("tcp create channel fail addr:[%s] err:[%v]", addr, err)
+		if connCount > app.GetAppCfg().Network.ReConnectMax {
+			xlog.Info("tcp 创建通信信道 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		time.Sleep(app.ReConnectInterval)
+		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
 		connCount++
 		continue
 	}

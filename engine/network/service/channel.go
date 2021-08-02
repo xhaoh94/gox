@@ -41,12 +41,13 @@ func (c *Channel) Send(data []byte) {
 	if !c.IsRun {
 		return
 	}
-	if app.SendMsgMaxLen > 0 { //分片发送
+	sendMax := app.GetAppCfg().Network.SendMsgMaxLen
+	if sendMax > 0 { //分片发送
 		DLen := len(data)
 		pos := 0
 		var endPos int
 		for c.IsRun && pos < DLen {
-			endPos = pos + app.SendMsgMaxLen
+			endPos = pos + sendMax
 			if DLen < endPos {
 				endPos = DLen
 			}
@@ -120,13 +121,13 @@ func (c *Channel) Read(r io.Reader, stopFunc func()) {
 	}
 	msgLen := codec.BytesToUint16(header)
 	if msgLen == 0 {
-		xlog.Error("read msgLen=0 local:[%s] remote:[%s]", c.localAddr, c.remoteAddr)
+		xlog.Error("读取到空的网络包体 local:[%s] remote:[%s]", c.localAddr, c.remoteAddr)
 		stopFunc() //空数据
 		return
 	}
 
-	if int(msgLen) > app.ReadMsgMaxLen {
-		xlog.Error("read msg size exceed local:[%s] remote:[%s]", c.localAddr, c.remoteAddr)
+	if int(msgLen) > app.GetAppCfg().Network.ReadMsgMaxLen {
+		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", c.localAddr, c.remoteAddr)
 		stopFunc() //超过读取最大限制
 		return
 	}

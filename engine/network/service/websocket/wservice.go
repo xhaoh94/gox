@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"time"
@@ -21,8 +22,8 @@ type WService struct {
 	server   *http.Server
 }
 
-func (ws *WService) Init(addr string, engine types.IEngine) {
-	ws.Service.Init(addr, engine)
+func (ws *WService) Init(addr string, engine types.IEngine, ctx context.Context) {
+	ws.Service.Init(addr, engine, ctx)
 	ws.Service.ConnectChannelFunc = ws.connectChannel
 }
 
@@ -30,14 +31,14 @@ func (ws *WService) Init(addr string, engine types.IEngine) {
 func (ws *WService) Start() {
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/"+app.WebSocketPattern, ws.wsPage)
+	mux.HandleFunc("/"+app.GetAppCfg().WebSocket.WebSocketPattern, ws.wsPage)
 	ws.server = &http.Server{Addr: ws.GetAddr(), Handler: mux}
 	ws.upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
-	xlog.Info("websocket service Waiting for clients. -> [%s]", ws.GetAddr())
+	xlog.Info("websocket[%s] 等待客户端连接...", ws.GetAddr())
 	go ws.accept()
 }
 func (ws *WService) accept() {
@@ -48,9 +49,9 @@ func (ws *WService) accept() {
 	err := ws.server.ListenAndServe()
 	if err != nil {
 		if err == http.ErrServerClosed {
-			xlog.Info("websocket close")
+			xlog.Info("websocket 关闭")
 		} else {
-			xlog.Error("websocket ListenAndServe err: [%s]", err.Error())
+			xlog.Error("websocket 监听失败: [%s]", err.Error())
 		}
 	}
 }
@@ -76,18 +77,19 @@ func (ws *WService) addChannel(conn *websocket.Conn) *WChannel {
 //connectChannel 链接新信道
 func (ws *WService) connectChannel(addr string) types.IChannel {
 	var connCount int
+	pattern := app.GetAppCfg().WebSocket.WebSocketPattern
 	for {
-		u := url.URL{Scheme: app.WebSocketPattern, Host: addr, Path: "/" + app.WebSocketPattern}
+		u := url.URL{Scheme: pattern, Host: addr, Path: "/" + pattern}
 		var dialer *websocket.Dialer
 		conn, _, err := dialer.Dial(u.String(), nil)
 		if err == nil {
 			return ws.addChannel(conn)
 		}
-		if connCount > app.ReConnectMax {
-			xlog.Info("websocket create channel fail addr:[%s] err:[%v]", addr, err)
+		if connCount > app.GetAppCfg().Network.ReConnectMax {
+			xlog.Info("websocket 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		time.Sleep(app.ReConnectInterval)
+		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
 		connCount++
 		continue
 	}

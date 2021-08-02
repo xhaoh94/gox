@@ -31,14 +31,14 @@ type EtcdService struct {
 }
 
 func GetEtcdConf() clientv3.Config {
-	return clientv3.Config{Endpoints: app.EtcdList, DialTimeout: app.EtcdTimeout}
+	return clientv3.Config{Endpoints: app.GetAppCfg().Etcd.EtcdList, DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout}
 }
 
 //NewEtcdService 创建etcd
 func NewEtcdService(get getFn, put putFn, del delFn) (*EtcdService, error) {
 	conf := clientv3.Config{
-		Endpoints:   app.EtcdList,
-		DialTimeout: app.EtcdTimeout,
+		Endpoints:   app.GetAppCfg().Etcd.EtcdList,
+		DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout,
 	}
 	client, err := clientv3.New(conf)
 	if err != nil {
@@ -63,7 +63,7 @@ func NewEtcdService(get getFn, put putFn, del delFn) (*EtcdService, error) {
 func (es *EtcdService) setLease() error {
 	lease := clientv3.NewLease(es.client)
 	//设置租约时间
-	leaseResp, err := lease.Grant(context.TODO(), app.EtcdLeaseTime)
+	leaseResp, err := lease.Grant(context.TODO(), app.GetAppCfg().Etcd.EtcdLeaseTime)
 	if err != nil {
 		return err
 	}

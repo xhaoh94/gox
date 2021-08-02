@@ -1,7 +1,7 @@
 package mods
 
 import (
-	"github.com/xhaoh94/gox/engine/module"
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/game/mods/gate"
 	"github.com/xhaoh94/gox/game/mods/login"
 )
@@ -16,7 +16,7 @@ const (
 type (
 	//MainModule 主模块
 	MainModule struct {
-		module.Module
+		gox.Module
 	}
 )
 

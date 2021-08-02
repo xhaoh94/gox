@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"reflect"
 
 	"google.golang.org/grpc"
@@ -9,7 +10,7 @@ import (
 type (
 	//IService 服务器接口
 	IService interface {
-		Init(string, IEngine)
+		Init(string, IEngine, context.Context)
 		Start()
 		Stop()
 		GetAddr() string

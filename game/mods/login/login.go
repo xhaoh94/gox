@@ -3,7 +3,7 @@ package login
 import (
 	"context"
 
-	"github.com/xhaoh94/gox/engine/module"
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/game/netpack"
@@ -12,7 +12,7 @@ import (
 type (
 	//LoginModule 主模块
 	LoginModule struct {
-		module.Module
+		gox.Module
 	}
 )
 

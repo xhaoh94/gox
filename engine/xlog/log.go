@@ -2,20 +2,23 @@ package xlog
 
 import (
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
 )
 
-var log *ZapLog
+var zlog *ZapLog
 
 func Init() {
-	if log != nil {
+	if zlog != nil {
 		return
 	}
-	log = new()
+	zlog = new()
 }
 func Destroy() {
-	log.logger.Sync()
+	if zlog != nil {
+		zlog.logger.Sync()
+	}
 }
 
 func formatFileds(format string, args ...interface{}) (string, []zap.Field) {
@@ -27,31 +30,56 @@ func formatFileds(format string, args ...interface{}) (string, []zap.Field) {
 }
 
 func Debug(format string, args ...interface{}) {
-	s, f := formatFileds(format, args...)
-	log.logger.Debug(s, f...)
+	toLog("debug", format, args...)
 }
 
 func Info(format string, args ...interface{}) {
-	s, f := formatFileds(format, args...)
-	log.logger.Info(s, f...)
+	toLog("info", format, args...)
 }
 
 func Warn(format string, args ...interface{}) {
-	s, f := formatFileds(format, args...)
-	log.logger.Warn(s, f...)
+	toLog("warn", format, args...)
 }
 
 func Error(format string, args ...interface{}) {
-	s, f := formatFileds(format, args...)
-	log.logger.Error(s, f...)
+	toLog("error", format, args...)
 }
 
 func Panic(format string, args ...interface{}) {
-	s, f := formatFileds(format, args...)
-	log.logger.Panic(s, f...)
+	toLog("panic", format, args...)
 }
 
 func Fatal(format string, args ...interface{}) {
-	s, f := formatFileds(format, args...)
-	log.logger.Fatal(s, f...)
+	toLog("fatal", format, args...)
+}
+
+func toLog(level string, format string, args ...interface{}) {
+	if zlog != nil {
+		s, f := formatFileds(format, args...)
+		switch strings.ToLower(level) {
+		case "panic":
+			zlog.logger.Panic(s, f...)
+			break
+		case "fatal":
+			zlog.logger.Fatal(s, f...)
+			break
+		case "error":
+			zlog.logger.Error(s, f...)
+			break
+		case "warn":
+			zlog.logger.Warn(s, f...)
+			break
+		case "info":
+			zlog.logger.Info(s, f...)
+			break
+		case "debug":
+			zlog.logger.Debug(s, f...)
+			break
+		default:
+			zlog.logger.Debug(s, f...)
+			break
+		}
+	} else {
+		fmt.Printf(format, args...)
+	}
 }

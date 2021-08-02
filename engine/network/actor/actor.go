@@ -41,7 +41,7 @@ func (atr *Actor) Register(actorID uint32, sessionID string) {
 	actor := &actorReg{actorID: actorID, serviceID: atr.engine.GetServiceID(), sessionID: sessionID}
 	b, err := json.Marshal(actor)
 	if err != nil {
-		xlog.Error("RegisterActor Fail err[%v]", err)
+		xlog.Error("注册actor失败err:[%v]", err)
 		return
 	}
 	key := fmt.Sprintf(atr.actorPrefix+"/%d", actorID)
@@ -53,16 +53,16 @@ func (atr *Actor) Relay(actorID uint32, msgData []byte) {
 	actor, ok := atr.keyToActorReg[key]
 	atr.actorRegLock.Unlock()
 	if !ok {
-		xlog.Error("Actor not found")
+		xlog.Error("找不到对应的actor。id[%d]", actorID)
 		return
 	}
 	if actor.serviceID != atr.engine.GetServiceID() {
-		xlog.Error("Actor serviceID:[%s] Not Equal curServiceID:[%s]", actor.serviceID, atr.engine.GetServiceID())
+		xlog.Error("actor服务id[%s]与当前服务id[%s]不相同", actor.serviceID, atr.engine.GetServiceID())
 		return
 	}
 	session := atr.engine.GetNetWork().GetSessionById(actor.sessionID)
 	if session == nil {
-		xlog.Error("Actor session not found")
+		xlog.Error("actor没有找到session。id[%d]", actor.sessionID)
 		return
 	}
 	session.SendData(msgData)
@@ -73,17 +73,17 @@ func (atr *Actor) Send(actorID uint32, cmd uint32, msg interface{}) {
 	actor, ok := atr.keyToActorReg[key]
 	atr.actorRegLock.Unlock()
 	if !ok {
-		xlog.Error("Actor not found")
+		xlog.Error("找不到对应的actor。id[%d]", actorID)
 		return
 	}
 	conf := atr.engine.GetNetWork().GetServiceReg().GetServiceConfByID(actor.serviceID)
 	if conf == nil {
-		xlog.Error("Actor service not found AppID:[%s]", actor.serviceID)
+		xlog.Error("actor找不到服务 ServiceID:[%s]", actor.serviceID)
 		return
 	}
 	session := atr.engine.GetNetWork().GetSessionByAddr(conf.GetInteriorAddr())
 	if session == nil {
-		xlog.Error("Actor session not found")
+		xlog.Error("actor没有找到session。id[%d]", actor.sessionID)
 		return
 	}
 	session.Actor(actorID, cmd, msg)

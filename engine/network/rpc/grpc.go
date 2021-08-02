@@ -41,10 +41,10 @@ func (g *GRpcServer) Start() {
 		var err error
 		g.listen, err = net.Listen("tcp", g.rpcAddr)
 		if err != nil {
-			xlog.Fatal("failed to listen: %v", err)
+			xlog.Fatal("gprc 监听失败: %v", err)
 		}
 		g.server = grpc.NewServer()
-		xlog.Info("rpc service Waiting for clients. -> [%s]", g.rpcAddr)
+		xlog.Info("grpc[%s] 等待客户端连接...", g.rpcAddr)
 		g.engine.GetEvent().Bind("_start_engine_ok_", func() {
 			if g.listen != nil {
 				go g.server.Serve(g.listen)
@@ -76,7 +76,7 @@ func (g *GRpcServer) GetConnByAddr(addr string) *grpc.ClientConn {
 	var err error
 	conn, err = grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
-		xlog.Fatal("did not connect: %v", err)
+		xlog.Fatal("获取grpc客户端失败err:[%v]", err)
 	}
 	g.addr2Conn[addr] = conn
 	return conn

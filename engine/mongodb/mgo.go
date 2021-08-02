@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/xhaoh94/gox/engine/conf"
+	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/util"
 
@@ -20,10 +20,11 @@ var (
 //ApplyDefaultUrl 连接默认数据库 mongodb://127.0.0.1:27017
 func ApplyDefaultUrl() {
 	url := "mongodb://"
-	if conf.AppCfg.MongoDb.User != "" && conf.AppCfg.MongoDb.Password != "" {
-		url += conf.AppCfg.MongoDb.User + "@" + conf.AppCfg.MongoDb.Password + ":"
+	appCfg := app.GetAppCfg()
+	if appCfg.MongoDb.User != "" && appCfg.MongoDb.Password != "" {
+		url += appCfg.MongoDb.User + "@" + appCfg.MongoDb.Password + ":"
 	}
-	url += conf.AppCfg.MongoDb.Url
+	url += appCfg.MongoDb.Url
 	ApplyURI(url)
 }
 
@@ -35,14 +36,14 @@ func ApplyURI(url string) {
 	var err error
 	client, err = mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		xlog.Fatal("mongodb connect fail[%v]", err)
+		xlog.Fatal("mongodb 连接失败[%v]", err)
 	}
 	// 检查连接
 	err = client.Ping(context.TODO(), nil)
 	if err != nil {
-		xlog.Fatal("mongodb connect fail[%v]", err)
+		xlog.Fatal("mongodb 连接失败[%v]", err)
 	}
-	xlog.Info("Connected to MongoDB! -> [%s]", url)
+	xlog.Info("成功连接 MongoDB! -> [%s]", url)
 }
 
 //GetClient 获取mongo客户端
@@ -52,7 +53,7 @@ func GetClient() *mongo.Client {
 
 //GetDefaultDatabase 默认database
 func GetDefaultDatabase() *mongo.Database {
-	return client.Database(conf.AppCfg.MongoDb.Database)
+	return client.Database(app.GetAppCfg().MongoDb.Database)
 }
 
 //CountDocuments 查询数量

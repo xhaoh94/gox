@@ -88,7 +88,7 @@ func newServiceConfig(val []byte) (*ServiceConfig, error) {
 	return service, nil
 }
 
-func (reg *ServiceReg) Start() {
+func (reg *ServiceReg) Start(ctx context.Context) {
 	sc := &ServiceConfig{
 		ServiceID:    reg.nw.engine.GetServiceID(),
 		ServiceType:  reg.nw.engine.GetServiceType(),
@@ -97,13 +97,13 @@ func (reg *ServiceReg) Start() {
 		InteriorAddr: reg.nw.GetInteriorAddr(),
 		RPCAddr:      reg.nw.GetRpcAddr(),
 	}
-	timeoutCtx, timeoutCancelFunc := context.WithCancel(context.TODO())
+	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
 	go reg.checkTimeout(timeoutCtx)
 	var err error
 	reg.es, err = etcd.NewEtcdService(reg.get, reg.put, reg.del)
 	timeoutCancelFunc()
 	if err != nil {
-		xlog.Fatal("new etcd service err [%v]", err)
+		xlog.Fatal("服务注册失败 [%v]", err)
 		return
 	}
 	key := convertKey(sc)
@@ -122,8 +122,7 @@ func (reg *ServiceReg) checkTimeout(ctx context.Context) {
 		// 被取消，直接返回
 		return
 	case <-time.After(time.Second * 5):
-		xlog.Error("check if the etcd service is open")
-		xlog.Fatal("exit")
+		xlog.Fatal("请检查你的etcd服务是否有开启")
 	}
 }
 
@@ -168,12 +167,12 @@ func (reg *ServiceReg) onPut(kv *mvccpb.KeyValue) {
 	key := string(kv.Key)
 	service, err := newServiceConfig(kv.Value)
 	if err != nil {
-		xlog.Error("register service err [%v]", err)
+		xlog.Error("解析服务注册配置错误[%v]", err)
 		return
 	}
 	reg.idToService[service.ServiceID] = service
 	reg.keyToService[key] = service
-	xlog.Info("register service for id:[%s] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
+	xlog.Info("服务注册 id:[%s] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
 }
 func (reg *ServiceReg) put(kv *mvccpb.KeyValue) {
 	reg.lock.Lock()
@@ -189,6 +188,6 @@ func (reg *ServiceReg) del(kv *mvccpb.KeyValue) {
 	if service != nil {
 		delete(reg.keyToService, key)
 		delete(reg.idToService, service.ServiceID)
-		xlog.Info("unRegister service for id:[%s] type:[%s]", service.ServiceID, service.ServiceType)
+		xlog.Info("服务注销 id:[%s] type:[%s]", service.ServiceID, service.ServiceType)
 	}
 }

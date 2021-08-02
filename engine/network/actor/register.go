@@ -1,7 +1,9 @@
 package actor
 
 import (
+	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/xhaoh94/gox/engine/etcd"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -16,11 +18,15 @@ type actorReg struct {
 	sessionID string
 }
 
-func (atr *Actor) Start() {
+func (atr *Actor) Start(ctx context.Context) {
+
+	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
+	go atr.checkTimeout(timeoutCtx)
 	var err error
 	atr.actorEs, err = etcd.NewEtcdService(atr.get, atr.put, atr.del)
+	timeoutCancelFunc()
 	if err != nil {
-		xlog.Fatal("es etcd group err [%v]", err)
+		xlog.Fatal("actor注册失败 [%v]", err)
 		return
 	}
 	atr.actorEs.Get(atr.actorPrefix, true)
@@ -30,6 +36,16 @@ func (atr *Actor) Stop() {
 		atr.actorEs.Close()
 	}
 }
+func (atr *Actor) checkTimeout(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		// 被取消，直接返回
+		return
+	case <-time.After(time.Second * 5):
+		xlog.Fatal("请检查你的etcd服务是否有开启")
+	}
+}
+
 func newActorReg(val []byte) (*actorReg, error) {
 	actor := actorPool.Get().(*actorReg)
 	if err := json.Unmarshal(val, actor); err != nil {

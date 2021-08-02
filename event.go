@@ -1,7 +1,8 @@
-package event
+package gox
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 )
@@ -12,8 +13,8 @@ type Event struct {
 	mu      sync.Mutex
 }
 
-//New 创建事件实例
-func New() *Event {
+//NewEvent 创建事件实例
+func NewEvent() *Event {
 	return &Event{
 		funcMap: make(map[interface{}]reflect.Value),
 	}
@@ -23,11 +24,13 @@ func (evt *Event) Bind(event interface{}, task interface{}) error {
 	evt.mu.Lock()
 	defer evt.mu.Unlock()
 	if _, ok := evt.funcMap[event]; ok {
-		return errors.New("event already defined")
+		tip := fmt.Sprintf("重复监听事件 event:[%v]", event)
+		return errors.New(tip)
 	}
 	f := reflect.ValueOf(task)
 	if f.Type().Kind() != reflect.Func {
-		return errors.New("task is not a function")
+		tip := fmt.Sprintf("监听事件对象不是方法 event:[%v]", event)
+		return errors.New(tip)
 	}
 	evt.funcMap[event] = f
 	return nil
@@ -44,7 +47,8 @@ func (evt *Event) UnBind(event interface{}) error {
 	evt.mu.Lock()
 	defer evt.mu.Unlock()
 	if _, ok := evt.funcMap[event]; !ok {
-		return errors.New("event not defined")
+		tip := fmt.Sprintf("没有找到监听的事件 event:[%v]", event)
+		return errors.New(tip)
 	}
 	delete(evt.funcMap, event)
 	return nil
@@ -84,7 +88,8 @@ func (evt *Event) read(event interface{}, params ...interface{}) (reflect.Value,
 	task, ok := evt.funcMap[event]
 	evt.mu.Unlock()
 	if !ok {
-		return reflect.Value{}, nil, errors.New("no task found for event")
+		tip := fmt.Sprintf("没有找到监听的事件 event:[%v]", event)
+		return reflect.Value{}, nil, errors.New(tip)
 	}
 	numIn := task.Type().NumIn()
 	in := make([]reflect.Value, numIn)
