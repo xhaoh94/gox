@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/game/netpack"
+	"github.com/xhaoh94/gox/types"
 )
 
 type (

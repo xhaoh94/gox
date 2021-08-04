@@ -5,7 +5,7 @@ import (
 
 	"github.com/xhaoh94/gox/consts"
 	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/types"
+	"github.com/xhaoh94/gox/types"
 )
 
 // 默认

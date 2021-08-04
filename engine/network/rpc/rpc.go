@@ -4,8 +4,8 @@ import (
 	"net"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/types"
 
 	"google.golang.org/grpc"
 )

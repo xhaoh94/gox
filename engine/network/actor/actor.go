@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/etcd"
-	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/types"
 )
 
 var (

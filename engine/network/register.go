@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox/engine/etcd"
-	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/types"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"

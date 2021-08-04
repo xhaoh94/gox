@@ -6,8 +6,8 @@ import (
 
 	"github.com/xhaoh94/gox/engine/network/actor"
 	"github.com/xhaoh94/gox/engine/network/rpc"
-	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/types"
 	"github.com/xhaoh94/gox/util"
 )
 

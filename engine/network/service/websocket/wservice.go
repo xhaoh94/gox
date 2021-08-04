@@ -8,7 +8,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/types"
+	"github.com/xhaoh94/gox/types"
 
 	"github.com/xhaoh94/gox/engine/xlog"
 
