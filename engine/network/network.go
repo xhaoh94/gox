@@ -20,10 +20,10 @@ type (
 		context   context.Context
 		contextFn context.CancelFunc
 
-		grpcServer *rpc.GRpcServer
+		rpc        *rpc.RPC
 		atr        *actor.Actor
 		serviceReg *ServiceReg
-		msgid2type map[uint32]reflect.Type
+		cmd2type   map[uint32]reflect.Type
 	}
 )
 
@@ -31,8 +31,9 @@ func New(engine types.IEngine, ctx context.Context) *NetWork {
 	nw := new(NetWork)
 	nw.engine = engine
 	nw.atr = actor.New(engine)
+	nw.rpc = rpc.New(engine)
 	nw.serviceReg = newServiceReg(nw)
-	nw.msgid2type = make(map[uint32]reflect.Type)
+	nw.cmd2type = make(map[uint32]reflect.Type)
 	nw.context, nw.contextFn = context.WithCancel(ctx)
 	return nw
 }
@@ -44,8 +45,8 @@ func (nw *NetWork) GetServiceReg() types.IServiceReg {
 func (nw *NetWork) GetActor() types.IActor {
 	return nw.atr
 }
-func (nw *NetWork) GetGRpcServer() types.IGrpcServer {
-	return nw.grpcServer
+func (nw *NetWork) GetRPC() types.IGRPC {
+	return nw.rpc
 }
 
 //GetSession 通过id获取Session
@@ -75,28 +76,28 @@ func (nw *NetWork) GetInteriorAddr() string {
 	return ""
 }
 func (nw *NetWork) GetRpcAddr() string {
-	if nw.grpcServer != nil {
-		return nw.grpcServer.GetAddr()
+	if nw.rpc != nil {
+		return nw.rpc.GetAddr()
 	}
 	return ""
 }
 
-//RegisterType 注册协议消息体类型
-func (nw *NetWork) RegisterType(msgid uint32, protoType reflect.Type) {
-	if _, ok := nw.msgid2type[msgid]; ok {
-		xlog.Error("重复注册协议 msgid->[%s]", msgid)
+//RegisterRType 注册协议消息体类型
+func (nw *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
+	if _, ok := nw.cmd2type[cmd]; ok {
+		xlog.Error("重复注册协议 msgid->[%s]", cmd)
 		return
 	}
-	nw.msgid2type[msgid] = protoType
+	nw.cmd2type[cmd] = protoType
 }
 
 //GetRegProtoMsg 获取协议消息体
-func (nw *NetWork) GetRegProtoMsg(msgid uint32) interface{} {
-	msgType, ok := nw.msgid2type[msgid]
+func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
+	rType, ok := nw.cmd2type[cmd]
 	if !ok {
 		return nil
 	}
-	return util.TypeToInterface(msgType)
+	return util.RTypeToInterface(rType)
 }
 
 func (nw *NetWork) Start() {
@@ -109,8 +110,8 @@ func (nw *NetWork) Start() {
 	if nw.outside != nil {
 		nw.outside.Start()
 	}
-	if nw.grpcServer != nil {
-		nw.grpcServer.Start()
+	if nw.rpc != nil {
+		nw.rpc.Start()
 	}
 	nw.serviceReg.Start(nw.context)
 	nw.atr.Start(nw.context)
@@ -122,8 +123,8 @@ func (nw *NetWork) Stop() {
 	if nw.outside != nil {
 		nw.outside.Stop()
 	}
-	if nw.grpcServer != nil {
-		nw.grpcServer.Stop()
+	if nw.rpc != nil {
+		nw.rpc.Stop()
 	}
 	nw.interior.Stop()
 }
@@ -142,5 +143,5 @@ func (nw *NetWork) SetInteriorService(ser types.IService, addr string) {
 
 //SetGrpcAddr 设置grpc服务
 func (nw *NetWork) SetGrpcAddr(addr string) {
-	nw.grpcServer = rpc.NewGrpcServer(addr, nw.engine)
+	nw.rpc.Init(addr)
 }

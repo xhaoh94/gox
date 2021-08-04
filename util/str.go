@@ -6,10 +6,10 @@ import (
 	"strconv"
 )
 
-// Strval 获取变量的字符串值
+// ValToString 获取变量的字符串值
 // 浮点型 3.0将会转换成字符串3, "3"
 // 非数值或字符类型的变量将会被转换成JSON格式字符串
-func Strval(value interface{}) string {
+func ValToString(value interface{}) string {
 	var key string
 	if value == nil {
 		return key
@@ -66,8 +66,8 @@ func Strval(value interface{}) string {
 	return key
 }
 
-//StrToInt 字符串转int
-func StrToInt(str string) int {
+//StringToInt 字符串转int
+func StringToInt(str string) int {
 	if num, err := strconv.Atoi(str); err != nil {
 		return 0
 	} else {
@@ -75,8 +75,8 @@ func StrToInt(str string) int {
 	}
 }
 
-//StrToHash 字符串转为32位整形哈希
-func StrToHash(s string) (hash uint32) {
+//StringToHash 字符串转为32位整形哈希
+func StringToHash(s string) (hash uint32) {
 
 	hash = crc32.ChecksumIEEE([]byte(s))
 	if hash >= 0 {

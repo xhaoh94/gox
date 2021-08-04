@@ -57,13 +57,11 @@ func (m *Module) OnDestroy() {
 func (m *Module) GetEngine() types.IEngine {
 	return m.engine
 }
+
 func (m *Module) RegisterActor(actorID uint32, sessionID string) {
 	m.engine.GetNetWork().GetActor().Register(actorID, sessionID)
 }
-func (m *Module) RelayActor(actorID uint32, msgData []byte) {
-	m.engine.GetNetWork().GetActor().Relay(actorID, msgData)
-}
-func (m *Module) SendActor(actorID uint32, cmd uint32, msg interface{}) {
+func (m *Module) Actor(actorID uint32, cmd uint32, msg interface{}) {
 	m.engine.GetNetWork().GetActor().Send(actorID, cmd, msg)
 }
 func (m *Module) GetSessionById(sid string) types.ISession {
@@ -73,10 +71,10 @@ func (m *Module) GetSessionByAddr(addr string) types.ISession {
 	return m.engine.GetNetWork().GetSessionByAddr(addr)
 }
 func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
-	return m.engine.GetNetWork().GetGRpcServer().GetConnByAddr(addr)
+	return m.engine.GetNetWork().GetRPC().GetConnByAddr(addr)
 }
 func (m *Module) GetGrpcServer() *grpc.Server {
-	return m.engine.GetNetWork().GetGRpcServer().GetServer()
+	return m.engine.GetNetWork().GetRPC().GetServer()
 }
 
 //Register 注册协议对应消息体和回调函数
@@ -90,7 +88,7 @@ func (m *Module) Register(cmd uint32, fn interface{}) {
 			xlog.Error("注册协议回调函数参数结构体需要是指针类型 cmd[%d]", cmd)
 			return
 		}
-		m.engine.GetNetWork().RegisterType(cmd, in)
+		m.engine.GetNetWork().RegisterRType(cmd, in)
 		break
 	case 2:
 		break
@@ -133,15 +131,15 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 		}
 		if msgid == 0 {
 			key := in.Elem().Name() + out.Elem().Name()
-			msgid = util.StrToHash(key)
+			msgid = util.StringToHash(key)
 		}
-		m.engine.GetNetWork().RegisterType(msgid, in)
+		m.engine.GetNetWork().RegisterRType(msgid, in)
 		m.engine.GetEvent().Bind(msgid, fn)
 		return
 	}
 	if msgid == 0 {
 		key := out.Elem().Name()
-		msgid = util.StrToHash(key)
+		msgid = util.StringToHash(key)
 	}
 	m.engine.GetEvent().Bind(msgid, fn)
 }

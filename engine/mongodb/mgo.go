@@ -137,7 +137,7 @@ func GetMany(cctn *mongo.Collection, filter interface{}, out interface{}, findOp
 	// 遍历游标允许我们一次解码一个文档
 	for cur.Next(context.TODO()) {
 		// 创建一个值，将单个文档解码为该值
-		elem := util.TypeToInterface(childType)
+		elem := util.RTypeToInterface(childType)
 		err := cur.Decode(elem)
 		if err != nil {
 			xlog.Error("db get multiple err[%v]", err)

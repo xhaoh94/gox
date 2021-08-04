@@ -59,7 +59,7 @@ func (ser *Service) OnAccept(channel types.IChannel) {
 	session := ser.createSession(channel, consts.Accept)
 	if session != nil {
 		ser.idMutex.Lock()
-		ser.idToSession[session.UID()] = session
+		ser.idToSession[session.ID()] = session
 		ser.idMutex.Unlock()
 		ser.addrMutex.Lock()
 		ser.addrToSession[session.RemoteAddr()] = session
@@ -92,7 +92,7 @@ func (ser *Service) GetSessionByAddr(addr string) types.ISession {
 		return nil
 	}
 	ser.idMutex.Lock()
-	ser.idToSession[session.UID()] = session
+	ser.idToSession[session.ID()] = session
 	ser.idMutex.Unlock()
 	ser.addrToSession[addr] = session
 	session.start()
@@ -117,7 +117,7 @@ func (ser *Service) Stop() {
 }
 
 func (ser *Service) delSession(session types.ISession) {
-	if ser.delSessionByID(session.UID()) && ser.delSessionByAddr(session.RemoteAddr()) {
+	if ser.delSessionByID(session.ID()) && ser.delSessionByAddr(session.RemoteAddr()) {
 		ser.sessionWg.Done()
 	}
 }

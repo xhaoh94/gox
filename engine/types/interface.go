@@ -8,14 +8,56 @@ import (
 )
 
 type (
+	//IEngine 引擎接口
+	IEngine interface {
+		GetServiceID() string
+		GetServiceType() string
+		GetServiceVersion() string
+		GetEvent() IEvent
+		GetNetWork() INetwork
+		GetCodec() ICodec
+	}
+
+	//IModule 模块接口
+	IModule interface {
+		Start(IModule, IEngine)
+		Destroy(IModule)
+		Put(IModule)
+		OnInit()
+		OnDestroy()
+	}
+	//IEvent 事件接口
+	IEvent interface {
+		Bind(event interface{}, task interface{}) error
+		Call(event interface{}, params ...interface{}) ([]reflect.Value, error)
+		UnBind(event interface{}) error
+		UnBinds()
+		Has(event interface{}) bool
+		Events() []interface{}
+		EventCount() int
+	}
+	//INetwork 网络接口
+	INetwork interface {
+		GetSessionById(string) ISession
+		GetSessionByAddr(string) ISession
+		GetRPC() IGRPC
+		GetActor() IActor
+		GetServiceReg() IServiceReg
+		GetOutsideAddr() string
+		GetInteriorAddr() string
+		GetRpcAddr() string
+		RegisterRType(uint32, reflect.Type)
+		GetRegProtoMsg(uint32) interface{}
+	}
+
 	//IService 服务器接口
 	IService interface {
 		Init(string, IEngine, context.Context)
 		Start()
 		Stop()
 		GetAddr() string
-		GetSessionByAddr(addr string) ISession
-		GetSessionById(sid string) ISession
+		GetSessionByAddr(string) ISession
+		GetSessionById(string) ISession
 	}
 	//IChannel 信道接口
 	IChannel interface {
@@ -28,37 +70,22 @@ type (
 	}
 	//ISession 会话接口
 	ISession interface {
-		UID() string
+		ID() string
 		RemoteAddr() string
 		LocalAddr() string
-		Send(uint32, interface{})
+		Send(uint32, interface{}) bool
 		Call(interface{}, interface{}) IDefaultRPC
-		Reply(interface{}, uint32)
-		Actor(uint32, uint32, interface{})
-		SendData([]byte)
+		Reply(interface{}, uint32) bool
+		Actor(uint32, uint32, interface{}) bool
 	}
 
-	IEngine interface {
-		GetServiceID() string
-		GetServiceType() string
-		GetServiceVersion() string
-		GetEvent() IEvent
-		GetNetWork() INetwork
-		GetCodec() ICodec
+	//IServiceReg 服务发现接口
+	IServiceReg interface {
+		GetServiceConfByID(string) IServiceConfig
+		GetServiceConfListByType(string) []IServiceConfig
 	}
 
-	INetwork interface {
-		GetSessionById(string) ISession
-		GetSessionByAddr(string) ISession
-		GetGRpcServer() IGrpcServer
-		GetActor() IActor
-		GetServiceReg() IServiceReg
-		GetOutsideAddr() string
-		GetInteriorAddr() string
-		GetRpcAddr() string
-		RegisterType(uint32, reflect.Type)
-		GetRegProtoMsg(uint32) interface{}
-	}
+	//IServiceConfig 服务器配置
 	IServiceConfig interface {
 		GetRpcAddr() string
 		GetOutsideAddr() string
@@ -67,45 +94,25 @@ type (
 		GetServiceType() string
 		GetVersion() string
 	}
-	IServiceReg interface {
-		GetServiceConfByID(string) IServiceConfig
-		GetServiceConfListByType(string) []IServiceConfig
-	}
-	IGrpcServer interface {
+
+	//IGRPC rpc接口
+	IGRPC interface {
 		GetAddr() string
 		GetServer() *grpc.Server
-		GetConnByAddr(addr string) *grpc.ClientConn
+		GetConnByAddr(string) *grpc.ClientConn
 	}
-	//IDefaultRPC rpc
+	//IDefaultRPC 内部rpc
 	IDefaultRPC interface {
 		Await() bool
 	}
 
+	//IActor actor接口
 	IActor interface {
 		Register(uint32, string)
-		Relay(uint32, []byte)
-		Send(uint32, uint32, interface{})
+		Send(uint32, uint32, interface{}) bool
 	}
 
-	//IModule 模块定义
-	IModule interface {
-		Start(IModule, IEngine)
-		Destroy(IModule)
-		Put(IModule)
-		OnInit()
-		OnDestroy()
-	}
-
-	IEvent interface {
-		Bind(event interface{}, task interface{}) error
-		Call(event interface{}, params ...interface{}) ([]reflect.Value, error)
-		UnBind(event interface{}) error
-		UnBinds()
-		Has(event interface{}) bool
-		Events() []interface{}
-		EventCount() int
-	}
-
+	//ICodec 解码编码接口
 	ICodec interface {
 		Encode(interface{}) ([]byte, error)
 		Decode([]byte, interface{}) error

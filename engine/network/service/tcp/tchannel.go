@@ -56,7 +56,7 @@ func (t *TChannel) recvAsync() {
 	readTimeout := app.GetAppCfg().Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := t.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			xlog.Info("tcp addr[%s] 接受数据超时[%v]", t.RemoteAddr(), err)
+			xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", t.RemoteAddr(), err)
 			t.Stop()
 		}
 	}
@@ -64,7 +64,7 @@ func (t *TChannel) recvAsync() {
 		t.Read(t.Conn(), t.Stop)
 		if t.IsRun && readTimeout > 0 {
 			if err := t.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				xlog.Info("tcp addr[%s] 接受数据超时[%v]", t.RemoteAddr(), err)
+				xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", t.RemoteAddr(), err)
 				t.Stop()
 			}
 		}
@@ -74,7 +74,7 @@ func (t *TChannel) recvAsync() {
 func (t *TChannel) write(buf []byte) {
 	_, err := t.Conn().Write(buf)
 	if err != nil {
-		xlog.Error("tcp addr[%s]信道写入失败: [%v]", t.RemoteAddr(), err)
+		xlog.Error("tcp addr[%s]信道写入失败err:[%v]", t.RemoteAddr(), err)
 	}
 }
 

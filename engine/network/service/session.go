@@ -7,6 +7,7 @@ import (
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/consts"
 
+	"github.com/xhaoh94/gox/engine/network/actor"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -35,7 +36,7 @@ const (
 )
 
 //UID 获取id
-func (s *Session) UID() string {
+func (s *Session) ID() string {
 	return s.id
 }
 
@@ -62,14 +63,13 @@ func (s *Session) init(service *Service, channel types.IChannel, t consts.Sessio
 //start 启动
 func (s *Session) start() {
 	s.channel.Start()
-	if s.GetTag() == consts.Connector { //如果是连接者 启动心跳发送
+	if s.IsConnector() { //如果是连接者 启动心跳发送
 		go s.onHeartbeat()
 	}
 }
 
 //Stop 关闭
 func (s *Session) stop() {
-
 	if !s.isAct() {
 		return
 	}
@@ -77,74 +77,75 @@ func (s *Session) stop() {
 }
 
 //Send 发送
-func (s *Session) Send(cmd uint32, msg interface{}) {
+func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	if !s.isAct() {
-		return
+		return false
 	}
 	pkt := newByteArray(make([]byte, 0))
 	defer pkt.Reset()
 	pkt.AppendByte(_csc)
 	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
-		return
+	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+		return false
 	}
-	s.SendData(pkt.SendData())
+	s.sendData(pkt.PktData())
+	return true
 }
-func (s *Session) Actor(actorID uint32, cmd uint32, msg interface{}) {
+func (s *Session) Actor(actorID uint32, cmd uint32, msg interface{}) bool {
 	if !s.isAct() {
-		return
+		return false
 	}
 	pkt := newByteArray(make([]byte, 0))
 	defer pkt.Reset()
 	pkt.AppendByte(_actor)
 	pkt.AppendUint32(actorID)
 	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
-		return
+	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+		return false
 	}
-	s.SendData(pkt.SendData())
+	s.sendData(pkt.PktData())
+	return true
 }
 
 //Call 呼叫
 func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC {
-	nr := &rpc.DefalutRPC{SessionID: s.id, C: make(chan bool), Response: response}
+	dr := rpc.NewDefaultRpc(s.id, s.ctx, response)
 	if !s.isAct() {
-		defer nr.Run(false)
-		return nr
+		defer dr.Run(false)
+		return dr
 	}
-	msgID := converMsgID(msg, response)
-	rpcid := rpc.AssignRPCID()
-	nr.RPCID = rpcid
+	cmd := ToCmd(msg, response)
+	rpcid := rpc.AssignID()
 	pkt := newByteArray(make([]byte, 0))
 	defer pkt.Reset()
 	pkt.AppendByte(_rpcs)
-	pkt.AppendUint32(msgID)
+	pkt.AppendUint32(cmd)
 	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
-		defer nr.Run(false)
-		return nr
+	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+		defer dr.Run(false)
+		return dr
 	}
-	rpc.PutRPC(rpcid, nr)
-	s.SendData(pkt.SendData())
-	return nr
+	s.defaultRpc().Put(rpcid, dr)
+	s.sendData(pkt.PktData())
+	return dr
 }
 
 //Reply 回应
-func (s *Session) Reply(msg interface{}, rpcid uint32) {
+func (s *Session) Reply(msg interface{}, rpcid uint32) bool {
 	if !s.isAct() {
-		return
+		return false
 	}
 	pkt := newByteArray(make([]byte, 0))
 	defer pkt.Reset()
 	pkt.AppendByte(_rpcr)
 	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg, s.service.engine.GetCodec()); err != nil {
-		return
+	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+		return false
 	}
-	s.SendData(pkt.SendData())
-	return
+	s.sendData(pkt.PktData())
+	return true
 }
-func (s *Session) SendData(buf []byte) {
+func (s *Session) sendData(buf []byte) {
 	if !s.isAct() {
 		return
 	}
@@ -159,18 +160,23 @@ func (s *Session) isAct() bool {
 func (s *Session) onHeartbeat() {
 	id := s.id
 	for s.id != "" && s.id == id {
-		s.sendHeartbeat(_hbs) //发送空的心跳包
-		time.Sleep(app.GetAppCfg().Network.Heartbeat)
+		select {
+		case <-s.ctx.Done():
+			goto end
+		case <-time.After(app.GetAppCfg().Network.Heartbeat):
+			s.sendHeartbeat(_hbs) //发送空的心跳包
+		}
 	}
+end:
 }
 func (s *Session) sendHeartbeat(t byte) {
 	if !s.isAct() {
 		return
 	}
-	pkt := newByteArray(make([]byte, 0))
-	defer pkt.Reset()
-	pkt.AppendByte(t)
-	s.SendData(pkt.SendData())
+	pkg := newByteArray(make([]byte, 0))
+	defer pkg.Reset()
+	pkg.AppendByte(t)
+	s.sendData(pkg.PktData())
 }
 
 //OnRead 读取数据
@@ -192,10 +198,26 @@ func (s *Session) read(data []byte) {
 			xlog.Error("actor 数据长度为0")
 			return
 		}
+		ar := s.network().GetActor().(*actor.Actor).Get(actorID)
+		if ar == nil {
+			return
+		}
+		if ar.ServiceID != s.service.engine.GetServiceID() {
+			xlog.Error("actor服务id[%s]与当前服务id[%s]不相同", ar.ServiceID, s.service.engine.GetServiceID())
+			return
+		}
+		session := s.service.engine.GetNetWork().GetSessionById(ar.SessionID)
+		if session == nil {
+			xlog.Error("actor没有找到session。id[%d]", ar.SessionID)
+			return
+		}
 		msgData := pkt.ReadBytes(msgLen)
-		bytes := []byte{_csc}
-		bytes = append(bytes, msgData...)
-		go s.service.engine.GetNetWork().GetActor().Relay(actorID, bytes)
+		temPkt := newByteArray(make([]byte, 0))
+		defer temPkt.Reset()
+		temPkt.AppendByte(_csc)
+		temPkt.AppendBytes(msgData)
+		bytes := temPkt.PktData()
+		session.(*Session).sendData(bytes)
 		break
 	case _csc:
 		cmd := pkt.ReadUint32()
@@ -204,12 +226,12 @@ func (s *Session) read(data []byte) {
 			s.emitMessage(cmd, nil)
 			return
 		}
-		msg := s.service.engine.GetNetWork().GetRegProtoMsg(cmd)
+		msg := s.network().GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
 		}
-		if err := pkt.ReadMessage(msg, s.service.engine.GetCodec()); err != nil {
+		if err := pkt.ReadMessage(msg, s.codec()); err != nil {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
@@ -223,12 +245,12 @@ func (s *Session) read(data []byte) {
 			go s.emitRpc(cmd, rpcID, nil)
 			return
 		}
-		msg := s.service.engine.GetNetWork().GetRegProtoMsg(cmd)
+		msg := s.network().GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
 		}
-		if err := pkt.ReadMessage(msg, s.service.engine.GetCodec()); err != nil {
+		if err := pkt.ReadMessage(msg, s.codec()); err != nil {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
@@ -236,14 +258,14 @@ func (s *Session) read(data []byte) {
 		break
 	case _rpcr:
 		rpcID := pkt.ReadUint32()
-		dr := rpc.GetRPC(rpcID)
+		dr := s.defaultRpc().Get(rpcID)
 		if dr != nil {
 			msgLen := pkt.RemainLength()
 			if msgLen == 0 {
 				dr.Run(false)
 				return
 			}
-			if err := pkt.ReadMessage(dr.Response, s.service.engine.GetCodec()); err != nil {
+			if err := pkt.ReadMessage(dr.GetResponse(), s.codec()); err != nil {
 				xlog.Error("解析网络包体失败 err:[%v]", err)
 				dr.Run(false)
 				return
@@ -252,12 +274,24 @@ func (s *Session) read(data []byte) {
 		}
 		break
 	}
+}
 
+func (s *Session) defaultRpc() *rpc.RPC {
+	return s.network().GetRPC().(*rpc.RPC)
+}
+func (s *Session) codec() types.ICodec {
+	return s.service.engine.GetCodec()
+}
+func (s *Session) network() types.INetwork {
+	return s.service.engine.GetNetWork()
+}
+func (s *Session) event() types.IEvent {
+	return s.service.engine.GetEvent()
 }
 
 //callEvt 触发
 func (s *Session) callEvt(event uint32, params ...interface{}) (interface{}, error) {
-	values, err := s.service.engine.GetEvent().Call(event, params...)
+	values, err := s.event().Call(event, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +332,7 @@ func (s *Session) close() {
 }
 
 func (s *Session) reset() {
-	rpc.DelRPCBySessionID(s.id)
+	// rpc.DelRPCBySessionID(s.id) 现在通过ctx 关闭
 	s.tag = 0
 	s.id = ""
 	s.channel = nil

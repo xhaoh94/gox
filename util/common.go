@@ -12,14 +12,14 @@ func GetUUID() string {
 	return id.String()
 }
 
-//TypeToInterface 通过类型获取实体
-func TypeToInterface(t reflect.Type) (msg interface{}) {
+//RTypeToInterface 通过类型获取实体
+func RTypeToInterface(t reflect.Type) interface{} {
 	if t != nil {
 		if t.Kind() != reflect.Ptr {
-			msg = reflect.New(t).Interface()
+			return reflect.New(t).Interface()
 		} else {
-			msg = reflect.New(t.Elem()).Interface()
+			return reflect.New(t.Elem()).Interface()
 		}
 	}
-	return
+	return nil
 }

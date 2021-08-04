@@ -56,7 +56,7 @@ func (k *KChannel) recvAsync() {
 	readTimeout := app.GetAppCfg().Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := k.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			xlog.Info("kpc addr[%s] 接受数据超时[%v]", k.RemoteAddr(), err)
+			xlog.Info("kpc addr[%s] 接受数据超时err:[%v]", k.RemoteAddr(), err)
 			k.Stop()
 		}
 	}
@@ -64,7 +64,7 @@ func (k *KChannel) recvAsync() {
 		k.Read(k.Conn(), k.Stop)
 		if k.IsRun && readTimeout > 0 {
 			if err := k.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				xlog.Info("kpc addr[%s] 接受数据超时[%v]", k.RemoteAddr(), err)
+				xlog.Info("kpc addr[%s] 接受数据超时err:[%v]", k.RemoteAddr(), err)
 				k.Stop()
 			}
 		}
@@ -74,7 +74,7 @@ func (k *KChannel) recvAsync() {
 func (k *KChannel) write(buf []byte) {
 	_, err := k.Conn().Write(buf)
 	if err != nil {
-		xlog.Error("kcp addr[%s]信道写入失败: [%v]", k.RemoteAddr(), err)
+		xlog.Error("kcp addr[%s]信道写入失败err:[%v]", k.RemoteAddr(), err)
 	}
 }
 

@@ -14,6 +14,11 @@ func (st *SessionTag) GetTag() consts.SessionTag {
 	return st.tag
 }
 
+//IsConnector 是否是连接者
+func (st *SessionTag) IsConnector() bool {
+	return st.tag == consts.Connector
+}
+
 //GetTagName 获取名字
 func (st *SessionTag) GetTagName() string {
 	switch st.tag {

@@ -165,7 +165,7 @@ func (b *ByteArray) RemainLength() uint32 {
 func (b *ByteArray) Data() []byte {
 	return b.data
 }
-func (b *ByteArray) SendData() []byte {
+func (b *ByteArray) PktData() []byte {
 	bytes := codec.Uint16ToBytes(uint16(b.Length()))
 	bytes = append(bytes, b.data...)
 	return bytes

@@ -100,7 +100,7 @@ func (reg *ServiceReg) Start(ctx context.Context) {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
 	go reg.checkTimeout(timeoutCtx)
 	var err error
-	reg.es, err = etcd.NewEtcdService(reg.get, reg.put, reg.del)
+	reg.es, err = etcd.NewEtcdService(reg.get, reg.put, reg.del, ctx)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("服务注册失败 [%v]", err)

@@ -57,21 +57,21 @@ func (w *WChannel) recvAsync() {
 	readTimeout := app.GetAppCfg().Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := w.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
-			xlog.Info("websocket addr[%s] 接受数据超时[%v]", w.RemoteAddr(), err)
+			xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)
 			w.Stop() //超时断开链接
 		}
 	}
 	for w.Conn() != nil && w.IsRun {
 		_, r, err := w.Conn().NextReader()
 		if err != nil {
-			xlog.Info("websocket addr[%s] 接受数据超时[%v]", w.RemoteAddr(), err)
+			xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)
 			w.Stop() //超时断开链接
 			break
 		}
 		w.Read(r, w.Stop)
 		if w.IsRun && readTimeout > 0 {
 			if err = w.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
-				xlog.Info("websocket addr[%s] 接受数据超时[%v]", w.RemoteAddr(), err)
+				xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)
 				w.Stop() //超时断开链接
 			}
 		}
@@ -81,7 +81,7 @@ func (w *WChannel) recvAsync() {
 func (w *WChannel) write(buf []byte) {
 	err := w.Conn().WriteMessage(app.GetAppCfg().WebSocket.WebSocketMessageType, buf)
 	if err != nil {
-		xlog.Error("websocket addr[%s]信道写入失败: [%v]", w.RemoteAddr(), err)
+		xlog.Error("websocket addr[%s]信道写入失败err:[%v]", w.RemoteAddr(), err)
 	}
 }
 

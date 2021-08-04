@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -10,69 +11,78 @@ import (
 //DefalutRPC 自定义rpcdata
 type (
 	DefalutRPC struct {
-		SessionID string
-		RPCID     uint32
-		C         chan bool
-		Response  interface{}
+		sid      string
+		rid      uint32
+		c        chan bool
+		ctx      context.Context
+		response interface{}
+		del      func(uint32)
 	}
 )
 
+var (
+	pool *sync.Pool
+)
+
+func init() {
+	pool = &sync.Pool{
+		New: func() interface{} {
+			return &DefalutRPC{}
+		},
+	}
+}
+
+func NewDefaultRpc(sid string, ctx context.Context, response interface{}) *DefalutRPC {
+	dr := pool.Get().(*DefalutRPC)
+	dr.sid = sid
+	dr.c = make(chan bool)
+	dr.ctx = ctx
+	dr.response = response
+	return dr
+}
+
 //Run 调用
 func (nr *DefalutRPC) Run(success bool) {
-	nr.C <- success
-	close(nr.C)
+	nr.c <- success
 }
 
 //Await 异步等待
 func (nr *DefalutRPC) Await() bool {
 	select {
-	case r := <-nr.C:
+	case <-nr.ctx.Done():
+		nr.close()
+		return false
+	case r := <-nr.c:
+		nr.close()
 		return r
 	case <-time.After(time.Second * 3):
-		close(nr.C)
-		DelRPC(nr.RPCID)
+		nr.close()
 		return false
 	}
 }
 
-var (
-	rpcMap sync.Map
-)
-
-//AssignRPCID 获取RPCID
-func AssignRPCID() uint32 {
-	s := util.GetUUID()
-	rpcid := util.StrToHash(s)
-	return rpcid
-}
-
-//PutRPC 添加rpc
-func PutRPC(id uint32, nr *DefalutRPC) {
-	rpcMap.Store(id, nr)
-}
-
-//GetRPC 获取RPC
-func GetRPC(id uint32) *DefalutRPC {
-	if nr, ok := rpcMap.Load(id); ok {
-		defer DelRPC(id)
-		return nr.(*DefalutRPC)
+func (dr *DefalutRPC) close() {
+	close(dr.c)
+	if dr.rid != 0 && dr.del != nil {
+		dr.del(dr.rid)
 	}
-	return nil
 }
 
-//DelRPC 删除rpc
-func DelRPC(id uint32) {
-	rpcMap.Delete(id)
+func (dr *DefalutRPC) reset() {
+	dr.sid = ""
+	dr.rid = 0
+	dr.c = nil
+	dr.ctx = nil
+	dr.response = nil
+	dr.del = nil
+	pool.Put(dr)
 }
 
-//DelRPCBySessionID 删除RPC
-func DelRPCBySessionID(id string) {
-	rpcMap.Range(func(k interface{}, v interface{}) bool {
-		dr := v.(*DefalutRPC)
-		if dr.SessionID == id {
-			dr.Run(false)
-			rpcMap.Delete(k)
-		}
-		return true
-	})
+func (dr *DefalutRPC) GetResponse() interface{} {
+	return dr.response
+}
+
+//AssignID 获取RPCID
+func AssignID() uint32 {
+	return util.StringToHash(util.GetUUID())
 }

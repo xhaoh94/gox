@@ -35,10 +35,11 @@ func GetEtcdConf() clientv3.Config {
 }
 
 //NewEtcdService 创建etcd
-func NewEtcdService(get getFn, put putFn, del delFn) (*EtcdService, error) {
+func NewEtcdService(get getFn, put putFn, del delFn, ctx context.Context) (*EtcdService, error) {
 	conf := clientv3.Config{
 		Endpoints:   app.GetAppCfg().Etcd.EtcdList,
 		DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout,
+		Context:     ctx,
 	}
 	client, err := clientv3.New(conf)
 	if err != nil {
@@ -63,12 +64,12 @@ func NewEtcdService(get getFn, put putFn, del delFn) (*EtcdService, error) {
 func (es *EtcdService) setLease() error {
 	lease := clientv3.NewLease(es.client)
 	//设置租约时间
-	leaseResp, err := lease.Grant(context.TODO(), app.GetAppCfg().Etcd.EtcdLeaseTime)
+	leaseResp, err := lease.Grant(es.client.Ctx(), app.GetAppCfg().Etcd.EtcdLeaseTime)
 	if err != nil {
 		return err
 	}
 	//设置续租
-	ctx, cancelFunc := context.WithCancel(context.TODO())
+	ctx, cancelFunc := context.WithCancel(es.client.Ctx())
 	leaseRespChan, err := lease.KeepAlive(ctx, leaseResp.ID)
 
 	if err != nil {
@@ -101,7 +102,7 @@ func (es *EtcdService) Del(key string) error {
 	if !es.isRun {
 		return errors.New("etcd service is close")
 	}
-	_, err := es.kv.Delete(context.TODO(), key)
+	_, err := es.kv.Delete(es.client.Ctx(), key)
 	return err
 }
 
@@ -110,14 +111,14 @@ func (es *EtcdService) Put(key, val string) error {
 	if !es.isRun {
 		return errors.New("etcd service is close")
 	}
-	_, err := es.kv.Put(context.TODO(), key, val, clientv3.WithLease(es.leaseID))
+	_, err := es.kv.Put(es.client.Ctx(), key, val, clientv3.WithLease(es.leaseID))
 	return err
 }
 
 //RevokeLease 撤销租约
 func (es *EtcdService) RevokeLease() error {
 	es.canclefunc()
-	_, err := es.lease.Revoke(context.TODO(), es.leaseID)
+	_, err := es.lease.Revoke(es.client.Ctx(), es.leaseID)
 	return err
 }
 
@@ -126,7 +127,7 @@ func (es *EtcdService) Get(prefix string, isWatcher bool) error {
 	if !es.isRun {
 		return errors.New("etcd service is close")
 	}
-	resp, err := es.client.Get(context.TODO(), prefix, clientv3.WithPrefix())
+	resp, err := es.client.Get(es.client.Ctx(), prefix, clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}
@@ -140,7 +141,7 @@ func (es *EtcdService) Get(prefix string, isWatcher bool) error {
 }
 
 func (es *EtcdService) watcher(prefix string) {
-	rch := es.client.Watch(context.TODO(), prefix, clientv3.WithPrefix())
+	rch := es.client.Watch(es.client.Ctx(), prefix, clientv3.WithPrefix())
 	for wresp := range rch {
 		if es.isRun {
 			for i := range wresp.Events {

@@ -12,10 +12,10 @@ import (
 	"go.etcd.io/etcd/clientv3"
 )
 
-type actorReg struct {
-	actorID   uint32
-	serviceID string
-	sessionID string
+type ActorReg struct {
+	ActorID   uint32
+	ServiceID string
+	SessionID string
 }
 
 func (atr *Actor) Start(ctx context.Context) {
@@ -23,7 +23,7 @@ func (atr *Actor) Start(ctx context.Context) {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
 	go atr.checkTimeout(timeoutCtx)
 	var err error
-	atr.actorEs, err = etcd.NewEtcdService(atr.get, atr.put, atr.del)
+	atr.actorEs, err = etcd.NewEtcdService(atr.get, atr.put, atr.del, ctx)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("actor注册失败 [%v]", err)
@@ -46,8 +46,8 @@ func (atr *Actor) checkTimeout(ctx context.Context) {
 	}
 }
 
-func newActorReg(val []byte) (*actorReg, error) {
-	actor := actorPool.Get().(*actorReg)
+func newActorReg(val []byte) (*ActorReg, error) {
+	actor := actorPool.Get().(*ActorReg)
 	if err := json.Unmarshal(val, actor); err != nil {
 		return nil, err
 	}
