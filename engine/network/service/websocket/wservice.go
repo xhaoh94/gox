@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -19,10 +20,16 @@ import (
 type WService struct {
 	service.Service
 	upgrader websocket.Upgrader
-	server   *http.Server
+	sv       *http.Server
+	patten   string
+	scheme   string
+	path     string
 }
 
 func (ws *WService) Init(addr string, engine types.IEngine, ctx context.Context) {
+	ws.patten = app.GetAppCfg().WebSocket.WebSocketPattern
+	ws.scheme = app.GetAppCfg().WebSocket.WebSocketScheme
+	ws.path = app.GetAppCfg().WebSocket.WebSocketPath
 	ws.Service.Init(addr, engine, ctx)
 	ws.Service.ConnectChannelFunc = ws.connectChannel
 }
@@ -31,12 +38,12 @@ func (ws *WService) Init(addr string, engine types.IEngine, ctx context.Context)
 func (ws *WService) Start() {
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/"+app.GetAppCfg().WebSocket.WebSocketPattern, ws.wsPage)
-	ws.server = &http.Server{Addr: ws.GetAddr(), Handler: mux}
+	mux.HandleFunc(ws.patten, ws.wsPage)
+	ws.sv = &http.Server{Addr: ws.GetAddr(), Handler: mux}
 	ws.upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-		CheckOrigin:     func(r *http.Request) bool { return true },
+		// ReadBufferSize:  1024,
+		// WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 	xlog.Info("websocket[%s] 等待客户端连接...", ws.GetAddr())
 	go ws.accept()
@@ -45,15 +52,33 @@ func (ws *WService) accept() {
 	defer ws.AcceptWg.Done()
 	ws.IsRun = true
 	ws.AcceptWg.Add(1)
-
-	err := ws.server.ListenAndServe()
-	if err != nil {
-		if err == http.ErrServerClosed {
-			xlog.Info("websocket 关闭")
+	if ln, err := net.Listen("tcp", ws.GetAddr()); err != nil {
+		xlog.Error("websocket 监听失败: [%s]", err.Error())
+	} else {
+		cf := app.GetAppCfg().WebSocket.CertFile
+		kf := app.GetAppCfg().WebSocket.KeyFile
+		if cf != "" && kf != "" {
+			err = ws.sv.ServeTLS(ln, cf, kf)
 		} else {
-			xlog.Error("websocket 监听失败: [%s]", err.Error())
+			err = ws.sv.Serve(ln)
+		}
+		if err != nil {
+			if err == http.ErrServerClosed {
+				xlog.Info("websocket 关闭")
+			} else {
+				xlog.Error("websocket 监听失败: [%s]", err.Error())
+			}
 		}
 	}
+
+	// err := ws.sv.ListenAndServe()
+	// if err != nil {
+	// 	if err == http.ErrServerClosed {
+	// 		xlog.Info("websocket 关闭")
+	// 	} else {
+	// 		xlog.Error("websocket 监听失败: [%s]", err.Error())
+	// 	}
+	// }
 }
 func (ws *WService) wsPage(w http.ResponseWriter, r *http.Request) {
 	conn, err := ws.upgrader.Upgrade(w, r, nil)
@@ -77,16 +102,23 @@ func (ws *WService) addChannel(conn *websocket.Conn) *WChannel {
 //connectChannel 链接新信道
 func (ws *WService) connectChannel(addr string) types.IChannel {
 	var connCount int
-	pattern := app.GetAppCfg().WebSocket.WebSocketPattern
 	for {
-		u := url.URL{Scheme: pattern, Host: addr, Path: "/" + pattern}
-		var dialer *websocket.Dialer
+		u := url.URL{Scheme: ws.scheme, Host: addr, Path: ws.path}
+		// var dialer *websocket.Dialer
+		dialer := &websocket.Dialer{
+			Proxy:            http.ProxyFromEnvironment,
+			HandshakeTimeout: 45 * time.Second,
+		}
+
 		conn, _, err := dialer.Dial(u.String(), nil)
 		if err == nil {
 			return ws.addChannel(conn)
 		}
 		if connCount > app.GetAppCfg().Network.ReConnectMax {
 			xlog.Info("websocket 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
+			return nil
+		}
+		if !ws.IsRun || app.GetAppCfg().Network.ReConnectInterval == 0 {
 			return nil
 		}
 		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
@@ -103,7 +135,7 @@ func (ws *WService) Stop() {
 	}
 	ws.Service.Stop()
 	ws.IsRun = false
-	ws.server.Shutdown(ws.Ctx)
+	ws.sv.Shutdown(ws.Ctx)
 	ws.CtxCancelFunc()
 	// 等待线程结束
 	ws.AcceptWg.Wait()

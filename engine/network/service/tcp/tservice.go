@@ -80,6 +80,9 @@ func (ts *TService) connectChannel(addr string) types.IChannel {
 			xlog.Info("tcp 创建通信信道 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
+		if !ts.IsRun || app.GetAppCfg().Network.ReConnectInterval == 0 {
+			return nil
+		}
 		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
 		connCount++
 		continue

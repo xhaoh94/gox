@@ -49,8 +49,12 @@ type (
 		NetEndian   string        `ini:"net_endian"`
 	}
 	webSocketConf struct {
-		WebSocketMessageType int    `ini:"websocket_message_type"`
-		WebSocketPattern     string `ini:"websocket_pattern"`
+		WebSocketMessageType int    `ini:"ws_message_type"`
+		WebSocketPattern     string `ini:"ws_pattern"`
+		WebSocketPath        string `ini:"ws_path"`
+		WebSocketScheme      string `ini:"ws_scheme"`
+		CertFile             string `ini:"ws_certfile"`
+		KeyFile              string `ini:"ws_keyfile"`
 	}
 	etcdConf struct {
 		EtcdList      []string      `ini:"etcd_list"`
@@ -91,6 +95,8 @@ func initCfg() {
 		WebSocket: webSocketConf{
 			WebSocketMessageType: 2,
 			WebSocketPattern:     "ws",
+			CertFile:             "",
+			KeyFile:              "",
 		},
 		Etcd: etcdConf{
 			EtcdList:      []string{"127.0.0.1:2379"},

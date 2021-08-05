@@ -81,6 +81,9 @@ func (ks *KService) connectChannel(addr string) types.IChannel {
 			xlog.Info("kcp 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
+		if !ks.IsRun || app.GetAppCfg().Network.ReConnectInterval == 0 {
+			return nil
+		}
 		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
 		connCount++
 		continue
