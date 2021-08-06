@@ -46,42 +46,46 @@ func (atr *Actor) checkTimeout(ctx context.Context) {
 	}
 }
 
-func newActorReg(val []byte) (*ActorReg, error) {
-	actor := actorPool.Get().(*ActorReg)
-	if err := json.Unmarshal(val, actor); err != nil {
-		return nil, err
-	}
-	return actor, nil
-}
-
 func (atr *Actor) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
+
+	defer atr.actorRegLock.Unlock()
+	atr.actorRegLock.Lock()
 	for i := range resp.Kvs {
 		atr.put(resp.Kvs[i])
 	}
 }
-func (atr *Actor) put(kv *mvccpb.KeyValue) {
-	atr.actorRegLock.Lock()
-	defer atr.actorRegLock.Unlock()
+func (atr *Actor) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
 	key := string(kv.Key)
-	value, err := newActorReg(kv.Value)
-	if err != nil {
+
+	value, ok := atr.keyToActorReg[key]
+	if !ok {
+		value = actorPool.Get().(*ActorReg)
+	}
+	if err := json.Unmarshal(kv.Value, value); err != nil {
 		xlog.Error("put actor err[%v]", err)
 		return
 	}
-	atr.keyToActorReg[key] = value
+	if !ok {
+		atr.keyToActorReg[key] = value
+	}
+}
+func (atr *Actor) put(kv *mvccpb.KeyValue) {
+	defer atr.actorRegLock.Unlock()
+	atr.actorRegLock.Lock()
+	atr.onPut(kv)
 }
 func (atr *Actor) del(kv *mvccpb.KeyValue) {
-	atr.actorRegLock.Lock()
 	defer atr.actorRegLock.Unlock()
+	atr.actorRegLock.Lock()
 	key := string(kv.Key)
 	if actor, ok := atr.keyToActorReg[key]; ok {
-		actorPool.Put((actor))
+		actorPool.Put(actor)
 		delete(atr.keyToActorReg, key)
 	}
 }

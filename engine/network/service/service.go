@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/xhaoh94/gox/consts"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
 )
@@ -56,7 +55,7 @@ func (ser *Service) GetAddr() string {
 
 //OnAccept 新链接回调
 func (ser *Service) OnAccept(channel types.IChannel) {
-	session := ser.createSession(channel, consts.Accept)
+	session := ser.createSession(channel, Accept)
 	if session != nil {
 		ser.idMutex.Lock()
 		ser.idToSession[session.ID()] = session
@@ -145,12 +144,12 @@ func (ser *Service) delSessionByAddr(addr string) bool {
 func (ser *Service) onConnect(addr string) *Session {
 	channel := ser.ConnectChannelFunc(addr)
 	if channel != nil {
-		return ser.createSession(channel, consts.Connector)
+		return ser.createSession(channel, Connector)
 	}
 	return nil
 }
 
-func (ser *Service) createSession(channel types.IChannel, tag consts.SessionTag) *Session {
+func (ser *Service) createSession(channel types.IChannel, tag Tag) *Session {
 	session := sessionPool.Get().(*Session)
 	session.init(ser, channel, tag)
 	if session != nil {

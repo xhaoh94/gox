@@ -58,8 +58,11 @@ func (m *Module) GetEngine() types.IEngine {
 	return m.engine
 }
 
-func (m *Module) RegisterActor(actorID uint32, sessionID string) {
-	m.engine.GetNetWork().GetActor().Register(actorID, sessionID)
+func (m *Module) AddActor(actorID uint32, sessionID string) {
+	m.engine.GetNetWork().GetActor().Add(actorID, sessionID)
+}
+func (m *Module) DelActor(actorID uint32) {
+	m.engine.GetNetWork().GetActor().Del(actorID)
 }
 func (m *Module) Actor(actorID uint32, cmd uint32, msg interface{}) {
 	m.engine.GetNetWork().GetActor().Send(actorID, cmd, msg)

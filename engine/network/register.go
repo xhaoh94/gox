@@ -21,6 +21,7 @@ type (
 		lock         sync.RWMutex
 		keyToService map[string]*ServiceConfig
 		idToService  map[string]*ServiceConfig
+		curService   *ServiceConfig
 	}
 
 	//ServiceConfig 服务组配置
@@ -89,7 +90,7 @@ func newServiceConfig(val []byte) (*ServiceConfig, error) {
 }
 
 func (reg *ServiceReg) Start(ctx context.Context) {
-	sc := &ServiceConfig{
+	reg.curService = &ServiceConfig{
 		ServiceID:    reg.nw.engine.GetServiceID(),
 		ServiceType:  reg.nw.engine.GetServiceType(),
 		Version:      reg.nw.engine.GetServiceVersion(),
@@ -106,12 +107,16 @@ func (reg *ServiceReg) Start(ctx context.Context) {
 		xlog.Fatal("服务注册失败 [%v]", err)
 		return
 	}
-	key := convertKey(sc)
-	value := convertValue(sc)
+	key := convertKey(reg.curService)
+	value := convertValue(reg.curService)
 	reg.es.Put(key, value)
 	reg.es.Get("services/", true)
 }
 func (reg *ServiceReg) Stop() {
+	// if reg.curService != nil {
+	// 	key := convertKey(reg.curService)
+	// 	reg.es.Del(key)
+	// }
 	if reg.es != nil {
 		reg.es.Close()
 	}
@@ -154,11 +159,11 @@ func (reg *ServiceReg) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
+	defer reg.lock.Unlock()
 	reg.lock.Lock()
 	for i := range resp.Kvs {
 		reg.onPut(resp.Kvs[i])
 	}
-	reg.lock.Unlock()
 }
 func (reg *ServiceReg) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
@@ -175,9 +180,9 @@ func (reg *ServiceReg) onPut(kv *mvccpb.KeyValue) {
 	xlog.Info("服务注册 id:[%s] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
 }
 func (reg *ServiceReg) put(kv *mvccpb.KeyValue) {
+	defer reg.lock.Unlock()
 	reg.lock.Lock()
 	reg.onPut(kv)
-	reg.lock.Unlock()
 }
 
 func (reg *ServiceReg) del(kv *mvccpb.KeyValue) {

@@ -2,8 +2,8 @@ package mods
 
 import (
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/game/mods/gate"
-	"github.com/xhaoh94/gox/game/mods/login"
+	"github.com/xhaoh94/gox/examples/sv/mods/gate"
+	"github.com/xhaoh94/gox/examples/sv/mods/login"
 )
 
 const (

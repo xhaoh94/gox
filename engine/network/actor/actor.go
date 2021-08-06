@@ -37,7 +37,7 @@ type Actor struct {
 	keyToActorReg map[string]*ActorReg
 }
 
-func (atr *Actor) Register(actorID uint32, sessionID string) {
+func (atr *Actor) Add(actorID uint32, sessionID string) {
 	actor := &ActorReg{ActorID: actorID, ServiceID: atr.engine.GetServiceID(), SessionID: sessionID}
 	b, err := json.Marshal(actor)
 	if err != nil {
@@ -47,11 +47,19 @@ func (atr *Actor) Register(actorID uint32, sessionID string) {
 	key := fmt.Sprintf(atr.actorPrefix+"/%d", actorID)
 	atr.actorEs.Put(key, string(b))
 }
+func (atr *Actor) Del(actorID uint32) {
+	key := fmt.Sprintf(atr.actorPrefix+"/%d", actorID)
+	defer atr.actorRegLock.Unlock()
+	atr.actorRegLock.Lock()
+	if _, ok := atr.keyToActorReg[key]; ok {
+		atr.actorEs.Del(key)
+	}
+}
 func (atr *Actor) Get(actorID uint32) *ActorReg {
 	key := fmt.Sprintf(atr.actorPrefix+"/%d", actorID)
+	defer atr.actorRegLock.Unlock()
 	atr.actorRegLock.Lock()
 	actor, ok := atr.keyToActorReg[key]
-	atr.actorRegLock.Unlock()
 	if !ok {
 		xlog.Error("找不到对应的actor。id[%d]", actorID)
 		return nil

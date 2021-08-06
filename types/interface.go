@@ -108,7 +108,8 @@ type (
 
 	//IActor actor接口
 	IActor interface {
-		Register(uint32, string)
+		Add(uint32, string)
+		Del(uint32)
 		Send(uint32, uint32, interface{}) bool
 	}
 
