@@ -55,7 +55,7 @@ func (ser *Service) GetAddr() string {
 
 //OnAccept 新链接回调
 func (ser *Service) OnAccept(channel types.IChannel) {
-	session := ser.createSession(channel, Accept)
+	session := ser.createSession(channel, TagAccept)
 	if session != nil {
 		ser.idMutex.Lock()
 		ser.idToSession[session.ID()] = session
@@ -144,7 +144,7 @@ func (ser *Service) delSessionByAddr(addr string) bool {
 func (ser *Service) onConnect(addr string) *Session {
 	channel := ser.ConnectChannelFunc(addr)
 	if channel != nil {
-		return ser.createSession(channel, Connector)
+		return ser.createSession(channel, TagConnector)
 	}
 	return nil
 }

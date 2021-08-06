@@ -51,7 +51,7 @@ func (s *Session) LocalAddr() string {
 }
 
 //Init 初始化
-func (s *Session) init(service *Service, channel types.IChannel, t consts.SessionTag) {
+func (s *Session) init(service *Service, channel types.IChannel, t Tag) {
 	s.id = util.GetUUID()
 	s.channel = channel
 	s.tag = t
