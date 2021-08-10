@@ -88,7 +88,7 @@ func (nw *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
 	defer nw.cmdLock.Unlock()
 	nw.cmdLock.Lock()
 	if _, ok := nw.cmdType[cmd]; ok {
-		xlog.Error("重复注册协议 msgid->[%s]", cmd)
+		xlog.Error("重复注册协议 cmd[%s]", cmd)
 		return
 	}
 	nw.cmdType[cmd] = protoType
@@ -117,7 +117,7 @@ func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
 func (nw *NetWork) Start() {
 
 	if nw.interior == nil {
-		xlog.Fatal("没有内部网络通信")
+		xlog.Fatal("没有初始化内部网络通信")
 		return
 	}
 	nw.interior.Start()

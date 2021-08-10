@@ -34,7 +34,7 @@ func (hs *HttpServer) Start() {
 	}
 	hs.server = &http.Server{Addr: hs.addr, WriteTimeout: time.Second * 4, Handler: mux}
 
-	log.Printf("Starting httpserver")
+	log.Printf("启动 xhttp")
 	err := hs.server.ListenAndServe()
 	if err != nil {
 		// 正常退出
@@ -44,7 +44,7 @@ func (hs *HttpServer) Start() {
 			log.Fatal("Server closed unexpected", err)
 		}
 	}
-	log.Fatal("httpserver exited")
+	log.Fatal("关闭 xhttp")
 }
 func (hs *HttpServer) Stop() {
 	err := hs.server.Shutdown(nil)

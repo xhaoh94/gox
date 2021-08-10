@@ -212,7 +212,7 @@ func (actorCrtl *ActorCrtl) Get(actorID uint32) *ActorConf {
 	key := fmt.Sprintf(actorCrtl.actorPrefix+"/%d", actorID)
 	actor, ok := actorCrtl.keyToActorConf[key]
 	if !ok {
-		xlog.Error("找不到对应的actor。id[%d]", actorID)
+		xlog.Error("找不到对应的Actor[%d]", actorID)
 		return nil
 	}
 	return actor
@@ -224,12 +224,12 @@ func (actorCrtl *ActorCrtl) getSession(actorID uint32) types.ISession {
 	}
 	svConf := actorCrtl.engine.GetNetWork().GetServiceCtrl().GetServiceConfByID(ar.ServiceID)
 	if svConf == nil {
-		xlog.Error("actor找不到服务 ServiceID:[%s]", ar.ServiceID)
+		xlog.Error("Actor没有找到服务 ServiceID:[%s]", ar.ServiceID)
 		return nil
 	}
 	session := actorCrtl.engine.GetNetWork().GetSessionByAddr(svConf.GetInteriorAddr())
 	if session == nil {
-		xlog.Error("actor没有找到session。id[%d]", svConf.GetInteriorAddr())
+		xlog.Error("Actor没有找到session[%d]", svConf.GetInteriorAddr())
 		return nil
 	}
 	return session

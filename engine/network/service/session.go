@@ -267,14 +267,14 @@ func (s *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
 	if r, err := s.callEvt(cmd, s.ctx, msg); err == nil {
 		s.Reply(r, rpc)
 	} else {
-		xlog.Error("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
+		xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }
 
 //emitMessage 派发网络消息
 func (s *Session) emitMessage(cmd uint32, msg interface{}) {
 	if _, err := s.callEvt(cmd, s.ctx, s, msg); err != nil {
-		xlog.Error("发送消息失败cmd:[%d] err:[%v]", cmd, err)
+		xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }
 

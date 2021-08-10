@@ -10,7 +10,7 @@ import (
 //Event 事件
 type Event struct {
 	funcMap map[interface{}]reflect.Value
-	mu      sync.Mutex
+	mu      sync.RWMutex
 }
 
 //New 创建事件实例
@@ -61,8 +61,8 @@ func (evt *Event) UnBinds() {
 }
 
 func (evt *Event) Has(event interface{}) bool {
-	evt.mu.Lock()
-	defer evt.mu.Unlock()
+	evt.mu.RLock()
+	defer evt.mu.RUnlock()
 	_, ok := evt.funcMap[event]
 	return ok
 }
@@ -78,15 +78,15 @@ func (evt *Event) Events() []interface{} {
 }
 
 func (evt *Event) EventCount() int {
-	evt.mu.Lock()
-	defer evt.mu.Unlock()
+	evt.mu.RLock()
+	defer evt.mu.RUnlock()
 	return len(evt.funcMap)
 }
 
 func (evt *Event) read(event interface{}, params ...interface{}) (reflect.Value, []reflect.Value, error) {
-	evt.mu.Lock()
+	evt.mu.RLock()
 	task, ok := evt.funcMap[event]
-	evt.mu.Unlock()
+	evt.mu.RUnlock()
 	if !ok {
 		tip := fmt.Sprintf("没有找到监听的事件 event:[%v]", event)
 		return reflect.Value{}, nil, errors.New(tip)

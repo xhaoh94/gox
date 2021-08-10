@@ -100,7 +100,7 @@ END:
 //Del 删除
 func (es *EtcdService) Del(key string) error {
 	if !es.isRun {
-		return errors.New("etcd service is close")
+		return errors.New("etcd 服务没有开启")
 	}
 	_, err := es.kv.Delete(es.client.Ctx(), key)
 	return err
@@ -109,7 +109,7 @@ func (es *EtcdService) Del(key string) error {
 //Put 通过租约 注册服务
 func (es *EtcdService) Put(key, val string) error {
 	if !es.isRun {
-		return errors.New("etcd service is close")
+		return errors.New("etcd 服务没有开启")
 	}
 	_, err := es.kv.Put(es.client.Ctx(), key, val, clientv3.WithLease(es.leaseID))
 	return err
@@ -125,7 +125,7 @@ func (es *EtcdService) RevokeLease() error {
 //Get 获取
 func (es *EtcdService) Get(prefix string, isWatcher bool) error {
 	if !es.isRun {
-		return errors.New("etcd service is close")
+		return errors.New("etcd 服务没有开启")
 	}
 	resp, err := es.client.Get(es.client.Ctx(), prefix, clientv3.WithPrefix())
 	if err != nil {

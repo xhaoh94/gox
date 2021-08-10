@@ -69,7 +69,9 @@ func (g *RPC) GetAddr() string {
 }
 
 func (g *RPC) Init(addr string) {
-	g.grpc = &gRPC{}
+	g.grpc = &gRPC{
+		rpcAddr: addr,
+	}
 	g.engine.GetEvent().Bind("_start_engine_ok_", func() {
 		if g.grpc.listen != nil {
 			go g.grpc.server.Serve(g.grpc.listen)
