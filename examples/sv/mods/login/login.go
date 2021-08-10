@@ -5,7 +5,7 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/xlog"
-	"github.com/xhaoh94/gox/game/netpack"
+	"github.com/xhaoh94/gox/examples/sv/netpack"
 	"github.com/xhaoh94/gox/types"
 )
 

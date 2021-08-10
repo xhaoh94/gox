@@ -57,17 +57,11 @@ func (m *Module) OnDestroy() {
 func (m *Module) GetEngine() types.IEngine {
 	return m.engine
 }
+func (m *Module) GetActorCtrl() types.IActorCtrl {
+	return m.engine.GetNetWork().GetActorCtrl()
+}
 
-func (m *Module) AddActor(actorID uint32, sessionID string) {
-	m.engine.GetNetWork().GetActor().Add(actorID, sessionID)
-}
-func (m *Module) DelActor(actorID uint32) {
-	m.engine.GetNetWork().GetActor().Del(actorID)
-}
-func (m *Module) Actor(actorID uint32, cmd uint32, msg interface{}) {
-	m.engine.GetNetWork().GetActor().Send(actorID, cmd, msg)
-}
-func (m *Module) GetSessionById(sid string) types.ISession {
+func (m *Module) GetSessionById(sid uint32) types.ISession {
 	return m.engine.GetNetWork().GetSessionById(sid)
 }
 func (m *Module) GetSessionByAddr(addr string) types.ISession {
@@ -82,67 +76,86 @@ func (m *Module) GetGrpcServer() *grpc.Server {
 
 //Register 注册协议对应消息体和回调函数
 func (m *Module) Register(cmd uint32, fn interface{}) {
+
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
+	if tFun.Kind() != reflect.Func {
+		xlog.Error("协议回调函数不是方法 cmd:[%d]", cmd)
+		return
+	}
 	switch tFun.NumIn() {
-	case 3:
+	case 2: //ctx,session
+		break
+	case 3: //ctx,session,req
 		in := tFun.In(2)
 		if in.Kind() != reflect.Ptr {
-			xlog.Error("注册协议回调函数参数结构体需要是指针类型 cmd[%d]", cmd)
+			xlog.Error("协议回调函数参数需要是指针类型 cmd[%d]", cmd)
 			return
 		}
 		m.engine.GetNetWork().RegisterRType(cmd, in)
 		break
-	case 2:
-		break
 	default:
-		xlog.Error("注册协议回调函数参数有误")
+		xlog.Error("协议回调函数参数有误")
 		return
 	}
 	m.engine.GetEvent().Bind(cmd, fn)
 }
 
-//RegisterRPC 注册rpc
+//RegisterRPC 注册RPC
 func (m *Module) RegisterRPC(args ...interface{}) {
 	l := len(args)
-	var msgid uint32
+	var cmd uint32
 	var fn interface{}
 	switch l {
 	case 1:
 		fn = args[0]
 		break
 	case 2:
-		msgid = uint32(args[0].(int))
+		cmd = uint32(args[0].(int))
 		fn = args[1]
 		break
 	default:
-		xlog.Error("注册协议回调函数参数有误")
+		xlog.Error("RPC回调函数参数有误")
 		return
 	}
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
+	if tFun.Kind() != reflect.Func {
+		xlog.Error("RPC回调函数不是方法")
+		return
+	}
+	if tFun.NumOut() != 1 {
+		xlog.Error("RPC回调函数参数有误")
+		return
+	}
 	out := tFun.Out(0)
 	if out.Kind() != reflect.Ptr {
-		xlog.Error("注册prc回调函数参数结构体需要是指针类型")
+		xlog.Error("RPC函数参数需要是指针类型")
 		return
 	}
-	if tFun.NumIn() == 2 {
+	key := out.Elem().Name()
+	switch tFun.NumIn() {
+	case 1: //ctx
+		break
+	case 2: //ctx,req
 		in := tFun.In(1)
 		if in.Kind() != reflect.Ptr {
-			xlog.Error("注册prc回调函数参数结构体需要是指针类型")
+			xlog.Error("RPC函数参数需要是指针类型")
 			return
 		}
-		if msgid == 0 {
-			key := in.Elem().Name() + out.Elem().Name()
-			msgid = util.StringToHash(key)
+		if cmd == 0 {
+			key = in.Elem().Name() + key
+			cmd = util.StringToHash(key)
 		}
-		m.engine.GetNetWork().RegisterRType(msgid, in)
-		m.engine.GetEvent().Bind(msgid, fn)
+		m.engine.GetNetWork().RegisterRType(cmd, in)
+		break
+	default:
+		xlog.Error("RPC回调函数参数有误")
 		return
 	}
-	if msgid == 0 {
-		key := out.Elem().Name()
-		msgid = util.StringToHash(key)
+
+	if cmd == 0 {
+		cmd = util.StringToHash(key)
 	}
-	m.engine.GetEvent().Bind(msgid, fn)
+	m.engine.GetEvent().Bind(cmd, fn)
 }

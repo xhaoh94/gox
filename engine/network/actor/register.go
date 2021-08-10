@@ -12,13 +12,7 @@ import (
 	"go.etcd.io/etcd/clientv3"
 )
 
-type ActorReg struct {
-	ActorID   uint32
-	ServiceID string
-	SessionID string
-}
-
-func (atr *Actor) Start(ctx context.Context) {
+func (atr *ActorCrtl) Start(ctx context.Context) {
 
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
 	go atr.checkTimeout(timeoutCtx)
@@ -31,12 +25,12 @@ func (atr *Actor) Start(ctx context.Context) {
 	}
 	atr.actorEs.Get(atr.actorPrefix, true)
 }
-func (atr *Actor) Stop() {
+func (atr *ActorCrtl) Stop() {
 	if atr.actorEs != nil {
 		atr.actorEs.Close()
 	}
 }
-func (atr *Actor) checkTimeout(ctx context.Context) {
+func (atr *ActorCrtl) checkTimeout(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		// 被取消，直接返回
@@ -46,46 +40,46 @@ func (atr *Actor) checkTimeout(ctx context.Context) {
 	}
 }
 
-func (atr *Actor) get(resp *clientv3.GetResponse) {
+func (atr *ActorCrtl) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
 
-	defer atr.actorRegLock.Unlock()
-	atr.actorRegLock.Lock()
+	defer atr.keyLock.Unlock()
+	atr.keyLock.Lock()
 	for i := range resp.Kvs {
 		atr.put(resp.Kvs[i])
 	}
 }
-func (atr *Actor) onPut(kv *mvccpb.KeyValue) {
+func (atr *ActorCrtl) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
 	key := string(kv.Key)
 
-	value, ok := atr.keyToActorReg[key]
+	value, ok := atr.keyToActorConf[key]
 	if !ok {
-		value = actorPool.Get().(*ActorReg)
+		value = actorPool.Get().(*ActorConf)
 	}
 	if err := json.Unmarshal(kv.Value, value); err != nil {
 		xlog.Error("put actor err[%v]", err)
 		return
 	}
 	if !ok {
-		atr.keyToActorReg[key] = value
+		atr.keyToActorConf[key] = value
 	}
 }
-func (atr *Actor) put(kv *mvccpb.KeyValue) {
-	defer atr.actorRegLock.Unlock()
-	atr.actorRegLock.Lock()
+func (atr *ActorCrtl) put(kv *mvccpb.KeyValue) {
+	defer atr.keyLock.Unlock()
+	atr.keyLock.Lock()
 	atr.onPut(kv)
 }
-func (atr *Actor) del(kv *mvccpb.KeyValue) {
-	defer atr.actorRegLock.Unlock()
-	atr.actorRegLock.Lock()
+func (atr *ActorCrtl) del(kv *mvccpb.KeyValue) {
+	defer atr.keyLock.Unlock()
+	atr.keyLock.Lock()
 	key := string(kv.Key)
-	if actor, ok := atr.keyToActorReg[key]; ok {
+	if actor, ok := atr.keyToActorConf[key]; ok {
 		actorPool.Put(actor)
-		delete(atr.keyToActorReg, key)
+		delete(atr.keyToActorConf, key)
 	}
 }

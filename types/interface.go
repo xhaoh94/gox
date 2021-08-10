@@ -10,9 +10,9 @@ import (
 type (
 	//IEngine 引擎接口
 	IEngine interface {
-		GetServiceID() string
-		GetServiceType() string
-		GetServiceVersion() string
+		ServiceID() uint
+		ServiceType() string
+		Version() string
 		GetEvent() IEvent
 		GetNetWork() INetwork
 		GetCodec() ICodec
@@ -36,20 +36,21 @@ type (
 		Events() []interface{}
 		EventCount() int
 	}
+
 	//INetwork 网络接口
 	INetwork interface {
-		GetSessionById(string) ISession
+		GetSessionById(uint32) ISession
 		GetSessionByAddr(string) ISession
 		GetRPC() IGRPC
-		GetActor() IActor
-		GetServiceReg() IServiceReg
+		GetActorCtrl() IActorCtrl
+		GetServiceCtrl() IServiceCtrl
 		GetOutsideAddr() string
 		GetInteriorAddr() string
 		GetRpcAddr() string
 		RegisterRType(uint32, reflect.Type)
+		UnRegisterRType(uint32)
 		GetRegProtoMsg(uint32) interface{}
 	}
-
 	//IService 服务器接口
 	IService interface {
 		Init(string, IEngine, context.Context)
@@ -57,7 +58,16 @@ type (
 		Stop()
 		GetAddr() string
 		GetSessionByAddr(string) ISession
-		GetSessionById(string) ISession
+		GetSessionById(uint32) ISession
+	}
+	//ISession 会话接口
+	ISession interface {
+		ID() uint32
+		RemoteAddr() string
+		LocalAddr() string
+		Send(uint32, interface{}) bool
+		Call(interface{}, interface{}) IDefaultRPC
+		Reply(interface{}, uint32) bool
 	}
 	//IChannel 信道接口
 	IChannel interface {
@@ -68,29 +78,18 @@ type (
 		LocalAddr() string
 		SetCallBackFn(func([]byte), func())
 	}
-	//ISession 会话接口
-	ISession interface {
-		ID() string
-		RemoteAddr() string
-		LocalAddr() string
-		Send(uint32, interface{}) bool
-		Call(interface{}, interface{}) IDefaultRPC
-		Reply(interface{}, uint32) bool
-		Actor(uint32, uint32, interface{}) bool
-	}
 
-	//IServiceReg 服务发现接口
-	IServiceReg interface {
-		GetServiceConfByID(string) IServiceConfig
+	//IServiceCtrl 服务发现接口
+	IServiceCtrl interface {
+		GetServiceConfByID(uint) IServiceConfig
 		GetServiceConfListByType(string) []IServiceConfig
 	}
-
 	//IServiceConfig 服务器配置
 	IServiceConfig interface {
 		GetRpcAddr() string
 		GetOutsideAddr() string
 		GetInteriorAddr() string
-		GetServiceID() string
+		GetServiceID() uint
 		GetServiceType() string
 		GetVersion() string
 	}
@@ -106,11 +105,15 @@ type (
 		Await() bool
 	}
 
-	//IActor actor接口
+	//IActorCtrl actor发现接口
+	IActorCtrl interface {
+		Add(IActor)
+		Del(IActor)
+		Send(uint32, interface{}) bool
+		Call(uint32, interface{}, interface{}) IDefaultRPC
+	}
 	IActor interface {
-		Add(uint32, string)
-		Del(uint32)
-		Send(uint32, uint32, interface{}) bool
+		AddActorFn(fn interface{})
 	}
 
 	//ICodec 解码编码接口

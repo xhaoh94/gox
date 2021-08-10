@@ -4,14 +4,12 @@ import (
 	"context"
 	"sync"
 	"time"
-
-	"github.com/xhaoh94/gox/util"
 )
 
 //DefalutRPC 自定义rpcdata
 type (
 	DefalutRPC struct {
-		sid      string
+		sid      uint32
 		rid      uint32
 		c        chan bool
 		ctx      context.Context
@@ -32,7 +30,7 @@ func init() {
 	}
 }
 
-func NewDefaultRpc(sid string, ctx context.Context, response interface{}) *DefalutRPC {
+func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *DefalutRPC {
 	dr := pool.Get().(*DefalutRPC)
 	dr.sid = sid
 	dr.c = make(chan bool)
@@ -69,7 +67,7 @@ func (dr *DefalutRPC) close() {
 }
 
 func (dr *DefalutRPC) reset() {
-	dr.sid = ""
+	dr.sid = 0
 	dr.rid = 0
 	dr.c = nil
 	dr.ctx = nil
@@ -82,7 +80,9 @@ func (dr *DefalutRPC) GetResponse() interface{} {
 	return dr.response
 }
 
-//AssignID 获取RPCID
-func AssignID() uint32 {
-	return util.StringToHash(util.GetUUID())
-}
+// var rpcOps uint32
+
+// //AssignID 获取RPCID
+// func AssignID() uint32 {
+// 	return atomic.AddUint32(&rpcOps, 1)
+// }

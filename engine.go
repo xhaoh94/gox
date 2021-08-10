@@ -5,6 +5,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network"
+	"github.com/xhaoh94/gox/engine/xevent"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
 )
@@ -19,7 +20,7 @@ type (
 		SetCodec(c types.ICodec)
 	}
 	Engine struct {
-		sid     string
+		sid     uint
 		stype   string
 		version string
 
@@ -32,12 +33,12 @@ type (
 	}
 )
 
-func NewEngine(sid string, sType string, version string, m types.IModule) IEngine {
+func NewEngine(sid uint, sType string, version string, m types.IModule) IEngine {
 	e := new(Engine)
 	e.sid = sid
 	e.stype = sType
 	e.version = version
-	e.event = NewEvent()
+	e.event = xevent.New()
 	e.context, e.contextFn = context.WithCancel(context.Background())
 	e.nw = network.New(e, e.context)
 	e.mol = m
@@ -56,13 +57,13 @@ func (engine *Engine) GetNetWork() types.INetwork {
 	return engine.nw
 }
 
-func (engine *Engine) GetServiceID() string {
+func (engine *Engine) ServiceID() uint {
 	return engine.sid
 }
-func (engine *Engine) GetServiceType() string {
+func (engine *Engine) ServiceType() string {
 	return engine.stype
 }
-func (engine *Engine) GetServiceVersion() string {
+func (engine *Engine) Version() string {
 	return engine.version
 }
 
@@ -70,7 +71,7 @@ func (engine *Engine) GetServiceVersion() string {
 func (engine *Engine) Start(appConfPath string) {
 	app.LoadAppConfig(appConfPath)
 	xlog.Init()
-	xlog.Info("服务启动[%s]", engine.sid)
+	xlog.Info("服务启动[%d]", engine.sid)
 	xlog.Info("服务类型[%s]", engine.stype)
 	xlog.Info("服务版本[%s]", engine.version)
 	engine.nw.Start()

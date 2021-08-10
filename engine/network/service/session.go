@@ -7,7 +7,6 @@ import (
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/consts"
 
-	"github.com/xhaoh94/gox/engine/network/actor"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
@@ -18,25 +17,24 @@ type (
 	//Session 会话
 	Session struct {
 		SessionTag
-		service       *Service
+		id            uint32
+		sv            *Service
 		channel       types.IChannel
-		id            string
 		ctx           context.Context
 		ctxCancelFunc context.CancelFunc
 	}
 )
 
 const (
-	_csc   byte = 0x01
-	_hbs   byte = 0x02
-	_hbr   byte = 0x03
-	_rpcs  byte = 0x04
-	_rpcr  byte = 0x05
-	_actor byte = 0x06
+	_csc  byte = 0x01
+	_hbs  byte = 0x02
+	_hbr  byte = 0x03
+	_rpcs byte = 0x04
+	_rpcr byte = 0x05
 )
 
 //UID 获取id
-func (s *Session) ID() string {
+func (s *Session) ID() uint32 {
 	return s.id
 }
 
@@ -51,11 +49,11 @@ func (s *Session) LocalAddr() string {
 }
 
 //Init 初始化
-func (s *Session) init(service *Service, channel types.IChannel, t Tag) {
-	s.id = util.GetUUID()
+func (s *Session) init(id uint32, service *Service, channel types.IChannel, t Tag) {
+	s.id = id
 	s.channel = channel
 	s.tag = t
-	s.service = service
+	s.sv = service
 	s.ctx, s.ctxCancelFunc = context.WithCancel(service.Ctx)
 	s.channel.SetCallBackFn(s.read, s.close)
 }
@@ -91,21 +89,6 @@ func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	s.sendData(pkt.PktData())
 	return true
 }
-func (s *Session) Actor(actorID uint32, cmd uint32, msg interface{}) bool {
-	if !s.isAct() {
-		return false
-	}
-	pkt := newByteArray(make([]byte, 0))
-	defer pkt.Reset()
-	pkt.AppendByte(_actor)
-	pkt.AppendUint32(actorID)
-	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
-		return false
-	}
-	s.sendData(pkt.PktData())
-	return true
-}
 
 //Call 呼叫
 func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC {
@@ -114,8 +97,8 @@ func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC 
 		defer dr.Run(false)
 		return dr
 	}
-	cmd := ToCmd(msg, response)
-	rpcid := rpc.AssignID()
+	cmd := util.ToCmd(msg, response)
+	rpcid := s.network().GetRPC().(*rpc.RPC).AssignID()
 	pkt := newByteArray(make([]byte, 0))
 	defer pkt.Reset()
 	pkt.AppendByte(_rpcs)
@@ -145,6 +128,7 @@ func (s *Session) Reply(msg interface{}, rpcid uint32) bool {
 	s.sendData(pkt.PktData())
 	return true
 }
+
 func (s *Session) sendData(buf []byte) {
 	if !s.isAct() {
 		return
@@ -153,13 +137,13 @@ func (s *Session) sendData(buf []byte) {
 }
 
 func (s *Session) isAct() bool {
-	return s.id != ""
+	return s.id != 0
 }
 
 //onHeartbeat 心跳
 func (s *Session) onHeartbeat() {
 	id := s.id
-	for s.id != "" && s.id == id {
+	for s.id != 0 && s.id == id {
 		select {
 		case <-s.ctx.Done():
 			goto end
@@ -190,34 +174,6 @@ func (s *Session) read(data []byte) {
 	switch t {
 	case _hbs:
 		s.sendHeartbeat(_hbr)
-		break
-	case _actor:
-		actorID := pkt.ReadUint32()
-		msgLen := pkt.RemainLength()
-		if msgLen == 0 {
-			xlog.Error("actor 数据长度为0")
-			return
-		}
-		ar := s.network().GetActor().(*actor.Actor).Get(actorID)
-		if ar == nil {
-			return
-		}
-		if ar.ServiceID != s.service.engine.GetServiceID() {
-			xlog.Error("actor服务id[%s]与当前服务id[%s]不相同", ar.ServiceID, s.service.engine.GetServiceID())
-			return
-		}
-		session := s.service.engine.GetNetWork().GetSessionById(ar.SessionID)
-		if session == nil {
-			xlog.Error("actor没有找到session。id[%d]", ar.SessionID)
-			return
-		}
-		msgData := pkt.ReadBytes(msgLen)
-		temPkt := newByteArray(make([]byte, 0))
-		defer temPkt.Reset()
-		temPkt.AppendByte(_csc)
-		temPkt.AppendBytes(msgData)
-		bytes := temPkt.PktData()
-		session.(*Session).sendData(bytes)
 		break
 	case _csc:
 		cmd := pkt.ReadUint32()
@@ -280,13 +236,13 @@ func (s *Session) defaultRpc() *rpc.RPC {
 	return s.network().GetRPC().(*rpc.RPC)
 }
 func (s *Session) codec() types.ICodec {
-	return s.service.engine.GetCodec()
+	return s.sv.engine.GetCodec()
 }
 func (s *Session) network() types.INetwork {
-	return s.service.engine.GetNetWork()
+	return s.sv.engine.GetNetWork()
 }
 func (s *Session) event() types.IEvent {
-	return s.service.engine.GetEvent()
+	return s.sv.engine.GetEvent()
 }
 
 //callEvt 触发
@@ -326,15 +282,15 @@ func (s *Session) emitMessage(cmd uint32, msg interface{}) {
 func (s *Session) close() {
 	xlog.Info("session 断开 id:[%s] remote:[%s] local:[%s] tag:[%s]", s.id, s.RemoteAddr(), s.LocalAddr(), s.GetTagName())
 	s.ctxCancelFunc()
-	s.service.delSession(s)
+	s.sv.delSession(s)
 	s.reset()
-	sessionPool.Put(s)
 }
 
 func (s *Session) reset() {
 	// rpc.DelRPCBySessionID(s.id) 现在通过ctx 关闭
 	s.tag = 0
-	s.id = ""
+	s.id = 0
 	s.channel = nil
-	s.service = nil
+	s.sv.sessionPool.Put(s)
+	s.sv = nil
 }

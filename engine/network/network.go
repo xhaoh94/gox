@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"reflect"
+	"sync"
 
 	"github.com/xhaoh94/gox/engine/network/actor"
 	"github.com/xhaoh94/gox/engine/network/rpc"
@@ -20,37 +21,37 @@ type (
 		context   context.Context
 		contextFn context.CancelFunc
 
-		rpc        *rpc.RPC
-		atr        *actor.Actor
-		serviceReg *ServiceReg
-		cmd2type   map[uint32]reflect.Type
+		rpc     *rpc.RPC
+		atrCrtl *actor.ActorCrtl
+		svCrtl  *ServiceCrtl
+		cmdType map[uint32]reflect.Type
+		cmdLock sync.RWMutex
 	}
 )
 
 func New(engine types.IEngine, ctx context.Context) *NetWork {
 	nw := new(NetWork)
 	nw.engine = engine
-	nw.atr = actor.New(engine)
+	nw.atrCrtl = actor.New(engine)
 	nw.rpc = rpc.New(engine)
-	nw.serviceReg = newServiceReg(nw)
-	nw.cmd2type = make(map[uint32]reflect.Type)
+	nw.svCrtl = newServiceReg(nw)
+	nw.cmdType = make(map[uint32]reflect.Type)
 	nw.context, nw.contextFn = context.WithCancel(ctx)
 	return nw
 }
 
-func (nw *NetWork) GetServiceReg() types.IServiceReg {
-	return nw.serviceReg
+func (nw *NetWork) GetServiceCtrl() types.IServiceCtrl {
+	return nw.svCrtl
 }
-
-func (nw *NetWork) GetActor() types.IActor {
-	return nw.atr
+func (nw *NetWork) GetActorCtrl() types.IActorCtrl {
+	return nw.atrCrtl
 }
 func (nw *NetWork) GetRPC() types.IGRPC {
 	return nw.rpc
 }
 
 //GetSession 通过id获取Session
-func (nw *NetWork) GetSessionById(sid string) types.ISession {
+func (nw *NetWork) GetSessionById(sid uint32) types.ISession {
 	session := nw.interior.GetSessionById(sid)
 	if session == nil && nw.outside != nil {
 		session = nw.outside.GetSessionById(sid)
@@ -84,16 +85,29 @@ func (nw *NetWork) GetRpcAddr() string {
 
 //RegisterRType 注册协议消息体类型
 func (nw *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
-	if _, ok := nw.cmd2type[cmd]; ok {
+	defer nw.cmdLock.Unlock()
+	nw.cmdLock.Lock()
+	if _, ok := nw.cmdType[cmd]; ok {
 		xlog.Error("重复注册协议 msgid->[%s]", cmd)
 		return
 	}
-	nw.cmd2type[cmd] = protoType
+	nw.cmdType[cmd] = protoType
+}
+
+//RegisterRType 注册协议消息体类型
+func (nw *NetWork) UnRegisterRType(cmd uint32) {
+	defer nw.cmdLock.Unlock()
+	nw.cmdLock.Lock()
+	if _, ok := nw.cmdType[cmd]; ok {
+		delete(nw.cmdType, cmd)
+	}
 }
 
 //GetRegProtoMsg 获取协议消息体
 func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
-	rType, ok := nw.cmd2type[cmd]
+	defer nw.cmdLock.RUnlock()
+	nw.cmdLock.RLock()
+	rType, ok := nw.cmdType[cmd]
 	if !ok {
 		return nil
 	}
@@ -113,13 +127,13 @@ func (nw *NetWork) Start() {
 	if nw.rpc != nil {
 		nw.rpc.Start()
 	}
-	nw.serviceReg.Start(nw.context)
-	nw.atr.Start(nw.context)
+	nw.svCrtl.Start(nw.context)
+	nw.atrCrtl.Start(nw.context)
 }
 func (nw *NetWork) Stop() {
 	nw.contextFn()
-	nw.atr.Stop()
-	nw.serviceReg.Stop()
+	nw.atrCrtl.Stop()
+	nw.svCrtl.Stop()
 	if nw.outside != nil {
 		nw.outside.Stop()
 	}

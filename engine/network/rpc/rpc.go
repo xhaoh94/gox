@@ -3,6 +3,7 @@ package rpc
 import (
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
@@ -15,6 +16,7 @@ type (
 		engine types.IEngine
 		grpc   *gRPC    //谷歌的grpc框架
 		rpcMap sync.Map //内部自带的rpc存储器
+		rpcOps uint32
 	}
 	gRPC struct {
 		rpcAddr   string
@@ -75,6 +77,11 @@ func (g *RPC) Init(addr string) {
 	})
 }
 
+//AssignID 获取RPCID
+func (g *RPC) AssignID() uint32 {
+	return atomic.AddUint32(&g.rpcOps, 1)
+}
+
 //Start 开启服务
 func (g *RPC) Start() {
 	if g.grpc != nil {
@@ -104,7 +111,7 @@ func (g *RPC) GetConnByAddr(addr string) *grpc.ClientConn {
 
 //NewGrpcServer 初始化
 func New(engine types.IEngine) *RPC {
-	return &RPC{engine: engine}
+	return &RPC{engine: engine, rpcOps: 0}
 }
 
 //start 开启服务

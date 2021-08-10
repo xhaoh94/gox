@@ -9,18 +9,19 @@ import (
 	"github.com/xhaoh94/gox/engine/etcd"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/util"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
 )
 
 type (
-	ServiceReg struct {
+	ServiceCrtl struct {
 		nw           *NetWork
 		es           *etcd.EtcdService
 		lock         sync.RWMutex
 		keyToService map[string]*ServiceConfig
-		idToService  map[string]*ServiceConfig
+		idToService  map[uint]*ServiceConfig
 		curService   *ServiceConfig
 	}
 
@@ -33,7 +34,7 @@ type (
 		//InteriorAddr 内部服务地址
 		InteriorAddr string
 		//ServiceID 标记
-		ServiceID string
+		ServiceID uint
 		//ServiceType 服务类型
 		ServiceType string
 		//版本
@@ -50,7 +51,7 @@ func (sc *ServiceConfig) GetOutsideAddr() string {
 func (sc *ServiceConfig) GetInteriorAddr() string {
 	return sc.InteriorAddr
 }
-func (sc *ServiceConfig) GetServiceID() string {
+func (sc *ServiceConfig) GetServiceID() uint {
 	return sc.ServiceID
 }
 func (sc *ServiceConfig) GetServiceType() string {
@@ -60,16 +61,16 @@ func (sc *ServiceConfig) GetVersion() string {
 	return sc.Version
 }
 
-func newServiceReg(nw *NetWork) *ServiceReg {
-	return &ServiceReg{
+func newServiceReg(nw *NetWork) *ServiceCrtl {
+	return &ServiceCrtl{
 		nw:           nw,
 		keyToService: make(map[string]*ServiceConfig),
-		idToService:  make(map[string]*ServiceConfig),
+		idToService:  make(map[uint]*ServiceConfig),
 	}
 }
 
 func convertKey(sc *ServiceConfig) string {
-	key := "services/" + string(sc.ServiceType) + "/" + sc.ServiceID
+	key := "services/" + sc.ServiceType + "/" + util.ValToString(sc.ServiceID)
 	return key
 }
 
@@ -89,11 +90,11 @@ func newServiceConfig(val []byte) (*ServiceConfig, error) {
 	return service, nil
 }
 
-func (reg *ServiceReg) Start(ctx context.Context) {
+func (reg *ServiceCrtl) Start(ctx context.Context) {
 	reg.curService = &ServiceConfig{
-		ServiceID:    reg.nw.engine.GetServiceID(),
-		ServiceType:  reg.nw.engine.GetServiceType(),
-		Version:      reg.nw.engine.GetServiceVersion(),
+		ServiceID:    reg.nw.engine.ServiceID(),
+		ServiceType:  reg.nw.engine.ServiceType(),
+		Version:      reg.nw.engine.Version(),
 		OutsideAddr:  reg.nw.GetOutsideAddr(),
 		InteriorAddr: reg.nw.GetInteriorAddr(),
 		RPCAddr:      reg.nw.GetRpcAddr(),
@@ -112,7 +113,7 @@ func (reg *ServiceReg) Start(ctx context.Context) {
 	reg.es.Put(key, value)
 	reg.es.Get("services/", true)
 }
-func (reg *ServiceReg) Stop() {
+func (reg *ServiceCrtl) Stop() {
 	// if reg.curService != nil {
 	// 	key := convertKey(reg.curService)
 	// 	reg.es.Del(key)
@@ -121,7 +122,7 @@ func (reg *ServiceReg) Stop() {
 		reg.es.Close()
 	}
 }
-func (reg *ServiceReg) checkTimeout(ctx context.Context) {
+func (reg *ServiceCrtl) checkTimeout(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		// 被取消，直接返回
@@ -132,7 +133,7 @@ func (reg *ServiceReg) checkTimeout(ctx context.Context) {
 }
 
 //GetServiceConfByID 通过id获取服务配置
-func (reg *ServiceReg) GetServiceConfByID(id string) types.IServiceConfig {
+func (reg *ServiceCrtl) GetServiceConfByID(id uint) types.IServiceConfig {
 	defer reg.lock.RUnlock()
 	reg.lock.RLock()
 	if conf, ok := reg.idToService[id]; ok {
@@ -142,7 +143,7 @@ func (reg *ServiceReg) GetServiceConfByID(id string) types.IServiceConfig {
 }
 
 //GetServiceConfListByType 获取对应类型的所有服务配置
-func (reg *ServiceReg) GetServiceConfListByType(serviceType string) []types.IServiceConfig {
+func (reg *ServiceCrtl) GetServiceConfListByType(serviceType string) []types.IServiceConfig {
 	defer reg.lock.RUnlock()
 	reg.lock.RLock()
 	list := make([]types.IServiceConfig, 0)
@@ -155,7 +156,7 @@ func (reg *ServiceReg) GetServiceConfListByType(serviceType string) []types.ISer
 	return list
 }
 
-func (reg *ServiceReg) get(resp *clientv3.GetResponse) {
+func (reg *ServiceCrtl) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
@@ -165,7 +166,7 @@ func (reg *ServiceReg) get(resp *clientv3.GetResponse) {
 		reg.onPut(resp.Kvs[i])
 	}
 }
-func (reg *ServiceReg) onPut(kv *mvccpb.KeyValue) {
+func (reg *ServiceCrtl) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
@@ -177,22 +178,21 @@ func (reg *ServiceReg) onPut(kv *mvccpb.KeyValue) {
 	}
 	reg.idToService[service.ServiceID] = service
 	reg.keyToService[key] = service
-	xlog.Info("服务注册 id:[%s] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
+	xlog.Info("服务注册 sid:[%s] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
 }
-func (reg *ServiceReg) put(kv *mvccpb.KeyValue) {
+func (reg *ServiceCrtl) put(kv *mvccpb.KeyValue) {
 	defer reg.lock.Unlock()
 	reg.lock.Lock()
 	reg.onPut(kv)
 }
 
-func (reg *ServiceReg) del(kv *mvccpb.KeyValue) {
+func (reg *ServiceCrtl) del(kv *mvccpb.KeyValue) {
 	reg.lock.Lock()
 	defer reg.lock.Unlock()
 	key := string(kv.Key)
-	service := reg.keyToService[key]
-	if service != nil {
+	if service, ok := reg.keyToService[key]; ok {
 		delete(reg.keyToService, key)
 		delete(reg.idToService, service.ServiceID)
-		xlog.Info("服务注销 id:[%s] type:[%s]", service.ServiceID, service.ServiceType)
+		xlog.Info("服务注销 sid:[%s] type:[%s]", service.ServiceID, service.ServiceType)
 	}
 }

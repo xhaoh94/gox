@@ -22,7 +22,7 @@ type (
 
 //OnInit 初始化
 func (mm *MainModule) OnInit() {
-	switch mm.GetEngine().GetServiceType() {
+	switch mm.GetEngine().ServiceType() {
 	case Gate:
 		mm.Put(&gate.GateModule{})
 		break

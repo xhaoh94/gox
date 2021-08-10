@@ -1,4 +1,4 @@
-package gox
+package xevent
 
 import (
 	"errors"
@@ -13,8 +13,8 @@ type Event struct {
 	mu      sync.Mutex
 }
 
-//NewEvent 创建事件实例
-func NewEvent() *Event {
+//New 创建事件实例
+func New() *Event {
 	return &Event{
 		funcMap: make(map[interface{}]reflect.Value),
 	}
