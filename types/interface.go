@@ -21,20 +21,25 @@ type (
 	//IModule 模块接口
 	IModule interface {
 		Start(IModule, IEngine)
-		Destroy(IModule)
-		Put(IModule)
-		OnInit()
-		OnDestroy()
+		Stop(IModule)
+
+		OnStart()
+		OnStop()
 	}
 	//IEvent 事件接口
 	IEvent interface {
+		On(event interface{}, task interface{})
+		Off(event interface{}, task interface{})
+		Offs(event interface{})
+		Has(event interface{}, task interface{}) bool
+		Run(event interface{}, params ...interface{})
+
 		Bind(event interface{}, task interface{}) error
-		Call(event interface{}, params ...interface{}) ([]reflect.Value, error)
 		UnBind(event interface{}) error
 		UnBinds()
-		Has(event interface{}) bool
-		Events() []interface{}
-		EventCount() int
+		HasBind(event interface{}) bool
+		BindCount() int
+		Call(event interface{}, params ...interface{}) ([]reflect.Value, error)
 	}
 
 	//INetwork 网络接口

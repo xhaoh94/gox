@@ -22,7 +22,7 @@ type (
 //Init 初始化模块
 func (m *Module) Start(self types.IModule, engine types.IEngine) {
 	m.engine = engine
-	self.OnInit()
+	self.OnStart()
 	if m.childModules != nil {
 		for i := range m.childModules {
 			v := m.childModules[i]
@@ -42,18 +42,19 @@ func (m *Module) Put(mod types.IModule) {
 }
 
 //Destroy 销毁模块
-func (m *Module) Destroy(self types.IModule) {
+func (m *Module) Stop(self types.IModule) {
 	for i := range m.childModules {
 		v := m.childModules[i]
-		v.Destroy(v)
+		v.Stop(v)
 	}
-	self.OnDestroy()
+	self.OnStop()
 }
 
-//OnDestroy 进行销毁
-func (m *Module) OnDestroy() {
+//OnInit 初始化
+func (mm *Module) OnStop() {
 
 }
+
 func (m *Module) GetEngine() types.IEngine {
 	return m.engine
 }

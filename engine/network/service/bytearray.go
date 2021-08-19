@@ -8,18 +8,18 @@ import (
 	"github.com/xhaoh94/gox/types"
 )
 
-// 默认
-// |-----------------|
-// | msglen | msgData|
-// |--------|--------|
-// |-uint16-|-[]byte-|
-// |-----------------|
-
-// |--------msgData---------|
-// | type |  msgid | msgData|
-// |------|--------|--------|
-// |-byte-|-uint32-|-[]byte-|
-// |------------------------|
+// |------------------------------------------|
+// msglen 包的总长度
+// type   包数据类型(0x01:单向请求 0x02:心跳请求 0x03:心跳响应 0x04:rpc请求 0x05:rpc响应)
+// cmd    数据结构对应的cmd
+// rpc    rpc请求或响应时附带的rpcid
+// msg    最终包体数据
+// |------------------------------------------|
+// |  必填  | 必填  |  必填  |  选填  |  选填   |
+// | msglen | type |  cmd   |  rpc   |  msg   |
+// |--------|------|--------|--------|--------|
+// |-uint16-|-byte-|-uint32-|-uint32-|-[]byte-|
+// |------------------------------------------|
 
 var (
 	bytePool sync.Pool = sync.Pool{
@@ -35,7 +35,7 @@ type ByteArray struct {
 	data     []byte
 }
 
-func newByteArray(data []byte) *ByteArray {
+func NewByteArray(data []byte) *ByteArray {
 	b := bytePool.Get().(*ByteArray)
 	b.data = data
 	b.position = 0

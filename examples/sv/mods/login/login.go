@@ -5,7 +5,7 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/xlog"
-	"github.com/xhaoh94/gox/examples/sv/netpack"
+	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/types"
 )
 
@@ -16,17 +16,16 @@ type (
 	}
 )
 
-//OnInit 初始化
-func (mm *LoginModule) OnInit() {
-	mm.Register(111, mm.test)
+//OnStart 初始化
+func (mm *LoginModule) OnStart() {
+	mm.Register(netpack.C2S_TEST, mm.test)
 	mm.RegisterRPC(mm.test2)
 }
 
 func (m *LoginModule) test(ctx context.Context, session types.ISession, req *netpack.ReqTest) {
 	xlog.Info("接受的消息%v", req)
-	session.Send(2222, &netpack.RspTest{Token: "test"})
-	rsp := &netpack.RspTest{}
-	session.Call(&netpack.ReqTest{Acc: "xx", Pwd: "cc"}, rsp).Await()
+	session.Send(netpack.S2S_TEST, &netpack.RspTest{Token: "test"})
+	// rsp := &netpack.RspTest{}
 }
 
 func (m *LoginModule) test2(ctx context.Context, req *netpack.ReqTest) *netpack.RspTest {

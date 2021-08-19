@@ -7,6 +7,7 @@ import (
 
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/xdef"
 
 	"google.golang.org/grpc"
 )
@@ -72,7 +73,7 @@ func (g *RPC) Init(addr string) {
 	g.grpc = &gRPC{
 		rpcAddr: addr,
 	}
-	g.engine.GetEvent().Bind("_start_engine_ok_", func() {
+	g.engine.GetEvent().On(xdef.START_ENGINE_OK, func() {
 		if g.grpc.listen != nil {
 			go g.grpc.server.Serve(g.grpc.listen)
 		}

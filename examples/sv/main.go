@@ -21,7 +21,7 @@ func main() {
 	rAddr := *flag.String("grpcAddr", "127.0.0.1:10003", "grpc服务地址")
 	flag.Parse()
 	engine := gox.NewEngine(sid, sType, "1.0.0", new(mods.MainModule))
-	engine.SetCodec(new(codec.ProtobufCodec))
+	engine.SetCodec(new(codec.JsonCodec))
 	engine.SetInteriorService(new(tcp.TService), iAddr)
 	engine.SetOutsideService(new(kcp.KService), oAddr)
 	engine.SetGrpcAddr(rAddr)

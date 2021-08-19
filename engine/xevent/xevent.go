@@ -4,94 +4,169 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"sync"
+
+	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/util"
 )
 
 //Event 事件
 type Event struct {
-	funcMap map[interface{}]reflect.Value
-	mu      sync.RWMutex
+	bingLock  sync.RWMutex
+	bingFnMap map[interface{}]reflect.Value
+	onLock    sync.RWMutex
+	onFnMap   map[interface{}]map[string]reflect.Value
 }
 
 //New 创建事件实例
 func New() *Event {
 	return &Event{
-		funcMap: make(map[interface{}]reflect.Value),
+		bingFnMap: make(map[interface{}]reflect.Value),
+		onFnMap:   make(map[interface{}]map[string]reflect.Value),
+	}
+}
+func getKeyName(event interface{}, f reflect.Value) string {
+	fnName := runtime.FuncForPC(f.Pointer()).Name()
+	eName := util.ValToString(event)
+	return eName + "_" + fnName
+}
+
+//On 监听事件 回调不可带参数
+func (evt *Event) On(event interface{}, task interface{}) {
+	evt.onLock.Lock()
+	defer evt.onLock.Unlock()
+	f := reflect.ValueOf(task)
+	if f.Type().Kind() != reflect.Func {
+		tip := fmt.Sprintf("监听事件对象不是方法 event:[%v]", event)
+		xlog.Error(tip)
+		return
+	}
+	key := getKeyName(event, f)
+	fnMap, ok := evt.onFnMap[event]
+	if !ok {
+		evt.onFnMap[event] = make(map[string]reflect.Value)
+		fnMap = evt.onFnMap[event]
+	}
+	fnMap[key] = f
+}
+func (evt *Event) Off(event interface{}, task interface{}) {
+	evt.onLock.Lock()
+	defer evt.onLock.Unlock()
+
+	f := reflect.ValueOf(task)
+	if f.Type().Kind() != reflect.Func {
+		tip := fmt.Sprintf("取消监听事件对象不是方法 event:[%v]", event)
+		xlog.Error(tip)
+		return
+	}
+
+	fnMap, ok := evt.onFnMap[event]
+	if !ok {
+		return
+	}
+
+	key := getKeyName(event, f)
+	delete(fnMap, key)
+}
+
+func (evt *Event) Offs(event interface{}) {
+	evt.onLock.Lock()
+	defer evt.onLock.Unlock()
+	_, ok := evt.onFnMap[event]
+	if !ok {
+		return
+	}
+	delete(evt.onFnMap, event)
+}
+
+//Run 派发事件 不会返回参数
+func (evt *Event) Run(event interface{}, params ...interface{}) {
+	evt.onLock.RLock()
+	fnMap, ok := evt.onFnMap[event]
+	evt.onLock.RUnlock()
+	if !ok {
+		return
+	}
+	for key := range fnMap {
+		fn := fnMap[key]
+		numIn := fn.Type().NumIn()
+		in := make([]reflect.Value, numIn)
+		for i := range params {
+			if i >= numIn {
+				break
+			}
+			param := params[i]
+			in[i] = reflect.ValueOf(param)
+		}
+		fn.Call(in)
 	}
 }
 
+func (evt *Event) Has(event interface{}, task interface{}) bool {
+	evt.onLock.RLock()
+	defer evt.onLock.RUnlock()
+	f := reflect.ValueOf(task)
+	if f.Type().Kind() != reflect.Func {
+		tip := fmt.Sprintf("监听事件对象不是方法 event:[%v]", event)
+		xlog.Error(tip)
+		return false
+	}
+
+	fnMap, ok := evt.onFnMap[event]
+	if !ok {
+		return false
+	}
+	key := getKeyName(event, f)
+	_, ok = fnMap[key]
+	return ok
+}
+
+//Bind 绑定事件，一个事件只能绑定一个回调，回调可带返回参数
 func (evt *Event) Bind(event interface{}, task interface{}) error {
-	evt.mu.Lock()
-	defer evt.mu.Unlock()
-	if _, ok := evt.funcMap[event]; ok {
+	evt.bingLock.Lock()
+	defer evt.bingLock.Unlock()
+	if _, ok := evt.bingFnMap[event]; ok {
 		tip := fmt.Sprintf("重复监听事件 event:[%v]", event)
+		xlog.Error(tip)
 		return errors.New(tip)
 	}
 	f := reflect.ValueOf(task)
 	if f.Type().Kind() != reflect.Func {
 		tip := fmt.Sprintf("监听事件对象不是方法 event:[%v]", event)
+		xlog.Error(tip)
 		return errors.New(tip)
 	}
-	evt.funcMap[event] = f
+	evt.bingFnMap[event] = f
 	return nil
 }
-func (evt *Event) Call(event interface{}, params ...interface{}) ([]reflect.Value, error) {
-	f, in, err := evt.read(event, params...)
-	if err != nil {
-		return nil, err
-	}
-	return f.Call(in), nil
-}
-
 func (evt *Event) UnBind(event interface{}) error {
-	evt.mu.Lock()
-	defer evt.mu.Unlock()
-	if _, ok := evt.funcMap[event]; !ok {
+	evt.bingLock.Lock()
+	defer evt.bingLock.Unlock()
+	if _, ok := evt.bingFnMap[event]; !ok {
 		tip := fmt.Sprintf("没有找到监听的事件 event:[%v]", event)
 		return errors.New(tip)
 	}
-	delete(evt.funcMap, event)
+	delete(evt.bingFnMap, event)
 	return nil
 }
 
 func (evt *Event) UnBinds() {
-	evt.mu.Lock()
-	defer evt.mu.Unlock()
-	evt.funcMap = make(map[interface{}]reflect.Value)
+	evt.bingLock.Lock()
+	defer evt.bingLock.Unlock()
+	evt.bingFnMap = make(map[interface{}]reflect.Value)
 }
 
-func (evt *Event) Has(event interface{}) bool {
-	evt.mu.RLock()
-	defer evt.mu.RUnlock()
-	_, ok := evt.funcMap[event]
-	return ok
-}
-
-func (evt *Event) Events() []interface{} {
-	evt.mu.Lock()
-	defer evt.mu.Unlock()
-	events := make([]interface{}, 0)
-	for k := range evt.funcMap {
-		events = append(events, k)
-	}
-	return events
-}
-
-func (evt *Event) EventCount() int {
-	evt.mu.RLock()
-	defer evt.mu.RUnlock()
-	return len(evt.funcMap)
-}
-
-func (evt *Event) read(event interface{}, params ...interface{}) (reflect.Value, []reflect.Value, error) {
-	evt.mu.RLock()
-	task, ok := evt.funcMap[event]
-	evt.mu.RUnlock()
+//Call 发送事件，存在返回参数
+func (evt *Event) Call(event interface{}, params ...interface{}) ([]reflect.Value, error) {
+	evt.bingLock.RLock()
+	fn, ok := evt.bingFnMap[event]
+	evt.bingLock.RUnlock()
 	if !ok {
 		tip := fmt.Sprintf("没有找到监听的事件 event:[%v]", event)
-		return reflect.Value{}, nil, errors.New(tip)
+		return nil, errors.New(tip)
 	}
-	numIn := task.Type().NumIn()
+	numIn := fn.Type().NumIn()
 	in := make([]reflect.Value, numIn)
 	for i := range params {
 		if i >= numIn {
@@ -100,5 +175,18 @@ func (evt *Event) read(event interface{}, params ...interface{}) (reflect.Value,
 		param := params[i]
 		in[i] = reflect.ValueOf(param)
 	}
-	return task, in, nil
+	return fn.Call(in), nil
+}
+
+func (evt *Event) HasBind(event interface{}) bool {
+	evt.bingLock.RLock()
+	defer evt.bingLock.RUnlock()
+	_, ok := evt.bingFnMap[event]
+	return ok
+}
+
+func (evt *Event) BindCount() int {
+	evt.bingLock.RLock()
+	defer evt.bingLock.RUnlock()
+	return len(evt.bingFnMap)
 }

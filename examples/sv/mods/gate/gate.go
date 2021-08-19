@@ -10,6 +10,11 @@ type (
 )
 
 //OnInit 初始化
-func (mm *GateModule) OnInit() {
+func (mm *GateModule) OnStart() {
+
+}
+
+//OnInit 初始化
+func (mm *GateModule) OnStop() {
 
 }

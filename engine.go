@@ -8,6 +8,7 @@ import (
 	"github.com/xhaoh94/gox/engine/xevent"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/xdef"
 )
 
 type (
@@ -69,21 +70,26 @@ func (engine *Engine) Version() string {
 
 //Start 启动
 func (engine *Engine) Start(appConfPath string) {
-	app.LoadAppConfig(appConfPath)
-	xlog.Init()
+	if appConfPath == "" {
+		xlog.Init()
+		xlog.Warn("没有传入ini配置,使用默认配置")
+	} else {
+		app.LoadAppConfig(appConfPath)
+		xlog.Init()
+	}
 	xlog.Info("服务启动[%d]", engine.sid)
 	xlog.Info("服务类型[%s]", engine.stype)
 	xlog.Info("服务版本[%s]", engine.version)
 	engine.nw.Start()
 	engine.mol.Start(engine.mol, engine)
-	engine.event.Call("_start_engine_ok_")
+	engine.event.Run(xdef.START_ENGINE_OK)
 	xlog.Info("服务启动完毕")
 }
 
 //Shutdown 关闭
 func (engine *Engine) Shutdown() {
 	engine.contextFn()
-	engine.mol.Destroy(engine.mol)
+	engine.mol.Stop(engine.mol)
 	engine.nw.Stop()
 	xlog.Info("服务退出[%s]", engine.sid)
 	xlog.Destroy()

@@ -26,11 +26,11 @@ type (
 )
 
 const (
-	_csc  byte = 0x01
-	_hbs  byte = 0x02
-	_hbr  byte = 0x03
-	_rpcs byte = 0x04
-	_rpcr byte = 0x05
+	C_S_C byte = 0x01
+	H_B_S byte = 0x02
+	H_B_R byte = 0x03
+	RPC_S byte = 0x04
+	RPC_R byte = 0x05
 )
 
 //UID 获取id
@@ -79,9 +79,9 @@ func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	if !s.isAct() {
 		return false
 	}
-	pkt := newByteArray(make([]byte, 0))
+	pkt := NewByteArray(make([]byte, 0))
 	defer pkt.Reset()
-	pkt.AppendByte(_csc)
+	pkt.AppendByte(C_S_C)
 	pkt.AppendUint32(cmd)
 	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
 		return false
@@ -99,9 +99,9 @@ func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC 
 	}
 	cmd := util.ToCmd(msg, response)
 	rpcid := s.network().GetRPC().(*rpc.RPC).AssignID()
-	pkt := newByteArray(make([]byte, 0))
+	pkt := NewByteArray(make([]byte, 0))
 	defer pkt.Reset()
-	pkt.AppendByte(_rpcs)
+	pkt.AppendByte(RPC_S)
 	pkt.AppendUint32(cmd)
 	pkt.AppendUint32(rpcid)
 	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
@@ -118,9 +118,9 @@ func (s *Session) Reply(msg interface{}, rpcid uint32) bool {
 	if !s.isAct() {
 		return false
 	}
-	pkt := newByteArray(make([]byte, 0))
+	pkt := NewByteArray(make([]byte, 0))
 	defer pkt.Reset()
-	pkt.AppendByte(_rpcr)
+	pkt.AppendByte(RPC_R)
 	pkt.AppendUint32(rpcid)
 	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
 		return false
@@ -148,7 +148,7 @@ func (s *Session) onHeartbeat() {
 		case <-s.ctx.Done():
 			goto end
 		case <-time.After(app.GetAppCfg().Network.Heartbeat):
-			s.sendHeartbeat(_hbs) //发送空的心跳包
+			s.sendHeartbeat(H_B_S) //发送空的心跳包
 		}
 	}
 end:
@@ -157,7 +157,7 @@ func (s *Session) sendHeartbeat(t byte) {
 	if !s.isAct() {
 		return
 	}
-	pkg := newByteArray(make([]byte, 0))
+	pkg := NewByteArray(make([]byte, 0))
 	defer pkg.Reset()
 	pkg.AppendByte(t)
 	s.sendData(pkg.PktData())
@@ -168,14 +168,14 @@ func (s *Session) read(data []byte) {
 	if !s.isAct() {
 		return
 	}
-	pkt := newByteArray(data)
+	pkt := NewByteArray(data)
 	defer pkt.Reset()
 	t := pkt.ReadOneByte()
 	switch t {
-	case _hbs:
-		s.sendHeartbeat(_hbr)
+	case H_B_S:
+		s.sendHeartbeat(H_B_R)
 		break
-	case _csc:
+	case C_S_C:
 		cmd := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
 		if msgLen == 0 {
@@ -193,7 +193,7 @@ func (s *Session) read(data []byte) {
 		}
 		go s.emitMessage(cmd, msg)
 		break
-	case _rpcs:
+	case RPC_S:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
@@ -212,7 +212,7 @@ func (s *Session) read(data []byte) {
 		}
 		go s.emitRpc(cmd, rpcID, msg)
 		break
-	case _rpcr:
+	case RPC_R:
 		rpcID := pkt.ReadUint32()
 		dr := s.defaultRpc().Get(rpcID)
 		if dr != nil {

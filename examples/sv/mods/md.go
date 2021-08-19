@@ -21,7 +21,7 @@ type (
 )
 
 //OnInit 初始化
-func (mm *MainModule) OnInit() {
+func (mm *MainModule) OnStart() {
 	switch mm.GetEngine().ServiceType() {
 	case Gate:
 		mm.Put(&gate.GateModule{})
@@ -30,4 +30,9 @@ func (mm *MainModule) OnInit() {
 		mm.Put(&login.LoginModule{})
 		break
 	}
+}
+
+//OnInit 初始化
+func (mm *MainModule) OnStop() {
+
 }
