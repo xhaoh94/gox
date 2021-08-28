@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/network/service"
+	"github.com/xhaoh94/gox/engine/network/sv"
 	"github.com/xhaoh94/gox/engine/xlog"
 )
 
@@ -23,7 +23,7 @@ func init() {
 type (
 	//TChannel TCP信道
 	TChannel struct {
-		service.Channel
+		sv.Channel
 		connGuard sync.RWMutex
 		conn      *net.Conn
 	}

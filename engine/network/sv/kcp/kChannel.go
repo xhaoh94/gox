@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/network/service"
+	"github.com/xhaoh94/gox/engine/network/sv"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xtaci/kcp-go/v5"
 )
@@ -23,7 +23,7 @@ func init() {
 type (
 	//KChannel TCP信道
 	KChannel struct {
-		service.Channel
+		sv.Channel
 		connGuard sync.RWMutex
 		conn      *kcp.UDPSession
 	}

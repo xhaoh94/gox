@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/network/service"
+	"github.com/xhaoh94/gox/engine/network/sv"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
 )
 
 //TService TCP服务器
 type TService struct {
-	service.Service
+	sv.Service
 	listen net.Listener
 }
 

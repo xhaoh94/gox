@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/etcd"
-	"github.com/xhaoh94/gox/engine/network/rpc"
+	"github.com/xhaoh94/gox/engine/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
 	"github.com/xhaoh94/gox/util"

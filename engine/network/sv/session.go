@@ -1,4 +1,4 @@
-package service
+package sv
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/xhaoh94/gox/consts"
 
 	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/network/rpc"
+	"github.com/xhaoh94/gox/engine/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
 	"github.com/xhaoh94/gox/util"

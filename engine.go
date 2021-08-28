@@ -7,7 +7,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network"
-	"github.com/xhaoh94/gox/engine/network/rpc"
+	"github.com/xhaoh94/gox/engine/rpc"
 	"github.com/xhaoh94/gox/engine/xevent"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
