@@ -7,6 +7,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network"
+	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/xevent"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
@@ -35,6 +36,7 @@ type (
 		codec     types.ICodec
 		event     types.IEvent
 		nw        *network.NetWork
+		rpc       *rpc.RPC
 		endian    binary.ByteOrder
 	}
 )
@@ -47,6 +49,7 @@ func NewEngine(sid uint, sType string, version string) IEngine {
 	e.event = xevent.New()
 	e.context, e.contextFn = context.WithCancel(context.Background())
 	e.nw = network.New(e, e.context)
+	e.rpc = rpc.New(e)
 	e.endian = binary.LittleEndian
 	return e
 }
@@ -61,6 +64,10 @@ func (engine *Engine) GetCodec() types.ICodec {
 
 func (engine *Engine) GetEvent() types.IEvent {
 	return engine.event
+}
+
+func (engine *Engine) GetRPC() types.IGRPC {
+	return engine.rpc
 }
 
 func (engine *Engine) GetNetWork() types.INetwork {
@@ -95,7 +102,9 @@ func (engine *Engine) Start(appConfPath string) {
 	xlog.Info("服务版本[%s]", engine.version)
 	xlog.Info("endian[%s]", engine.endian.String())
 	engine.nw.Start()
+	engine.rpc.Start()
 	engine.mol.Start(engine.mol, engine)
+	engine.rpc.Serve()
 	engine.event.Run(xdef.START_ENGINE_OK)
 	xlog.Info("服务启动完毕")
 }
@@ -104,6 +113,7 @@ func (engine *Engine) Start(appConfPath string) {
 func (engine *Engine) Shutdown() {
 	engine.contextFn()
 	engine.mol.Stop(engine.mol)
+	engine.rpc.Stop()
 	engine.nw.Stop()
 	xlog.Info("服务退出[%s]", engine.sid)
 	xlog.Destroy()
@@ -123,7 +133,7 @@ func (engine *Engine) SetInteriorService(ser types.IService, addr string) {
 
 //SetGrpcAddr 设置grpc服务
 func (engine *Engine) SetGrpcAddr(addr string) {
-	engine.nw.SetGrpcAddr(addr)
+	engine.rpc.SetAddr(addr)
 }
 
 //SetCodec 设置解码器

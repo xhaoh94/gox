@@ -104,7 +104,7 @@ func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC 
 		return dr
 	}
 	cmd := util.ToCmd(msg, response)
-	rpcid := s.network().GetRPC().(*rpc.RPC).AssignID()
+	rpcid := s.defaultRpc().AssignID()
 	pkt := NewByteArray(make([]byte, 0), s.endian())
 	defer pkt.Reset()
 	pkt.AppendBytes(KEY)
@@ -274,7 +274,7 @@ func (s *Session) parseMsg(buf []byte) {
 }
 
 func (s *Session) defaultRpc() *rpc.RPC {
-	return s.network().GetRPC().(*rpc.RPC)
+	return s.sv.Engine.GetRPC().(*rpc.RPC)
 }
 func (s *Session) codec() types.ICodec {
 	return s.sv.Engine.GetCodec()

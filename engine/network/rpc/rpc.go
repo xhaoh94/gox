@@ -7,7 +7,6 @@ import (
 
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/xdef"
 
 	"google.golang.org/grpc"
 )
@@ -69,15 +68,14 @@ func (g *RPC) GetAddr() string {
 	return ""
 }
 
-func (g *RPC) Init(addr string) {
-	g.grpc = &gRPC{
-		rpcAddr: addr,
+func (g *RPC) SetAddr(addr string) {
+	g.grpc = &gRPC{rpcAddr: addr}
+}
+
+func (g *RPC) Serve() {
+	if g.grpc != nil && g.grpc.listen != nil {
+		go g.grpc.server.Serve(g.grpc.listen)
 	}
-	g.engine.GetEvent().On(xdef.START_ENGINE_OK, func() {
-		if g.grpc.listen != nil {
-			go g.grpc.server.Serve(g.grpc.listen)
-		}
-	})
 }
 
 //AssignID 获取RPCID

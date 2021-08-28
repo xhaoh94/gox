@@ -16,6 +16,7 @@ type (
 		Version() string
 		GetEvent() IEvent
 		GetNetWork() INetwork
+		GetRPC() IGRPC
 		GetCodec() ICodec
 		GetEndian() binary.ByteOrder
 	}
@@ -48,12 +49,10 @@ type (
 	INetwork interface {
 		GetSessionById(uint32) ISession
 		GetSessionByAddr(string) ISession
-		GetRPC() IGRPC
 		GetActorCtrl() IActorCtrl
 		GetServiceCtrl() IServiceCtrl
 		GetOutsideAddr() string
 		GetInteriorAddr() string
-		GetRpcAddr() string
 		RegisterRType(uint32, reflect.Type)
 		UnRegisterRType(uint32)
 		GetRegProtoMsg(uint32) interface{}

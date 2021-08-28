@@ -69,10 +69,10 @@ func (m *Module) GetSessionByAddr(addr string) types.ISession {
 	return m.engine.GetNetWork().GetSessionByAddr(addr)
 }
 func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
-	return m.engine.GetNetWork().GetRPC().GetConnByAddr(addr)
+	return m.engine.GetRPC().GetConnByAddr(addr)
 }
 func (m *Module) GetGrpcServer() *grpc.Server {
-	return m.engine.GetNetWork().GetRPC().GetServer()
+	return m.engine.GetRPC().GetServer()
 }
 
 //Register 注册协议对应消息体和回调函数

@@ -1,19 +1,16 @@
 package codec
 
-import (
-	"encoding/json"
-)
+import "encoding/json"
 
-type (
-	JsonCodec struct {
-	}
-)
+type jsonCodec struct{}
 
-func (*JsonCodec) Encode(msg interface{}) (bytes []byte, err error) {
+var Json jsonCodec
+
+func (jsonCodec) Encode(msg interface{}) (bytes []byte, err error) {
 	bytes, err = json.Marshal(msg)
 	return
 }
-func (*JsonCodec) Decode(bytes []byte, msg interface{}) (err error) {
+func (jsonCodec) Decode(bytes []byte, msg interface{}) (err error) {
 	err = json.Unmarshal(bytes, msg)
 	return
 }

@@ -22,7 +22,7 @@ func main() {
 	flag.Parse()
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	engine.SetModule(new(mods.MainModule))
-	engine.SetCodec(new(codec.JsonCodec))
+	engine.SetCodec(codec.Json)
 	engine.SetInteriorService(new(tcp.TService), iAddr)
 	engine.SetOutsideService(new(kcp.KService), oAddr)
 	engine.SetGrpcAddr(rAddr)

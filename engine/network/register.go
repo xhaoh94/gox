@@ -97,7 +97,7 @@ func (reg *ServiceCrtl) Start(ctx context.Context) {
 		Version:      reg.nw.engine.Version(),
 		OutsideAddr:  reg.nw.GetOutsideAddr(),
 		InteriorAddr: reg.nw.GetInteriorAddr(),
-		RPCAddr:      reg.nw.GetRpcAddr(),
+		RPCAddr:      reg.nw.engine.GetRPC().GetAddr(),
 	}
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
 	go reg.checkTimeout(timeoutCtx)

@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/network/actor"
-	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
 	"github.com/xhaoh94/gox/util"
@@ -21,7 +20,6 @@ type (
 		context   context.Context
 		contextFn context.CancelFunc
 
-		rpc     *rpc.RPC
 		atrCrtl *actor.ActorCrtl
 		svCrtl  *ServiceCrtl
 		cmdType map[uint32]reflect.Type
@@ -33,7 +31,6 @@ func New(engine types.IEngine, ctx context.Context) *NetWork {
 	nw := new(NetWork)
 	nw.engine = engine
 	nw.atrCrtl = actor.New(engine)
-	nw.rpc = rpc.New(engine)
 	nw.svCrtl = newServiceReg(nw)
 	nw.cmdType = make(map[uint32]reflect.Type)
 	nw.context, nw.contextFn = context.WithCancel(ctx)
@@ -45,9 +42,6 @@ func (nw *NetWork) GetServiceCtrl() types.IServiceCtrl {
 }
 func (nw *NetWork) GetActorCtrl() types.IActorCtrl {
 	return nw.atrCrtl
-}
-func (nw *NetWork) GetRPC() types.IGRPC {
-	return nw.rpc
 }
 
 //GetSession 通过id获取Session
@@ -73,12 +67,6 @@ func (nw *NetWork) GetOutsideAddr() string {
 func (nw *NetWork) GetInteriorAddr() string {
 	if nw.interior != nil {
 		return nw.interior.GetAddr()
-	}
-	return ""
-}
-func (nw *NetWork) GetRpcAddr() string {
-	if nw.rpc != nil {
-		return nw.rpc.GetAddr()
 	}
 	return ""
 }
@@ -124,9 +112,6 @@ func (nw *NetWork) Start() {
 	if nw.outside != nil {
 		nw.outside.Start()
 	}
-	if nw.rpc != nil {
-		nw.rpc.Start()
-	}
 	nw.svCrtl.Start(nw.context)
 	nw.atrCrtl.Start(nw.context)
 }
@@ -136,9 +121,6 @@ func (nw *NetWork) Stop() {
 	nw.svCrtl.Stop()
 	if nw.outside != nil {
 		nw.outside.Stop()
-	}
-	if nw.rpc != nil {
-		nw.rpc.Stop()
 	}
 	nw.interior.Stop()
 }
@@ -153,9 +135,4 @@ func (nw *NetWork) SetOutsideService(ser types.IService, addr string) {
 func (nw *NetWork) SetInteriorService(ser types.IService, addr string) {
 	nw.interior = ser
 	nw.interior.Init(addr, nw.engine, nw.context)
-}
-
-//SetGrpcAddr 设置grpc服务
-func (nw *NetWork) SetGrpcAddr(addr string) {
-	nw.rpc.Init(addr)
 }

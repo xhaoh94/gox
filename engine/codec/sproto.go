@@ -1,17 +1,16 @@
 package codec
 
-import gosproto "github.com/xjdrew/gosproto"
+import sproto "github.com/xjdrew/gosproto"
 
-type (
-	SprotoCodec struct {
-	}
-)
+type sprotoCodec struct{}
 
-func (*SprotoCodec) Encode(msg interface{}) (bytes []byte, err error) {
-	bytes, err = gosproto.Encode(msg)
+var Sproto sprotoCodec
+
+func (sprotoCodec) Encode(msg interface{}) (bytes []byte, err error) {
+	bytes, err = sproto.Encode(msg)
 	return
 }
-func (*SprotoCodec) Decode(bytes []byte, msg interface{}) (err error) {
-	_, err = gosproto.Decode(bytes, msg)
+func (sprotoCodec) Decode(bytes []byte, msg interface{}) (err error) {
+	_, err = sproto.Decode(bytes, msg)
 	return
 }

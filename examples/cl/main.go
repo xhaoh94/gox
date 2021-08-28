@@ -46,7 +46,7 @@ func main() {
 	flag.Parse()
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	engine.SetModule(new(MainModule))
-	engine.SetCodec(new(codec.JsonCodec))
+	engine.SetCodec(codec.Json)
 	engine.SetOutsideService(new(tcp.TService), addr)
 	engine.Start("")
 	sigChan := make(chan os.Signal, 1)
