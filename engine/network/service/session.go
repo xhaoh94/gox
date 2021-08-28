@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/binary"
+	"io"
 	"time"
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/consts"
 
+	"github.com/xhaoh94/gox/engine/codec"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
@@ -24,6 +27,8 @@ type (
 		ctxCancelFunc context.CancelFunc
 	}
 )
+
+var KEY []byte = []byte("key_key_")
 
 const (
 	C_S_C byte = 0x01
@@ -55,7 +60,7 @@ func (s *Session) init(id uint32, service *Service, channel types.IChannel, t Ta
 	s.tag = t
 	s.sv = service
 	s.ctx, s.ctxCancelFunc = context.WithCancel(service.Ctx)
-	s.channel.SetCallBackFn(s.read, s.close)
+	s.channel.SetSession(s)
 }
 
 //start 启动
@@ -79,8 +84,9 @@ func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	if !s.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0))
+	pkt := NewByteArray(make([]byte, 0), s.endian())
 	defer pkt.Reset()
+	pkt.AppendBytes(KEY)
 	pkt.AppendByte(C_S_C)
 	pkt.AppendUint32(cmd)
 	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
@@ -99,8 +105,9 @@ func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC 
 	}
 	cmd := util.ToCmd(msg, response)
 	rpcid := s.network().GetRPC().(*rpc.RPC).AssignID()
-	pkt := NewByteArray(make([]byte, 0))
+	pkt := NewByteArray(make([]byte, 0), s.endian())
 	defer pkt.Reset()
+	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_S)
 	pkt.AppendUint32(cmd)
 	pkt.AppendUint32(rpcid)
@@ -118,8 +125,9 @@ func (s *Session) Reply(msg interface{}, rpcid uint32) bool {
 	if !s.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0))
+	pkt := NewByteArray(make([]byte, 0), s.endian())
 	defer pkt.Reset()
+	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_R)
 	pkt.AppendUint32(rpcid)
 	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
@@ -157,19 +165,52 @@ func (s *Session) sendHeartbeat(t byte) {
 	if !s.isAct() {
 		return
 	}
-	pkg := NewByteArray(make([]byte, 0))
-	defer pkg.Reset()
-	pkg.AppendByte(t)
-	s.sendData(pkg.PktData())
+	pkt := NewByteArray(make([]byte, 0), s.endian())
+	defer pkt.Reset()
+	pkt.AppendBytes(KEY)
+	pkt.AppendByte(t)
+	s.sendData(pkt.PktData())
 }
 
-//OnRead 读取数据
-func (s *Session) read(data []byte) {
+func (s *Session) parseReader(r io.Reader) bool {
+	if !s.isAct() {
+		return true
+	}
+	header := make([]byte, 2)
+	_, err := io.ReadFull(r, header)
+	if err != nil {
+		return true
+	}
+	msgLen := codec.BytesToUint16(header, s.endian())
+	if msgLen == 0 {
+		xlog.Error("读取到网络空包 local:[%s] remote:[%s]", s.LocalAddr(), s.RemoteAddr())
+		return true
+	}
+
+	if int(msgLen) > app.GetAppCfg().Network.ReadMsgMaxLen {
+		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", s.LocalAddr(), s.RemoteAddr())
+		return true
+	}
+
+	buf := make([]byte, msgLen)
+	_, err = io.ReadFull(r, buf)
+
+	if err != nil {
+		return true
+	}
+	go s.parseMsg(buf)
+	return false
+}
+
+//parseMsg 解析包
+func (s *Session) parseMsg(buf []byte) {
 	if !s.isAct() {
 		return
 	}
-	pkt := NewByteArray(data)
+	pkt := NewByteArray(buf, s.endian())
 	defer pkt.Reset()
+	pkt.ReadBytes(8) //8位预留的字节
+
 	t := pkt.ReadOneByte()
 	switch t {
 	case H_B_S:
@@ -191,14 +232,14 @@ func (s *Session) read(data []byte) {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
-		go s.emitMessage(cmd, msg)
+		s.emitMessage(cmd, msg)
 		break
 	case RPC_S:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
 		if msgLen == 0 {
-			go s.emitRpc(cmd, rpcID, nil)
+			s.emitRpc(cmd, rpcID, nil)
 			return
 		}
 		msg := s.network().GetRegProtoMsg(cmd)
@@ -210,7 +251,7 @@ func (s *Session) read(data []byte) {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
-		go s.emitRpc(cmd, rpcID, msg)
+		s.emitRpc(cmd, rpcID, msg)
 		break
 	case RPC_R:
 		rpcID := pkt.ReadUint32()
@@ -236,13 +277,16 @@ func (s *Session) defaultRpc() *rpc.RPC {
 	return s.network().GetRPC().(*rpc.RPC)
 }
 func (s *Session) codec() types.ICodec {
-	return s.sv.engine.GetCodec()
+	return s.sv.Engine.GetCodec()
 }
 func (s *Session) network() types.INetwork {
-	return s.sv.engine.GetNetWork()
+	return s.sv.Engine.GetNetWork()
 }
 func (s *Session) event() types.IEvent {
-	return s.sv.engine.GetEvent()
+	return s.sv.Engine.GetEvent()
+}
+func (s *Session) endian() binary.ByteOrder {
+	return s.endian()
 }
 
 //callEvt 触发

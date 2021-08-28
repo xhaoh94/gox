@@ -68,7 +68,9 @@ func (w *WChannel) recvAsync() {
 			w.Stop() //超时断开链接
 			break
 		}
-		w.Read(r, w.Stop)
+		if w.Read(r) {
+			w.Stop()
+		}
 		if w.IsRun && readTimeout > 0 {
 			if err = w.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
 				xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)

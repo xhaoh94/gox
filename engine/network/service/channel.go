@@ -5,19 +5,20 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/types"
 )
 
 type (
 	//Channel 通信信道
 	Channel struct {
-		rfn        func([]byte)
-		cfn        func()
+		session *Session
+		// rfn        func([]byte)
+		// cfn        func()
 		wfn        func([]byte)
 		writeMutex sync.Mutex
 		remoteAddr string
 		localAddr  string
+		// endian     binary.ByteOrder
 
 		Wg    sync.WaitGroup
 		IsRun bool
@@ -61,20 +62,17 @@ func (c *Channel) Send(data []byte) {
 
 //OnStop 停止信道
 func (c *Channel) OnStop() {
-	if c.cfn != nil {
-		c.cfn()
+	if c.session != nil {
+		c.session.close()
+		c.session = nil
 	}
 	c.localAddr = ""
 	c.remoteAddr = ""
-	c.rfn = nil
 	c.wfn = nil
-	c.cfn = nil
 }
 
-//SetCallBackFn 设置回调
-func (c *Channel) SetCallBackFn(rfn func([]byte), cfn func()) {
-	c.rfn = rfn
-	c.cfn = cfn
+func (c *Channel) SetSession(session types.ISession) {
+	c.session = session.(*Session)
 }
 
 //Init 初始化
@@ -85,7 +83,7 @@ func (c *Channel) Init(wfn func([]byte), remoteAddr string, localAddr string) {
 }
 
 //Read
-func (c *Channel) Read(r io.Reader, stopFunc func()) {
+func (c *Channel) Read(r io.Reader) bool {
 
 	// header, err := ioutil.ReadAll(io.LimitReader(r, 2))
 	// if err != nil {
@@ -112,34 +110,8 @@ func (c *Channel) Read(r io.Reader, stopFunc func()) {
 	// 	return
 	// }
 	// c.session.OnRead(buf)
-
-	header := make([]byte, 2)
-	_, err := io.ReadFull(r, header)
-	if err != nil {
-		stopFunc() //超时断开链接
-		return
+	if c.session != nil {
+		return c.session.parseReader(r)
 	}
-	msgLen := codec.BytesToUint16(header)
-	if msgLen == 0 {
-		xlog.Error("读取到空的网络包体 local:[%s] remote:[%s]", c.localAddr, c.remoteAddr)
-		stopFunc() //空数据
-		return
-	}
-
-	if int(msgLen) > app.GetAppCfg().Network.ReadMsgMaxLen {
-		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", c.localAddr, c.remoteAddr)
-		stopFunc() //超过读取最大限制
-		return
-	}
-
-	buf := make([]byte, msgLen)
-	_, err = io.ReadFull(r, buf)
-
-	if err != nil {
-		stopFunc() //超时断开链接
-		return
-	}
-	if c.rfn != nil {
-		c.rfn(buf)
-	}
+	return true
 }

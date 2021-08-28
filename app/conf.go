@@ -46,7 +46,6 @@ type (
 		ConnectTimeout time.Duration `ini:"connect_timeout"`
 		//ReadTimeout 读超时
 		ReadTimeout time.Duration `ini:"read_timeout"`
-		NetEndian   string        `ini:"net_endian"`
 	}
 	webSocketConf struct {
 		WebSocketMessageType int    `ini:"ws_message_type"`
@@ -90,7 +89,6 @@ func initCfg() {
 			Heartbeat:         30 * time.Second,
 			ConnectTimeout:    3 * time.Second,
 			ReadTimeout:       35 * time.Second,
-			NetEndian:         "LittleEndian",
 		},
 		WebSocket: webSocketConf{
 			WebSocketMessageType: 2,

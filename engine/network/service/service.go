@@ -12,7 +12,13 @@ import (
 type (
 	//Service 服务器
 	Service struct {
-		engine        types.IEngine
+		Engine             types.IEngine
+		ConnectChannelFunc func(addr string) types.IChannel
+		AcceptWg           sync.WaitGroup
+		IsRun              bool
+		Ctx                context.Context
+		CtxCancelFunc      context.CancelFunc
+
 		addr          string
 		idToSession   map[uint32]*Session //Accept Map
 		idMutex       sync.Mutex
@@ -21,21 +27,15 @@ type (
 		sessionWg     sync.WaitGroup
 		sessionPool   *sync.Pool
 		sessionOps    uint32
-
-		ConnectChannelFunc func(addr string) types.IChannel
-		AcceptWg           sync.WaitGroup
-		IsRun              bool
-		Ctx                context.Context
-		CtxCancelFunc      context.CancelFunc
 	}
 )
 
 //Init 服务初始化
 func (ser *Service) Init(addr string, engine types.IEngine, ctx context.Context) {
-	ser.sessionPool = &sync.Pool{New: func() interface{} { return &Session{} }}
+	ser.Engine = engine
 	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(ctx)
+	ser.sessionPool = &sync.Pool{New: func() interface{} { return &Session{} }}
 	ser.addr = addr
-	ser.engine = engine
 	ser.idToSession = make(map[uint32]*Session)
 	ser.addrToSession = make(map[string]*Session)
 }

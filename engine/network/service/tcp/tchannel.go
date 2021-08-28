@@ -61,7 +61,9 @@ func (t *TChannel) recvAsync() {
 		}
 	}
 	for t.Conn() != nil && t.IsRun {
-		t.Read(t.Conn(), t.Stop)
+		if t.Read(t.Conn()) {
+			t.Stop()
+		}
 		if t.IsRun && readTimeout > 0 {
 			if err := t.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
 				xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", t.RemoteAddr(), err)

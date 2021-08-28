@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"encoding/binary"
 	"reflect"
 
 	"google.golang.org/grpc"
@@ -16,6 +17,7 @@ type (
 		GetEvent() IEvent
 		GetNetWork() INetwork
 		GetCodec() ICodec
+		GetEndian() binary.ByteOrder
 	}
 
 	//IModule 模块接口
@@ -81,7 +83,8 @@ type (
 		Send(data []byte)
 		RemoteAddr() string
 		LocalAddr() string
-		SetCallBackFn(func([]byte), func())
+		// SetCallBackFn(func([]byte), func())
+		SetSession(ISession)
 	}
 
 	//IServiceCtrl 服务发现接口

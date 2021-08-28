@@ -2,6 +2,8 @@ package gox
 
 import (
 	"context"
+	"encoding/binary"
+	"log"
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/network"
@@ -13,12 +15,14 @@ import (
 
 type (
 	IEngine interface {
-		Start(appConfPath string)
+		Start(string)
 		Shutdown()
-		SetOutsideService(ser types.IService, addr string)
-		SetInteriorService(ser types.IService, addr string)
-		SetGrpcAddr(addr string)
-		SetCodec(c types.ICodec)
+		SetOutsideService(types.IService, string)
+		SetInteriorService(types.IService, string)
+		SetGrpcAddr(string)
+		SetCodec(types.ICodec)
+		SetModule(m types.IModule)
+		SetEndian(binary.ByteOrder)
 	}
 	Engine struct {
 		sid     uint
@@ -31,10 +35,11 @@ type (
 		codec     types.ICodec
 		event     types.IEvent
 		nw        *network.NetWork
+		endian    binary.ByteOrder
 	}
 )
 
-func NewEngine(sid uint, sType string, version string, m types.IModule) IEngine {
+func NewEngine(sid uint, sType string, version string) IEngine {
 	e := new(Engine)
 	e.sid = sid
 	e.stype = sType
@@ -42,8 +47,12 @@ func NewEngine(sid uint, sType string, version string, m types.IModule) IEngine 
 	e.event = xevent.New()
 	e.context, e.contextFn = context.WithCancel(context.Background())
 	e.nw = network.New(e, e.context)
-	e.mol = m
+	e.endian = binary.LittleEndian
 	return e
+}
+
+func (engine *Engine) GetEndian() binary.ByteOrder {
+	return engine.endian
 }
 
 func (engine *Engine) GetCodec() types.ICodec {
@@ -70,6 +79,10 @@ func (engine *Engine) Version() string {
 
 //Start 启动
 func (engine *Engine) Start(appConfPath string) {
+	if engine.mol == nil {
+		log.Fatalf("没有设置主模块")
+		return
+	}
 	if appConfPath == "" {
 		xlog.Init()
 		xlog.Warn("没有传入ini配置,使用默认配置")
@@ -80,6 +93,7 @@ func (engine *Engine) Start(appConfPath string) {
 	xlog.Info("服务启动[%d]", engine.sid)
 	xlog.Info("服务类型[%s]", engine.stype)
 	xlog.Info("服务版本[%s]", engine.version)
+	xlog.Info("endian[%s]", engine.endian.String())
 	engine.nw.Start()
 	engine.mol.Start(engine.mol, engine)
 	engine.event.Run(xdef.START_ENGINE_OK)
@@ -117,9 +131,14 @@ func (engine *Engine) SetCodec(c types.ICodec) {
 	engine.codec = c
 }
 
-// //SetModule 设置初始模块
-// func (engine *Engine) SetModule(m types.IModule) {
-// 	engine.mol = m
-// }
+//SetCodec 设置解码器
+func (engine *Engine) SetEndian(bo binary.ByteOrder) {
+	engine.endian = bo
+}
+
+//SetModule 设置初始模块
+func (engine *Engine) SetModule(m types.IModule) {
+	engine.mol = m
+}
 
 ////////////////////////////////////////////////////////////

@@ -105,9 +105,9 @@ func (nw *NetWork) UnRegisterRType(cmd uint32) {
 
 //GetRegProtoMsg 获取协议消息体
 func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
-	defer nw.cmdLock.RUnlock()
 	nw.cmdLock.RLock()
 	rType, ok := nw.cmdType[cmd]
+	nw.cmdLock.RUnlock()
 	if !ok {
 		return nil
 	}

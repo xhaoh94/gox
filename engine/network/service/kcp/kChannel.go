@@ -61,7 +61,10 @@ func (k *KChannel) recvAsync() {
 		}
 	}
 	for k.Conn() != nil && k.IsRun {
-		k.Read(k.Conn(), k.Stop)
+		if k.Read(k.Conn()) {
+			k.Stop()
+		}
+
 		if k.IsRun && readTimeout > 0 {
 			if err := k.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
 				xlog.Info("kpc addr[%s] 接受数据超时err:[%v]", k.RemoteAddr(), err)
