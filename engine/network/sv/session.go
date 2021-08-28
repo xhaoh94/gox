@@ -286,7 +286,7 @@ func (s *Session) event() types.IEvent {
 	return s.sv.Engine.GetEvent()
 }
 func (s *Session) endian() binary.ByteOrder {
-	return s.endian()
+	return s.sv.Engine.GetEndian()
 }
 
 //callEvt 触发

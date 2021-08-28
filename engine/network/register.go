@@ -178,7 +178,7 @@ func (reg *ServiceCrtl) onPut(kv *mvccpb.KeyValue) {
 	}
 	reg.idToService[service.ServiceID] = service
 	reg.keyToService[key] = service
-	xlog.Info("服务注册 sid:[%s] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
+	xlog.Info("服务注册 sid:[%d] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
 }
 func (reg *ServiceCrtl) put(kv *mvccpb.KeyValue) {
 	defer reg.lock.Unlock()
@@ -193,6 +193,6 @@ func (reg *ServiceCrtl) del(kv *mvccpb.KeyValue) {
 	if service, ok := reg.keyToService[key]; ok {
 		delete(reg.keyToService, key)
 		delete(reg.idToService, service.ServiceID)
-		xlog.Info("服务注销 sid:[%s] type:[%s]", service.ServiceID, service.ServiceType)
+		xlog.Info("服务注销 sid:[%d] type:[%s]", service.ServiceID, service.ServiceType)
 	}
 }

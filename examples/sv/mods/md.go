@@ -29,6 +29,10 @@ func (mm *MainModule) OnStart() {
 	case Login:
 		mm.Put(&login.LoginModule{})
 		break
+	default:
+		mm.Put(&gate.GateModule{})
+		mm.Put(&login.LoginModule{})
+		break
 	}
 }
 

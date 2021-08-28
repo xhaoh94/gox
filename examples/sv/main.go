@@ -7,8 +7,8 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/network/service/kcp"
-	"github.com/xhaoh94/gox/engine/network/service/tcp"
+	"github.com/xhaoh94/gox/engine/network/sv/kcp"
+	"github.com/xhaoh94/gox/engine/network/sv/tcp"
 	"github.com/xhaoh94/gox/examples/sv/mods"
 	"github.com/xhaoh94/gox/util"
 )

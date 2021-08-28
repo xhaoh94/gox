@@ -88,19 +88,22 @@ func (evt *Event) Run(event interface{}, params ...interface{}) {
 	if !ok {
 		return
 	}
-	for key := range fnMap {
-		fn := fnMap[key]
-		numIn := fn.Type().NumIn()
-		in := make([]reflect.Value, numIn)
-		for i := range params {
-			if i >= numIn {
-				break
+	go func() {
+		for key := range fnMap {
+			fn := fnMap[key]
+			numIn := fn.Type().NumIn()
+			in := make([]reflect.Value, numIn)
+			for i := range params {
+				if i >= numIn {
+					break
+				}
+				param := params[i]
+				in[i] = reflect.ValueOf(param)
 			}
-			param := params[i]
-			in[i] = reflect.ValueOf(param)
+			fn.Call(in)
 		}
-		fn.Call(in)
-	}
+	}()
+
 }
 
 func (evt *Event) Has(event interface{}, task interface{}) bool {

@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/network/service/tcp"
+	"github.com/xhaoh94/gox/engine/network/sv/kcp"
+	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/types"
 	"github.com/xhaoh94/gox/util"
@@ -30,12 +31,21 @@ func (mm *MainModule) OnStart() {
 }
 
 func (mm *MainModule) Init() {
+	time.Sleep(1 * time.Second)
 	session := mm.GetSessionByAddr("127.0.0.1:10002")
 	session.Send(netpack.C2S_TEST, &netpack.ReqTest{Acc: "xhaoh94", Pwd: "123456"})
+	time.Sleep(1 * time.Second)
+	rsp := &netpack.RspTest{}
+	b := session.Call(&netpack.ReqTest{Acc: "xhaoh94", Pwd: "abcdef"}, rsp).Await()
+	if b {
+		xlog.Info("客户端>>>收到RPC数据 %v", rsp)
+	} else {
+		xlog.Info("客户端>>>收到RPC数据失败")
+	}
 }
 
 func (mm *MainModule) RspTest(ctx context.Context, session types.ISession, rsp *netpack.RspTest) {
-	fmt.Printf("客户端收到数据 %v", rsp)
+	xlog.Info("客户端>>>收到数据 %v", rsp)
 }
 
 //模拟客户端发数据
@@ -47,7 +57,7 @@ func main() {
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	engine.SetModule(new(MainModule))
 	engine.SetCodec(codec.Json)
-	engine.SetOutsideService(new(tcp.TService), addr)
+	engine.SetInteriorService(new(kcp.KService), addr)
 	engine.Start("")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)
