@@ -15,16 +15,6 @@ import (
 )
 
 type (
-	IEngine interface {
-		Start(string)
-		Shutdown()
-		SetOutsideService(types.IService, string)
-		SetInteriorService(types.IService, string)
-		SetGrpcAddr(string)
-		SetCodec(types.ICodec)
-		SetModule(m types.IModule)
-		SetEndian(binary.ByteOrder)
-	}
 	Engine struct {
 		sid     uint
 		stype   string
@@ -41,7 +31,7 @@ type (
 	}
 )
 
-func NewEngine(sid uint, sType string, version string) IEngine {
+func NewEngine(sid uint, sType string, version string) *Engine {
 	e := new(Engine)
 	e.sid = sid
 	e.stype = sType
@@ -91,16 +81,14 @@ func (engine *Engine) Start(appConfPath string) {
 		return
 	}
 	if appConfPath == "" {
-		xlog.Init()
+		xlog.Init(engine.sid)
 		xlog.Warn("没有传入ini配置,使用默认配置")
 	} else {
 		app.LoadAppConfig(appConfPath)
-		xlog.Init()
+		xlog.Init(engine.sid)
 	}
-	xlog.Info("服务启动[%d]", engine.sid)
-	xlog.Info("服务类型[%s]", engine.stype)
-	xlog.Info("服务版本[%s]", engine.version)
-	xlog.Info("endian[%s]", engine.endian.String())
+	xlog.Info("服务启动[sid:%d,type:%s,[ver:%s]", engine.sid, engine.stype, engine.version)
+	xlog.Info("[ByteOrder:%s]", engine.endian.String())
 	engine.nw.Start()
 	engine.rpc.Start()
 	engine.mol.Start(engine.mol, engine)
@@ -115,7 +103,7 @@ func (engine *Engine) Shutdown() {
 	engine.mol.Stop(engine.mol)
 	engine.rpc.Stop()
 	engine.nw.Stop()
-	xlog.Info("服务退出[%s]", engine.sid)
+	xlog.Info("服务退出[sid:%d]", engine.sid)
 	xlog.Destroy()
 }
 

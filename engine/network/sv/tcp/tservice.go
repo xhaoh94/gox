@@ -29,7 +29,7 @@ func (ts *TService) Start() {
 		var err error
 		ts.listen, err = net.Listen("tcp", ts.GetAddr())
 		if err != nil {
-			xlog.Error("tcp 监听失败 addr:[%s] err:[%v]", ts.GetAddr(), err.Error())
+			xlog.Fatal("tcp 启动失败 addr:[%s] err:[%v]", ts.GetAddr(), err.Error())
 			ts.Stop()
 			return
 		}

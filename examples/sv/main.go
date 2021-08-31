@@ -14,18 +14,21 @@ import (
 )
 
 func main() {
-	sid := *flag.Uint("sid", uint(util.StringToHash(util.GetUUID())), "uuid")
-	sType := *flag.String("type", "all", "服务类型")
-	iAddr := *flag.String("iAddr", "127.0.0.1:10001", "服务地址")
-	oAddr := *flag.String("oAddr", "127.0.0.1:10002", "服务地址")
-	rAddr := *flag.String("grpcAddr", "127.0.0.1:10003", "grpc服务地址")
+
+	var sid uint
+	flag.UintVar(&sid, "sid", uint(util.StringToHash(util.GetUUID())), "uuid")
+	var sType, iAddr, oAddr string
+	flag.StringVar(&sType, "type", "all", "服务类型")
+	flag.StringVar(&iAddr, "iAddr", "127.0.0.1:10001", "服务地址")
+	flag.StringVar(&oAddr, "oAddr", "127.0.0.1:10002", "服务地址")
+	// rAddr := *flag.String("grpcAddr", "127.0.0.1:10003", "grpc服务地址")
 	flag.Parse()
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	engine.SetModule(new(mods.MainModule))
 	engine.SetCodec(codec.Json)
 	engine.SetInteriorService(new(tcp.TService), iAddr)
 	engine.SetOutsideService(new(kcp.KService), oAddr)
-	engine.SetGrpcAddr(rAddr)
+	// engine.SetGrpcAddr(rAddr)
 	engine.Start("xhgo.ini")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)

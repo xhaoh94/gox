@@ -35,11 +35,10 @@ func GetEtcdConf() clientv3.Config {
 }
 
 //NewEtcdService 创建etcd
-func NewEtcdService(get getFn, put putFn, del delFn, ctx context.Context) (*EtcdService, error) {
+func NewEtcdService(get getFn, put putFn, del delFn) (*EtcdService, error) {
 	conf := clientv3.Config{
 		Endpoints:   app.GetAppCfg().Etcd.EtcdList,
 		DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout,
-		Context:     ctx,
 	}
 	client, err := clientv3.New(conf)
 	if err != nil {

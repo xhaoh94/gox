@@ -53,7 +53,7 @@ func (ws *WService) accept() {
 	ws.IsRun = true
 	ws.AcceptWg.Add(1)
 	if ln, err := net.Listen("tcp", ws.GetAddr()); err != nil {
-		xlog.Error("websocket 监听失败: [%s]", err.Error())
+		xlog.Fatal("websocket 启动失败: [%s]", err.Error())
 	} else {
 		cf := app.GetAppCfg().WebSocket.CertFile
 		kf := app.GetAppCfg().WebSocket.KeyFile
@@ -66,7 +66,7 @@ func (ws *WService) accept() {
 			if err == http.ErrServerClosed {
 				xlog.Info("websocket 关闭")
 			} else {
-				xlog.Error("websocket 监听失败: [%s]", err.Error())
+				xlog.Fatal("websocket 启动失败: [%s]", err.Error())
 			}
 		}
 	}

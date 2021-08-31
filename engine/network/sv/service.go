@@ -25,16 +25,16 @@ type (
 		addrToSession map[string]*Session //Connect Map
 		addrMutex     sync.Mutex
 		sessionWg     sync.WaitGroup
-		sessionPool   *sync.Pool
 		sessionOps    uint32
 	}
 )
+
+var sessionPool *sync.Pool = &sync.Pool{New: func() interface{} { return &Session{} }}
 
 //Init 服务初始化
 func (ser *Service) Init(addr string, engine types.IEngine, ctx context.Context) {
 	ser.Engine = engine
 	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(ctx)
-	ser.sessionPool = &sync.Pool{New: func() interface{} { return &Session{} }}
 	ser.addr = addr
 	ser.idToSession = make(map[uint32]*Session)
 	ser.addrToSession = make(map[string]*Session)
@@ -143,7 +143,7 @@ func (ser *Service) onConnect(addr string) *Session {
 
 func (ser *Service) createSession(channel types.IChannel, tag Tag) *Session {
 	sid := atomic.AddUint32(&ser.sessionOps, 1)
-	session := ser.sessionPool.Get().(*Session)
+	session := sessionPool.Get().(*Session)
 	session.init(sid, ser, channel, tag)
 	if session != nil {
 		ser.sessionWg.Add(1)

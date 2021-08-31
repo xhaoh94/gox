@@ -79,13 +79,18 @@ func (s *Session) stop() {
 	s.channel.Stop()
 }
 
+//Close 关闭连接
+func (s *Session) Close() {
+	s.stop()
+}
+
 //Send 发送
 func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	if !s.isAct() {
 		return false
 	}
 	pkt := NewByteArray(make([]byte, 0), s.endian())
-	defer pkt.Reset()
+	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(C_S_C)
 	pkt.AppendUint32(cmd)
@@ -106,7 +111,7 @@ func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC 
 	cmd := util.ToCmd(msg, response)
 	rpcid := s.defaultRpc().AssignID()
 	pkt := NewByteArray(make([]byte, 0), s.endian())
-	defer pkt.Reset()
+	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_S)
 	pkt.AppendUint32(cmd)
@@ -126,7 +131,7 @@ func (s *Session) Reply(msg interface{}, rpcid uint32) bool {
 		return false
 	}
 	pkt := NewByteArray(make([]byte, 0), s.endian())
-	defer pkt.Reset()
+	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_R)
 	pkt.AppendUint32(rpcid)
@@ -166,7 +171,7 @@ func (s *Session) sendHeartbeat(t byte) {
 		return
 	}
 	pkt := NewByteArray(make([]byte, 0), s.endian())
-	defer pkt.Reset()
+	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(t)
 	s.sendData(pkt.PktData())
@@ -191,7 +196,6 @@ func (s *Session) parseReader(r io.Reader) bool {
 		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", s.LocalAddr(), s.RemoteAddr())
 		return true
 	}
-
 	buf := make([]byte, msgLen)
 	_, err = io.ReadFull(r, buf)
 
@@ -208,7 +212,7 @@ func (s *Session) parseMsg(buf []byte) {
 		return
 	}
 	pkt := NewByteArray(buf, s.endian())
-	defer pkt.Reset()
+	defer pkt.Release()
 	pkt.ReadBytes(8) //8位预留的字节
 
 	t := pkt.ReadOneByte()
@@ -322,19 +326,17 @@ func (s *Session) emitMessage(cmd uint32, msg interface{}) {
 	}
 }
 
-//OnClose 关闭
-func (s *Session) close() {
-	xlog.Info("session 断开 id:[%s] remote:[%s] local:[%s] tag:[%s]", s.id, s.RemoteAddr(), s.LocalAddr(), s.GetTagName())
+//release 回收session
+func (s *Session) release() {
+	xlog.Info("session 断开 id:[%d] remote:[%s] local:[%s] tag:[%s]", s.id, s.RemoteAddr(), s.LocalAddr(), s.GetTagName())
 	s.ctxCancelFunc()
 	s.sv.delSession(s)
-	s.reset()
-}
-
-func (s *Session) reset() {
 	// rpc.DelRPCBySessionID(s.id) 现在通过ctx 关闭
+	s.ctx = nil
+	s.ctxCancelFunc = nil
 	s.tag = 0
 	s.id = 0
 	s.channel = nil
-	s.sv.sessionPool.Put(s)
 	s.sv = nil
+	sessionPool.Put(s)
 }

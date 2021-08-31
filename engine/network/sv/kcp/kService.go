@@ -29,7 +29,7 @@ func (ks *KService) Start() {
 		var err error
 		ks.listen, err = kcp.ListenWithOptions(ks.GetAddr(), nil, 10, 3)
 		if err != nil {
-			xlog.Error("kcp 监听失败 addr:[%s] err:[%v]", ks.GetAddr(), err.Error())
+			xlog.Fatal("kcp 启动失败 addr:[%s] err:[%v]", ks.GetAddr(), err.Error())
 			ks.Stop()
 			return
 		}

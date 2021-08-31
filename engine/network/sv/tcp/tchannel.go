@@ -10,15 +10,7 @@ import (
 	"github.com/xhaoh94/gox/engine/xlog"
 )
 
-var channelPool *sync.Pool
-
-func init() {
-	channelPool = &sync.Pool{
-		New: func() interface{} {
-			return &TChannel{}
-		},
-	}
-}
+var channelPool *sync.Pool = &sync.Pool{New: func() interface{} { return &TChannel{} }}
 
 type (
 	//TChannel TCP信道

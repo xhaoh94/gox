@@ -2,15 +2,9 @@ package mods
 
 import (
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/examples/sv/game"
 	"github.com/xhaoh94/gox/examples/sv/mods/gate"
 	"github.com/xhaoh94/gox/examples/sv/mods/login"
-)
-
-const (
-	//Gate 网关服务
-	Gate string = "gate"
-	//Login 登录服务
-	Login string = "login"
 )
 
 type (
@@ -20,13 +14,13 @@ type (
 	}
 )
 
-//OnInit 初始化
+//OnStart 初始化
 func (mm *MainModule) OnStart() {
 	switch mm.GetEngine().ServiceType() {
-	case Gate:
+	case game.Gate:
 		mm.Put(&gate.GateModule{})
 		break
-	case Login:
+	case game.Login:
 		mm.Put(&login.LoginModule{})
 		break
 	default:
@@ -34,9 +28,4 @@ func (mm *MainModule) OnStart() {
 		mm.Put(&login.LoginModule{})
 		break
 	}
-}
-
-//OnInit 初始化
-func (mm *MainModule) OnStop() {
-
 }

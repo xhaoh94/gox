@@ -63,7 +63,7 @@ func (c *Channel) Send(data []byte) {
 //OnStop 停止信道
 func (c *Channel) OnStop() {
 	if c.session != nil {
-		c.session.close()
+		c.session.release()
 		c.session = nil
 	}
 	c.localAddr = ""

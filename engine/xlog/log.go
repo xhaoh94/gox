@@ -9,11 +9,11 @@ import (
 
 var zlog *ZapLog
 
-func Init() {
+func Init(id uint) {
 	if zlog != nil {
 		return
 	}
-	zlog = new()
+	zlog = new(id)
 }
 func Destroy() {
 	if zlog != nil {

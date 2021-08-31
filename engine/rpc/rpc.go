@@ -45,7 +45,7 @@ func (g *RPC) Get(id uint32) *DefalutRPC {
 //Del 删除rpc
 func (g *RPC) del(id uint32) {
 	if dr, ok := g.rpcMap.LoadAndDelete(id); ok {
-		dr.(*DefalutRPC).reset()
+		dr.(*DefalutRPC).release()
 	}
 }
 

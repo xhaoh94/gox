@@ -17,7 +17,7 @@ func (atr *ActorCrtl) Start(ctx context.Context) {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
 	go atr.checkTimeout(timeoutCtx)
 	var err error
-	atr.actorEs, err = etcd.NewEtcdService(atr.get, atr.put, atr.del, ctx)
+	atr.actorEs, err = etcd.NewEtcdService(atr.get, atr.put, atr.del)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("actor注册失败 [%v]", err)

@@ -102,7 +102,7 @@ func (reg *ServiceCrtl) Start(ctx context.Context) {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
 	go reg.checkTimeout(timeoutCtx)
 	var err error
-	reg.es, err = etcd.NewEtcdService(reg.get, reg.put, reg.del, ctx)
+	reg.es, err = etcd.NewEtcdService(reg.get, reg.put, reg.del)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("服务注册失败 [%v]", err)
@@ -178,7 +178,7 @@ func (reg *ServiceCrtl) onPut(kv *mvccpb.KeyValue) {
 	}
 	reg.idToService[service.ServiceID] = service
 	reg.keyToService[key] = service
-	xlog.Info("服务注册 sid:[%d] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
+	xlog.Info("服务注册发现 sid:[%d] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
 }
 func (reg *ServiceCrtl) put(kv *mvccpb.KeyValue) {
 	defer reg.lock.Unlock()

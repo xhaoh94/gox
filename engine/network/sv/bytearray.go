@@ -22,13 +22,7 @@ import (
 // [uint16][[8]byte][ byte ][uint32][uint32][[n]byte]
 // |------------------------------------------------|
 
-var (
-	bytePool sync.Pool = sync.Pool{
-		New: func() interface{} {
-			return &ByteArray{}
-		},
-	}
-)
+var bytePool sync.Pool = sync.Pool{New: func() interface{} { return &ByteArray{} }}
 
 //ByteArray 默认包体格式
 type ByteArray struct {
@@ -174,7 +168,7 @@ func (b *ByteArray) PktData() []byte {
 	return bytes
 }
 
-func (b *ByteArray) Reset() {
+func (b *ByteArray) Release() {
 	b.data = nil
 	b.position = 0
 	b.endian = nil

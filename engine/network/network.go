@@ -112,8 +112,8 @@ func (nw *NetWork) Start() {
 	if nw.outside != nil {
 		nw.outside.Start()
 	}
-	nw.svCrtl.Start(nw.context)
-	nw.atrCrtl.Start(nw.context)
+	go nw.svCrtl.Start(nw.context)
+	go nw.atrCrtl.Start(nw.context)
 }
 func (nw *NetWork) Stop() {
 	nw.contextFn()

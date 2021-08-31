@@ -24,6 +24,9 @@ type (
 		MaxBackups  int    `ini:"log_max_backups"`
 		LogMaxAge   int    `ini:"log_max_age"`
 		Development bool   `ini:"log_development"`
+		Console     string `ini:"log_console"`
+		Skip        int    `ini:"log_callerskip"`
+		Split       bool   `ini:"log_split_level"`
 	}
 	mongoDbConf struct {
 		Url      string `ini:"url"`
@@ -75,6 +78,9 @@ func initCfg() {
 			MaxBackups:  30,
 			LogMaxAge:   7,
 			Development: true,
+			Console:     "console",
+			Skip:        2,
+			Split:       false,
 		},
 		MongoDb: mongoDbConf{
 			Url:      "127.0.0.1:27017",

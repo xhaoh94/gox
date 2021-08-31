@@ -21,31 +21,36 @@ type (
 	//MainModule 主模块
 	MainModule struct {
 		gox.Module
+		session types.ISession
 	}
 )
 
 //OnStart 初始化
-func (mm *MainModule) OnStart() {
-	mm.Register(netpack.S2S_TEST, mm.RspTest)
-	mm.GetEngine().GetEvent().On(xdef.START_ENGINE_OK, mm.Init)
+func (m *MainModule) OnStart() {
+	m.Register(netpack.CMD_G2C_Login, m.RspToken)
+	m.Register(netpack.CMD_L2C_Login, m.RspLogin)
+	m.GetEngine().GetEvent().On(xdef.START_ENGINE_OK, m.Init)
 }
 
-func (mm *MainModule) Init() {
+func (m *MainModule) Init() {
 	time.Sleep(1 * time.Second)
-	session := mm.GetSessionByAddr("127.0.0.1:10002")
-	session.Send(netpack.C2S_TEST, &netpack.ReqTest{Acc: "xhaoh94", Pwd: "123456"})
-	time.Sleep(1 * time.Second)
-	rsp := &netpack.RspTest{}
-	b := session.Call(&netpack.ReqTest{Acc: "xhaoh94", Pwd: "abcdef"}, rsp).Await()
-	if b {
-		xlog.Info("客户端>>>收到RPC数据 %v", rsp)
-	} else {
-		xlog.Info("客户端>>>收到RPC数据失败")
+	session := m.GetSessionByAddr("127.0.0.1:10002") //向gate服务器请求token
+	session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
+	m.session = session
+}
+
+func (m *MainModule) RspToken(ctx context.Context, session types.ISession, rsp *netpack.G2C_Login) {
+	if rsp.Code != 0 { //请求token错误
+		return
 	}
+	defer session.Close()                                                                           //老的session已经没用了，可以关闭掉
+	loginSession := m.GetSessionByAddr(rsp.Addr)                                                    //创建session连接login服务器
+	loginSession.Send(netpack.CMD_C2L_Login, &netpack.C2L_Login{User: "xhaoh94", Token: rsp.Token}) //向login服务器请求登录
+	m.session = loginSession                                                                        //保存新的session
 }
 
-func (mm *MainModule) RspTest(ctx context.Context, session types.ISession, rsp *netpack.RspTest) {
-	xlog.Info("客户端>>>收到数据 %v", rsp)
+func (m *MainModule) RspLogin(ctx context.Context, session types.ISession, rsp *netpack.L2C_Login) {
+	xlog.Debug("登录结果返回%v", rsp)
 }
 
 //模拟客户端发数据

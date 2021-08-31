@@ -11,15 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var channelPool sync.Pool
-
-func init() {
-	channelPool = sync.Pool{
-		New: func() interface{} {
-			return &WChannel{}
-		},
-	}
-}
+var channelPool sync.Pool = sync.Pool{New: func() interface{} { return &WChannel{} }}
 
 type (
 	//WChannel TCP信道

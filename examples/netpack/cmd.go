@@ -1,16 +1,35 @@
 package netpack
 
 const (
-	C2S_TEST uint32 = 1000
-	S2S_TEST uint32 = 2000
+	CMD_C2G_Login uint32 = 1000
+	CMD_G2C_Login uint32 = 1000
+	CMD_C2L_Login uint32 = 1001
+	CMD_L2C_Login uint32 = 1001
 )
 
 type (
-	ReqTest struct {
-		Acc string `json:acc`
-		Pwd string `json:pwd`
+	C2G_Login struct {
+		User     string `json:"user"`
+		Password string `json:"password"`
 	}
-	RspTest struct {
-		Token string `json:token`
+	G2C_Login struct {
+		Code  uint   `json:"code"`
+		Addr  string `json:"addr"`
+		Token string `json:"token"`
+	}
+
+	C2L_Login struct {
+		User  string `json:"user"`
+		Token string `json:"token"`
+	}
+	L2C_Login struct {
+		Code uint `json:"code"`
+	}
+
+	G2L_Login struct {
+		User string `json:"user"`
+	}
+	L2G_Login struct {
+		Token string `json:"token"`
 	}
 )

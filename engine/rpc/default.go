@@ -66,7 +66,7 @@ func (dr *DefalutRPC) close() {
 	}
 }
 
-func (dr *DefalutRPC) reset() {
+func (dr *DefalutRPC) release() {
 	dr.sid = 0
 	dr.rid = 0
 	dr.c = nil

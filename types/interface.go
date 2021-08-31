@@ -73,7 +73,7 @@ type (
 		LocalAddr() string
 		Send(uint32, interface{}) bool
 		Call(interface{}, interface{}) IDefaultRPC
-		Reply(interface{}, uint32) bool
+		Close()
 	}
 	//IChannel 信道接口
 	IChannel interface {

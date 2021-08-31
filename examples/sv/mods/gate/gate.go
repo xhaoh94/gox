@@ -1,6 +1,13 @@
 package gate
 
-import "github.com/xhaoh94/gox"
+import (
+	"context"
+
+	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/examples/netpack"
+	"github.com/xhaoh94/gox/examples/sv/game"
+	"github.com/xhaoh94/gox/types"
+)
 
 type (
 	//GateModule 主模块
@@ -10,11 +17,26 @@ type (
 )
 
 //OnInit 初始化
-func (mm *GateModule) OnStart() {
-
+func (m *GateModule) OnStart() {
+	m.Register(netpack.CMD_C2G_Login, m.RspLogin)
 }
 
-//OnInit 初始化
-func (mm *GateModule) OnStop() {
+func (m *GateModule) RspLogin(ctx context.Context, session types.ISession, msg *netpack.C2G_Login) {
 
+	//TODO 验证账号密码是否正确
+	cfgs := m.GetServiceConfListByType(game.Login) //获取login服务器配置
+	loginCfg := cfgs[0]
+	loginSession := m.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
+	Rsp_L2G_Login := &netpack.L2G_Login{}
+	b := loginSession.Call(&netpack.G2L_Login{User: msg.User}, Rsp_L2G_Login).Await() //向login服务器请求token
+
+	Rsp_G2C_Login := &netpack.G2C_Login{}
+	if b {
+		Rsp_G2C_Login.Code = 0
+		Rsp_G2C_Login.Addr = loginCfg.GetOutsideAddr()
+		Rsp_G2C_Login.Token = Rsp_L2G_Login.Token
+	} else {
+		Rsp_G2C_Login.Code = 1
+	}
+	session.Send(netpack.CMD_G2C_Login, Rsp_G2C_Login) //结果返回客户端
 }

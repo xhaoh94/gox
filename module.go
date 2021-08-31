@@ -74,6 +74,12 @@ func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
 func (m *Module) GetGrpcServer() *grpc.Server {
 	return m.engine.GetRPC().GetServer()
 }
+func (m *Module) GetServiceConfListByType(sType string) []types.IServiceConfig {
+	return m.engine.GetNetWork().GetServiceCtrl().GetServiceConfListByType(sType)
+}
+func (m *Module) GetServiceConfByID(id uint) types.IServiceConfig {
+	return m.engine.GetNetWork().GetServiceCtrl().GetServiceConfByID(id)
+}
 
 //Register 注册协议对应消息体和回调函数
 func (m *Module) Register(cmd uint32, fn interface{}) {

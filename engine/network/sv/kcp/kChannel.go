@@ -10,15 +10,7 @@ import (
 	"github.com/xtaci/kcp-go/v5"
 )
 
-var channelPool *sync.Pool
-
-func init() {
-	channelPool = &sync.Pool{
-		New: func() interface{} {
-			return &KChannel{}
-		},
-	}
-}
+var channelPool *sync.Pool = &sync.Pool{New: func() interface{} { return &KChannel{} }}
 
 type (
 	//KChannel TCP信道
