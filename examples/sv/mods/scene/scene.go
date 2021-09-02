@@ -31,8 +31,12 @@ func newScene(id uint) *Scene {
 	return scene
 }
 
-//OnStart 初始化
+//OnInit 初始化
+func (m *SceneModule) OnInit() {
+
+}
 func (m *SceneModule) OnStart() {
+	// xlog.Debug("哦那")
 	m.scenes = make(map[uint]*Scene)
 	scene1 := newScene(1) //创建场景1
 	m.scenes[scene1.Id] = scene1

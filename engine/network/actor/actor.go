@@ -22,7 +22,7 @@ var (
 func init() {
 	actorPool = &sync.Pool{
 		New: func() interface{} {
-			return &ActorConf{}
+			return ActorConf{}
 		},
 	}
 }
@@ -30,7 +30,7 @@ func New(engine types.IEngine) *ActorCrtl {
 	return &ActorCrtl{
 		engine:         engine,
 		actorPrefix:    "location/actor",
-		keyToActorConf: make(map[string]*ActorConf),
+		keyToActorConf: make(map[string]ActorConf),
 	}
 }
 
@@ -40,7 +40,7 @@ type (
 		actorPrefix    string
 		es             *etcd.EtcdService
 		keyLock        sync.RWMutex
-		keyToActorConf map[string]*ActorConf
+		keyToActorConf map[string]ActorConf
 	}
 	ActorConf struct {
 		ActorID   uint32
@@ -117,6 +117,10 @@ func (crtl *ActorCrtl) parseFn(aid uint32, fn interface{}) uint32 {
 		}
 		break
 	case 3: // ctx,session,req
+		if tFun.NumOut() == 1 {
+			xlog.Error("Actor回调参数有误")
+			return 0
+		}
 		in = tFun.In(2)
 		break
 	default:
@@ -164,9 +168,6 @@ func (crtl *ActorCrtl) Add(actor types.IActor) {
 	}
 
 	key := fmt.Sprintf(crtl.actorPrefix+"/%d", aid)
-	if crtl.es == nil {
-		xlog.Debug("毛病啊啊%v", b)
-	}
 	crtl.es.Put(key, string(b))
 }
 func (crtl *ActorCrtl) Del(actor types.IActor) {
@@ -192,25 +193,25 @@ func (crtl *ActorCrtl) Del(actor types.IActor) {
 	}
 	actor.Destroy()
 }
-func (crtl *ActorCrtl) Get(actorID uint32) *ActorConf {
+func (crtl *ActorCrtl) Get(actorID uint32) (ActorConf, bool) {
 	defer crtl.keyLock.RUnlock()
 	crtl.keyLock.RLock()
 	key := fmt.Sprintf(crtl.actorPrefix+"/%d", actorID)
 	actor, ok := crtl.keyToActorConf[key]
 	if !ok {
 		xlog.Error("找不到对应的Actor[%d]", actorID)
-		return nil
+		return ActorConf{}, false
 	}
-	return actor
+	return actor, true
 }
 func (crtl *ActorCrtl) getSession(actorID uint32) *sv.Session {
-	ar := crtl.Get(actorID)
-	if ar == nil {
+	conf, ok := crtl.Get(actorID)
+	if !ok {
 		return nil
 	}
-	svConf := crtl.engine.GetNetWork().GetServiceCtrl().GetServiceConfByID(ar.ServiceID)
+	svConf := crtl.engine.GetNetWork().GetServiceCtrl().GetServiceConfByID(conf.ServiceID)
 	if svConf == nil {
-		xlog.Error("Actor没有找到服务 ServiceID:[%s]", ar.ServiceID)
+		xlog.Error("Actor没有找到服务 ServiceID:[%s]", conf.ServiceID)
 		return nil
 	}
 	session := crtl.engine.GetNetWork().GetSessionByAddr(svConf.GetInteriorAddr())

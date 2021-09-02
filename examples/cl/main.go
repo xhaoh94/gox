@@ -14,7 +14,6 @@ import (
 	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/types"
 	"github.com/xhaoh94/gox/util"
-	"github.com/xhaoh94/gox/xdef"
 )
 
 type (
@@ -25,14 +24,16 @@ type (
 	}
 )
 
-//OnStart 初始化
-func (m *MainModule) OnStart() {
+func (m *MainModule) OnInit() {
 	m.Register(netpack.CMD_G2C_Login, m.RspToken)
 	m.Register(netpack.CMD_L2C_Login, m.RspLogin)
-	m.GetEngine().GetEvent().On(xdef.START_ENGINE_OK, m.Init)
+	m.Register(netpack.CMD_L2C_Enter, m.RspEnter)
+
 }
 
-func (m *MainModule) Init() {
+//OnStart
+func (m *MainModule) OnStart() {
+	xlog.Debug("test")
 	time.Sleep(1 * time.Second)
 	session := m.GetSessionByAddr("127.0.0.1:10002") //向gate服务器请求token
 	session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
@@ -50,7 +51,12 @@ func (m *MainModule) RspToken(ctx context.Context, session types.ISession, rsp *
 }
 
 func (m *MainModule) RspLogin(ctx context.Context, session types.ISession, rsp *netpack.L2C_Login) {
-	xlog.Debug("登录结果返回%v", rsp)
+	xlog.Debug("登录结果返回Code:%d", rsp.Code)
+	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1})
+}
+
+func (m *MainModule) RspEnter(ctx context.Context, session types.ISession, rsp *netpack.L2C_Enter) {
+	xlog.Debug("进入结果返回Code:%d", rsp.Code)
 }
 
 //模拟客户端发数据

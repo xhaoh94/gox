@@ -7,6 +7,7 @@ import (
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
 	"github.com/xhaoh94/gox/util"
+	"github.com/xhaoh94/gox/xdef"
 	"google.golang.org/grpc"
 )
 
@@ -20,13 +21,14 @@ type (
 )
 
 //Init 初始化模块
-func (m *Module) Start(self types.IModule, engine types.IEngine) {
+func (m *Module) Init(self types.IModule, engine types.IEngine) {
 	m.engine = engine
-	self.OnStart()
+	m.engine.GetEvent().On(xdef.START_ENGINE_OK, self.OnStart)
+	self.OnInit()
 	if m.childModules != nil {
 		for i := range m.childModules {
 			v := m.childModules[i]
-			v.Start(v, engine)
+			v.Init(v, engine)
 		}
 	}
 }
@@ -42,16 +44,16 @@ func (m *Module) Put(mod types.IModule) {
 }
 
 //Destroy 销毁模块
-func (m *Module) Stop(self types.IModule) {
+func (m *Module) Destroy(self types.IModule) {
 	for i := range m.childModules {
 		v := m.childModules[i]
-		v.Stop(v)
+		v.Destroy(v)
 	}
-	self.OnStop()
+	self.OnDestroy()
 }
 
-//OnInit 初始化
-func (mm *Module) OnStop() {
+//OnStop 模块关闭
+func (mm *Module) OnDestroy() {
 
 }
 

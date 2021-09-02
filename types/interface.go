@@ -23,11 +23,14 @@ type (
 
 	//IModule 模块接口
 	IModule interface {
-		Start(IModule, IEngine)
-		Stop(IModule)
+		Init(IModule, IEngine)
+		Destroy(IModule)
 
+		//注册协议或添加子模块写在这里
+		OnInit()
+		//业务逻辑初始化写这里
 		OnStart()
-		OnStop()
+		OnDestroy()
 	}
 	//IEvent 事件接口
 	IEvent interface {

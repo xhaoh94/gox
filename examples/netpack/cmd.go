@@ -7,8 +7,6 @@ const (
 	CMD_L2C_Login uint32 = 1001
 	CMD_C2L_Enter uint32 = 1002
 	CMD_L2C_Enter uint32 = 1002
-
-	CMD_S2L_SayHello uint32 = 1003
 )
 
 type (

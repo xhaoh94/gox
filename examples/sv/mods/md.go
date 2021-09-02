@@ -15,21 +15,25 @@ type (
 	}
 )
 
-//OnStart 初始化
-func (mm *MainModule) OnStart() {
-	switch mm.GetEngine().ServiceType() {
+func (m *MainModule) OnInit() {
+	switch m.GetEngine().ServiceType() {
 	case game.Gate:
-		mm.Put(&gate.GateModule{})
+		m.Put(&gate.GateModule{})
 		break
 	case game.Login:
-		mm.Put(&login.LoginModule{})
+		m.Put(&login.LoginModule{})
 		break
 	case game.Scene:
-		mm.Put(&scene.SceneModule{})
+		m.Put(&scene.SceneModule{})
 		break
 	default:
-		mm.Put(&gate.GateModule{})
-		mm.Put(&login.LoginModule{})
+		m.Put(&gate.GateModule{})
+		m.Put(&login.LoginModule{})
 		break
 	}
+}
+
+//OnStart 初始化
+func (m *MainModule) OnStart() {
+
 }

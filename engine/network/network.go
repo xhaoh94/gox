@@ -102,7 +102,7 @@ func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
 	return util.RTypeToInterface(rType)
 }
 
-func (nw *NetWork) Start() {
+func (nw *NetWork) Init() {
 
 	if nw.interior == nil {
 		xlog.Fatal("没有初始化内部网络通信")
@@ -112,10 +112,10 @@ func (nw *NetWork) Start() {
 	if nw.outside != nil {
 		nw.outside.Start()
 	}
-	go nw.svCrtl.Start(nw.context)
-	go nw.atrCrtl.Start(nw.context)
+	nw.svCrtl.Start(nw.context)
+	nw.atrCrtl.Start(nw.context)
 }
-func (nw *NetWork) Stop() {
+func (nw *NetWork) Destroy() {
 	nw.contextFn()
 	nw.atrCrtl.Stop()
 	nw.svCrtl.Stop()

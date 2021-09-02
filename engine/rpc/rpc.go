@@ -83,15 +83,15 @@ func (g *RPC) AssignID() uint32 {
 	return atomic.AddUint32(&g.rpcOps, 1)
 }
 
-//Start 开启服务
-func (g *RPC) Start() {
+//Init 开启服务
+func (g *RPC) Init() {
 	if g.grpc != nil {
 		g.grpc.start()
 	}
 }
 
-//Stop 停止服务
-func (g *RPC) Stop() {
+//Destroy 停止服务
+func (g *RPC) Destroy() {
 	if g.grpc != nil {
 		g.grpc.stop()
 	}

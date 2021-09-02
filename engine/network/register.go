@@ -20,9 +20,9 @@ type (
 		nw           *NetWork
 		es           *etcd.EtcdService
 		lock         sync.RWMutex
-		keyToService map[string]*ServiceConfig
-		idToService  map[uint]*ServiceConfig
-		curService   *ServiceConfig
+		keyToService map[string]ServiceConfig
+		idToService  map[uint]ServiceConfig
+		curService   ServiceConfig
 	}
 
 	//ServiceConfig 服务组配置
@@ -42,39 +42,39 @@ type (
 	}
 )
 
-func (sc *ServiceConfig) GetRpcAddr() string {
+func (sc ServiceConfig) GetRpcAddr() string {
 	return sc.RPCAddr
 }
-func (sc *ServiceConfig) GetOutsideAddr() string {
+func (sc ServiceConfig) GetOutsideAddr() string {
 	return sc.OutsideAddr
 }
-func (sc *ServiceConfig) GetInteriorAddr() string {
+func (sc ServiceConfig) GetInteriorAddr() string {
 	return sc.InteriorAddr
 }
-func (sc *ServiceConfig) GetServiceID() uint {
+func (sc ServiceConfig) GetServiceID() uint {
 	return sc.ServiceID
 }
-func (sc *ServiceConfig) GetServiceType() string {
+func (sc ServiceConfig) GetServiceType() string {
 	return sc.ServiceType
 }
-func (sc *ServiceConfig) GetVersion() string {
+func (sc ServiceConfig) GetVersion() string {
 	return sc.Version
 }
 
 func newServiceReg(nw *NetWork) *ServiceCrtl {
 	return &ServiceCrtl{
 		nw:           nw,
-		keyToService: make(map[string]*ServiceConfig),
-		idToService:  make(map[uint]*ServiceConfig),
+		keyToService: make(map[string]ServiceConfig),
+		idToService:  make(map[uint]ServiceConfig),
 	}
 }
 
-func convertKey(sc *ServiceConfig) string {
+func convertKey(sc ServiceConfig) string {
 	key := "services/" + sc.ServiceType + "/" + util.ValToString(sc.ServiceID)
 	return key
 }
 
-func convertValue(sc *ServiceConfig) string {
+func convertValue(sc ServiceConfig) string {
 	data, err := json.Marshal(sc)
 	if err != nil {
 		return ""
@@ -82,16 +82,16 @@ func convertValue(sc *ServiceConfig) string {
 	return string(data)
 }
 
-func newServiceConfig(val []byte) (*ServiceConfig, error) {
-	service := &ServiceConfig{}
-	if err := json.Unmarshal(val, service); err != nil {
-		return nil, err
+func newServiceConfig(val []byte) (ServiceConfig, error) {
+	service := ServiceConfig{}
+	if err := json.Unmarshal(val, &service); err != nil {
+		return service, err
 	}
 	return service, nil
 }
 
 func (reg *ServiceCrtl) Start(ctx context.Context) {
-	reg.curService = &ServiceConfig{
+	reg.curService = ServiceConfig{
 		ServiceID:    reg.nw.engine.ServiceID(),
 		ServiceType:  reg.nw.engine.ServiceType(),
 		Version:      reg.nw.engine.Version(),

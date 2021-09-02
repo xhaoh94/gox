@@ -89,20 +89,20 @@ func (engine *Engine) Start(appConfPath string) {
 	}
 	xlog.Info("服务启动[sid:%d,type:%s,[ver:%s]", engine.sid, engine.stype, engine.version)
 	xlog.Info("[ByteOrder:%s]", engine.endian.String())
-	engine.nw.Start()
-	engine.rpc.Start()
-	engine.mol.Start(engine.mol, engine)
+	engine.nw.Init()
+	engine.rpc.Init()
+	engine.mol.Init(engine.mol, engine)
+
 	engine.rpc.Serve()
 	engine.event.Run(xdef.START_ENGINE_OK)
-	xlog.Info("服务启动完毕")
 }
 
 //Shutdown 关闭
 func (engine *Engine) Shutdown() {
 	engine.contextFn()
-	engine.mol.Stop(engine.mol)
-	engine.rpc.Stop()
-	engine.nw.Stop()
+	engine.mol.Destroy(engine.mol)
+	engine.rpc.Destroy()
+	engine.nw.Destroy()
 	xlog.Info("服务退出[sid:%d]", engine.sid)
 	xlog.Destroy()
 }
