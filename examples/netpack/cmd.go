@@ -30,6 +30,7 @@ type (
 
 	C2L_Enter struct {
 		SceneId uint `json:"sceneid"`
+		UnitId  uint `json:"unitid"`
 	}
 	L2C_Enter struct {
 		Code uint `json:"code"`

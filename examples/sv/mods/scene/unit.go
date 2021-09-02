@@ -6,6 +6,7 @@ import (
 	"github.com/xhaoh94/gox/engine/network/actor"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
+	"github.com/xhaoh94/gox/examples/sv/game"
 )
 
 type (
@@ -17,6 +18,8 @@ type (
 
 func newUnit(id uint) *Unit {
 	unit := &Unit{Id: id}
+	unit.OnInit()
+	game.Engine.GetNetWork().GetActorCtrl().Add(unit) //添加到Actor
 	return unit
 }
 
@@ -25,7 +28,7 @@ func (unit *Unit) ActorID() uint32 {
 }
 
 func (unit *Unit) OnInit() {
-	unit.AddActorFn(unit.SayHello) //添加到Actor回调
+	unit.AddActorFn(unit.SayHello) //添加Actor回调
 }
 
 func (unit *Unit) SayHello(ctx context.Context, req *netpack.L2S_SayHello) *netpack.S2L_SayHello {
