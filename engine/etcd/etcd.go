@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/xhaoh94/gox/app"
+	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
@@ -107,6 +108,10 @@ func (es *EtcdService) Del(key string) error {
 
 //Put 通过租约 注册服务
 func (es *EtcdService) Put(key, val string) error {
+	if es == nil {
+		xlog.Debug("有毛病？")
+		return errors.New("etcd 服务没有开启")
+	}
 	if !es.isRun {
 		return errors.New("etcd 服务没有开启")
 	}

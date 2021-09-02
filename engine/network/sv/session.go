@@ -10,10 +10,10 @@ import (
 	"github.com/xhaoh94/gox/consts"
 
 	"github.com/xhaoh94/gox/engine/codec"
+	"github.com/xhaoh94/gox/engine/network/cmdtool"
 	"github.com/xhaoh94/gox/engine/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/util"
 )
 
 type (
@@ -108,7 +108,7 @@ func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC 
 		defer dr.Run(false)
 		return dr
 	}
-	cmd := util.ToCmd(msg, response)
+	cmd := cmdtool.ToCmd(msg, response, 0)
 	rpcid := s.defaultRpc().AssignID()
 	pkt := NewByteArray(make([]byte, 0), s.endian())
 	defer pkt.Release()
@@ -125,8 +125,38 @@ func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC 
 	return dr
 }
 
-//Reply 回应
-func (s *Session) Reply(msg interface{}, rpcid uint32) bool {
+func (s *Session) ActorCall(actorID uint32, msg interface{}, response interface{}) types.IDefaultRPC {
+
+	dr := rpc.NewDefaultRpc(s.id, s.ctx, response)
+	if !s.isAct() {
+		defer dr.Run(false)
+		return dr
+	}
+	if actorID == 0 {
+		xlog.Error("ActorCall传入ActorID不能为空")
+		defer dr.Run(false)
+		return dr
+	}
+
+	cmd := cmdtool.ToCmd(msg, response, actorID)
+	rpcid := s.defaultRpc().AssignID()
+	pkt := NewByteArray(make([]byte, 0), s.endian())
+	defer pkt.Release()
+	pkt.AppendBytes(KEY)
+	pkt.AppendByte(RPC_S)
+	pkt.AppendUint32(cmd)
+	pkt.AppendUint32(rpcid)
+	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+		defer dr.Run(false)
+		return dr
+	}
+	s.defaultRpc().Put(rpcid, dr)
+	s.sendData(pkt.PktData())
+	return dr
+}
+
+//reply 回应
+func (s *Session) reply(msg interface{}, rpcid uint32) bool {
 	if !s.isAct() {
 		return false
 	}
@@ -313,7 +343,7 @@ func (s *Session) callEvt(event uint32, params ...interface{}) (interface{}, err
 
 func (s *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
 	if r, err := s.callEvt(cmd, s.ctx, msg); err == nil {
-		s.Reply(r, rpc)
+		s.reply(r, rpc)
 	} else {
 		xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
 	}

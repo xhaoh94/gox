@@ -120,7 +120,12 @@ type (
 		Call(uint32, interface{}, interface{}) IDefaultRPC
 	}
 	IActor interface {
+		ActorID() uint32
 		AddActorFn(fn interface{})
+		GetFnList() []interface{}
+		GetCmdList() []uint32
+		SetCmdList(cmd uint32)
+		Destroy()
 	}
 
 	//ICodec 解码编码接口

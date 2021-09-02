@@ -8,10 +8,11 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/etcd"
+	"github.com/xhaoh94/gox/engine/network/cmdtool"
+	"github.com/xhaoh94/gox/engine/network/sv"
 	"github.com/xhaoh94/gox/engine/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/util"
 )
 
 var (
@@ -30,7 +31,6 @@ func New(engine types.IEngine) *ActorCrtl {
 		engine:         engine,
 		actorPrefix:    "location/actor",
 		keyToActorConf: make(map[string]*ActorConf),
-		// aidToActor:     make(map[uint32]*Actor),
 	}
 }
 
@@ -38,7 +38,7 @@ type (
 	ActorCrtl struct {
 		engine         types.IEngine
 		actorPrefix    string
-		actorEs        *etcd.EtcdService
+		es             *etcd.EtcdService
 		keyLock        sync.RWMutex
 		keyToActorConf map[string]*ActorConf
 	}
@@ -47,8 +47,6 @@ type (
 		ServiceID uint
 	}
 	Actor struct {
-		ActorID uint32
-
 		fnLock  sync.RWMutex
 		fnList  []interface{}
 		cmdLock sync.RWMutex
@@ -67,23 +65,22 @@ func (art *Actor) AddActorFn(fn interface{}) {
 }
 
 func (art *Actor) Destroy() {
-	art.ActorID = 0
 	art.fnList = nil
 	art.cmdList = nil
 }
 
-func (art *Actor) getFnList() []interface{} {
+func (art *Actor) GetFnList() []interface{} {
 	defer art.fnLock.RUnlock()
 	art.fnLock.RLock()
 	return art.fnList
 }
 
-func (art *Actor) getCmdList() []uint32 {
+func (art *Actor) GetCmdList() []uint32 {
 	defer art.cmdLock.RUnlock()
 	art.cmdLock.RLock()
 	return art.cmdList
 }
-func (art *Actor) setCmdList(cmd uint32) {
+func (art *Actor) SetCmdList(cmd uint32) {
 	defer art.cmdLock.Unlock()
 	art.cmdLock.Lock()
 	if art.cmdList == nil {
@@ -92,7 +89,7 @@ func (art *Actor) setCmdList(cmd uint32) {
 	art.cmdList = append(art.cmdList, cmd)
 }
 
-func (actorCrtl *ActorCrtl) parseFn(fn interface{}) uint32 {
+func (crtl *ActorCrtl) parseFn(aid uint32, fn interface{}) uint32 {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	if tFun.Kind() != reflect.Func {
@@ -130,44 +127,30 @@ func (actorCrtl *ActorCrtl) parseFn(fn interface{}) uint32 {
 		xlog.Error("Actor回调参数有误")
 		return 0
 	}
-	var key string
-	if out != nil {
-		if out.Kind() != reflect.Ptr {
-			xlog.Error("Actor输出回调参数需要是指针类型")
-			return 0
-		}
-		key = out.Elem().Name()
-	}
-	var cmd uint32
-	if in != nil {
-		if in.Kind() != reflect.Ptr {
-			xlog.Error("Actor输入回调参数需要是指针类型")
-			return 0
-		}
-		key = in.Elem().Name() + key
-		cmd = util.StringToHash(key)
-		actorCrtl.engine.GetNetWork().RegisterRType(cmd, in)
-	}
+	cmd := cmdtool.ToCmdByRtype(in, out, aid)
 	if cmd == 0 {
-		cmd = util.StringToHash(key)
+		xlog.Error("Actor转换cmd错误")
+		return cmd
 	}
-	actorCrtl.engine.GetEvent().Bind(cmd, fn)
+	if in != nil {
+		crtl.engine.GetNetWork().RegisterRType(cmd, in)
+	}
+	crtl.engine.GetEvent().Bind(cmd, fn)
 	return cmd
 }
 
-func (actorCrtl *ActorCrtl) Add(atr types.IActor) {
-	actor := atr.(*Actor)
-	aid := actor.ActorID
+func (crtl *ActorCrtl) Add(actor types.IActor) {
+	aid := actor.ActorID()
 	if aid == 0 {
 		xlog.Error("Actor没有初始化ID")
 		return
 	}
-	fnList := actor.getFnList()
+	fnList := actor.GetFnList()
 	if fnList == nil {
 		xlog.Error("Actor没有注册回调函数")
 		return
 	}
-	reg := &ActorConf{ActorID: aid, ServiceID: actorCrtl.engine.ServiceID()}
+	reg := &ActorConf{ActorID: aid, ServiceID: crtl.engine.ServiceID()}
 	b, err := json.Marshal(reg)
 	if err != nil {
 		xlog.Error("Actor解析Json错误[%v]", err)
@@ -175,80 +158,83 @@ func (actorCrtl *ActorCrtl) Add(atr types.IActor) {
 	}
 	for index := range fnList {
 		fn := fnList[index]
-		if cmd := actorCrtl.parseFn(fn); cmd != 0 {
-			actor.setCmdList(cmd)
+		if cmd := crtl.parseFn(aid, fn); cmd != 0 {
+			actor.SetCmdList(cmd)
 		}
 	}
-	key := fmt.Sprintf(actorCrtl.actorPrefix+"/%d", aid)
-	actorCrtl.actorEs.Put(key, string(b))
+
+	key := fmt.Sprintf(crtl.actorPrefix+"/%d", aid)
+	if crtl.es == nil {
+		xlog.Debug("毛病啊啊%v", b)
+	}
+	crtl.es.Put(key, string(b))
 }
-func (actorCrtl *ActorCrtl) Del(atr types.IActor) {
-	defer actorCrtl.keyLock.Unlock()
-	actorCrtl.keyLock.Lock()
-	actor := atr.(*Actor)
-	aid := actor.ActorID
+func (crtl *ActorCrtl) Del(actor types.IActor) {
+	defer crtl.keyLock.Unlock()
+	crtl.keyLock.Lock()
+	aid := actor.ActorID()
 	if aid == 0 {
 		xlog.Error("Actor没有初始化ID")
 		return
 	}
-	cmdList := actor.getCmdList()
+	cmdList := actor.GetCmdList()
 	if cmdList != nil {
 		for index := range cmdList {
 			cmd := cmdList[index]
-			actorCrtl.engine.GetNetWork().UnRegisterRType(cmd)
-			actorCrtl.engine.GetEvent().UnBind(cmd)
+			crtl.engine.GetNetWork().UnRegisterRType(cmd)
+			crtl.engine.GetEvent().UnBind(cmd)
 		}
 	}
 
-	key := fmt.Sprintf(actorCrtl.actorPrefix+"/%d", aid)
-	if _, ok := actorCrtl.keyToActorConf[key]; ok {
-		actorCrtl.actorEs.Del(key)
+	key := fmt.Sprintf(crtl.actorPrefix+"/%d", aid)
+	if _, ok := crtl.keyToActorConf[key]; ok {
+		crtl.es.Del(key)
 	}
 	actor.Destroy()
 }
-func (actorCrtl *ActorCrtl) Get(actorID uint32) *ActorConf {
-	defer actorCrtl.keyLock.RUnlock()
-	actorCrtl.keyLock.RLock()
-	key := fmt.Sprintf(actorCrtl.actorPrefix+"/%d", actorID)
-	actor, ok := actorCrtl.keyToActorConf[key]
+func (crtl *ActorCrtl) Get(actorID uint32) *ActorConf {
+	defer crtl.keyLock.RUnlock()
+	crtl.keyLock.RLock()
+	key := fmt.Sprintf(crtl.actorPrefix+"/%d", actorID)
+	actor, ok := crtl.keyToActorConf[key]
 	if !ok {
 		xlog.Error("找不到对应的Actor[%d]", actorID)
 		return nil
 	}
 	return actor
 }
-func (actorCrtl *ActorCrtl) getSession(actorID uint32) types.ISession {
-	ar := actorCrtl.Get(actorID)
+func (crtl *ActorCrtl) getSession(actorID uint32) *sv.Session {
+	ar := crtl.Get(actorID)
 	if ar == nil {
 		return nil
 	}
-	svConf := actorCrtl.engine.GetNetWork().GetServiceCtrl().GetServiceConfByID(ar.ServiceID)
+	svConf := crtl.engine.GetNetWork().GetServiceCtrl().GetServiceConfByID(ar.ServiceID)
 	if svConf == nil {
 		xlog.Error("Actor没有找到服务 ServiceID:[%s]", ar.ServiceID)
 		return nil
 	}
-	session := actorCrtl.engine.GetNetWork().GetSessionByAddr(svConf.GetInteriorAddr())
+	session := crtl.engine.GetNetWork().GetSessionByAddr(svConf.GetInteriorAddr())
 	if session == nil {
 		xlog.Error("Actor没有找到session[%d]", svConf.GetInteriorAddr())
 		return nil
 	}
-	return session
+	return session.(*sv.Session)
 }
 
-func (actorCrtl *ActorCrtl) Send(actorID uint32, msg interface{}) bool {
-	session := actorCrtl.getSession(actorID)
+func (crtl *ActorCrtl) Send(actorID uint32, msg interface{}) bool {
+	session := crtl.getSession(actorID)
 	if session == nil {
 		return false
 	}
-	cmd := util.ToCmd(msg, nil)
+	cmd := cmdtool.ToCmd(msg, nil, actorID)
 	return session.Send(cmd, msg)
 }
-func (actorCrtl *ActorCrtl) Call(actorID uint32, msg interface{}, response interface{}) types.IDefaultRPC {
-	session := actorCrtl.getSession(actorID)
+func (crtl *ActorCrtl) Call(actorID uint32, msg interface{}, response interface{}) types.IDefaultRPC {
+	session := crtl.getSession(actorID)
 	if session == nil {
 		dr := rpc.NewDefaultRpc(0, context.TODO(), response)
 		defer dr.Run(false)
 		return dr
 	}
-	return session.Call(msg, response)
+	return session.ActorCall(actorID, msg, response)
 }

@@ -13,11 +13,12 @@ import (
 )
 
 type (
-	//LoginModule 主模块
+	//LoginModule 登录模块
 	LoginModule struct {
 		gox.Module
-		mux        sync.RWMutex
-		user2Token map[string]UserToken
+		mux              sync.RWMutex
+		user2Token       map[string]UserToken
+		sessionId2unitId map[uint32]uint32
 	}
 	UserToken struct {
 		user  string
@@ -29,8 +30,11 @@ type (
 //OnStart 初始化
 func (m *LoginModule) OnStart() {
 	m.user2Token = make(map[string]UserToken)
+	m.sessionId2unitId = make(map[uint32]uint32)
 	m.RegisterRPC(m.RspToken)
 	m.Register(netpack.CMD_C2L_Login, m.RspLogin)
+	m.Register(netpack.CMD_C2L_Enter, m.RspEnter)
+
 }
 
 func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req *netpack.C2L_Login) {
@@ -45,11 +49,18 @@ func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req 
 		session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 2}) //token不一致
 		return
 	}
+	defer func() {
+		m.mux.Lock()
+		delete(m.user2Token, req.User)
+		m.mux.Unlock()
+	}()
+
 	t := time.Now().Sub(ut.time)
 	if t.Seconds() > 5 {
 		session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 3}) //token已过期
 		return
 	}
+	m.sessionId2unitId[session.ID()] = util.StringToHash(req.User)   //将连接id和玩家绑定
 	session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 0}) //返回客户端结果
 }
 
@@ -60,4 +71,22 @@ func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) *net
 	m.user2Token[req.User] = UserToken{user: req.User, token: token, time: time.Now()} //将user、token保存
 	m.mux.Unlock()
 	return &netpack.L2G_Login{Token: token}
+}
+
+func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req *netpack.C2L_Enter) {
+
+	unitId := m.sessionId2unitId[session.ID()] //取出玩家id
+	sId := req.SceneId
+	backRsp := &netpack.S2L_Enter{}
+	b := m.GetActorCtrl().Call(uint32(sId), &netpack.L2S_Enter{UnitId: uint(unitId)}, backRsp).Await() //Actor玩家进入场景
+
+	enterRsp := &netpack.L2C_Enter{}
+	if b { //玩家进入场景成功
+		m.GetActorCtrl().Send(unitId, &netpack.L2S_SayHello{Txt: "你好啊，我是机器人"}) //Actor 玩家发言
+		enterRsp.Code = 0
+	} else {
+		enterRsp.Code = 1
+	}
+
+	session.Send(netpack.CMD_L2C_Enter, enterRsp)
 }

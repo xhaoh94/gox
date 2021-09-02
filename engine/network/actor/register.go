@@ -12,25 +12,25 @@ import (
 	"go.etcd.io/etcd/clientv3"
 )
 
-func (atr *ActorCrtl) Start(ctx context.Context) {
+func (crtl *ActorCrtl) Start(ctx context.Context) {
 
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
-	go atr.checkTimeout(timeoutCtx)
-	var err error
-	atr.actorEs, err = etcd.NewEtcdService(atr.get, atr.put, atr.del)
+	go crtl.checkTimeout(timeoutCtx)
+	es, err := etcd.NewEtcdService(crtl.get, crtl.put, crtl.del)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("actor注册失败 [%v]", err)
 		return
 	}
-	atr.actorEs.Get(atr.actorPrefix, true)
+	crtl.es = es
+	crtl.es.Get(crtl.actorPrefix, true)
 }
-func (atr *ActorCrtl) Stop() {
-	if atr.actorEs != nil {
-		atr.actorEs.Close()
+func (crtl *ActorCrtl) Stop() {
+	if crtl.es != nil {
+		crtl.es.Close()
 	}
 }
-func (atr *ActorCrtl) checkTimeout(ctx context.Context) {
+func (crtl *ActorCrtl) checkTimeout(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		// 被取消，直接返回
@@ -40,24 +40,24 @@ func (atr *ActorCrtl) checkTimeout(ctx context.Context) {
 	}
 }
 
-func (atr *ActorCrtl) get(resp *clientv3.GetResponse) {
+func (crtl *ActorCrtl) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
 
-	defer atr.keyLock.Unlock()
-	atr.keyLock.Lock()
+	defer crtl.keyLock.Unlock()
+	crtl.keyLock.Lock()
 	for i := range resp.Kvs {
-		atr.put(resp.Kvs[i])
+		crtl.put(resp.Kvs[i])
 	}
 }
-func (atr *ActorCrtl) onPut(kv *mvccpb.KeyValue) {
+func (crtl *ActorCrtl) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
 	key := string(kv.Key)
 
-	value, ok := atr.keyToActorConf[key]
+	value, ok := crtl.keyToActorConf[key]
 	if !ok {
 		value = actorPool.Get().(*ActorConf)
 	}
@@ -66,20 +66,20 @@ func (atr *ActorCrtl) onPut(kv *mvccpb.KeyValue) {
 		return
 	}
 	if !ok {
-		atr.keyToActorConf[key] = value
+		crtl.keyToActorConf[key] = value
 	}
 }
-func (atr *ActorCrtl) put(kv *mvccpb.KeyValue) {
-	defer atr.keyLock.Unlock()
-	atr.keyLock.Lock()
-	atr.onPut(kv)
+func (crtl *ActorCrtl) put(kv *mvccpb.KeyValue) {
+	defer crtl.keyLock.Unlock()
+	crtl.keyLock.Lock()
+	crtl.onPut(kv)
 }
-func (atr *ActorCrtl) del(kv *mvccpb.KeyValue) {
-	defer atr.keyLock.Unlock()
-	atr.keyLock.Lock()
+func (crtl *ActorCrtl) del(kv *mvccpb.KeyValue) {
+	defer crtl.keyLock.Unlock()
+	crtl.keyLock.Lock()
 	key := string(kv.Key)
-	if actor, ok := atr.keyToActorConf[key]; ok {
+	if actor, ok := crtl.keyToActorConf[key]; ok {
 		actorPool.Put(actor)
-		delete(atr.keyToActorConf, key)
+		delete(crtl.keyToActorConf, key)
 	}
 }

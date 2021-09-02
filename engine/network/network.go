@@ -127,12 +127,18 @@ func (nw *NetWork) Stop() {
 
 //SetOutsideService 设置外部服务类型
 func (nw *NetWork) SetOutsideService(ser types.IService, addr string) {
+	if addr == "" {
+		return
+	}
 	nw.outside = ser
 	nw.outside.Init(addr, nw.engine, nw.context)
 }
 
 //SetInteriorService 设置内部服务类型
 func (nw *NetWork) SetInteriorService(ser types.IService, addr string) {
+	if addr == "" {
+		return
+	}
 	nw.interior = ser
 	nw.interior.Init(addr, nw.engine, nw.context)
 }

@@ -5,6 +5,10 @@ const (
 	CMD_G2C_Login uint32 = 1000
 	CMD_C2L_Login uint32 = 1001
 	CMD_L2C_Login uint32 = 1001
+	CMD_C2L_Enter uint32 = 1002
+	CMD_L2C_Enter uint32 = 1002
+
+	CMD_S2L_SayHello uint32 = 1003
 )
 
 type (
@@ -26,10 +30,30 @@ type (
 		Code uint `json:"code"`
 	}
 
+	C2L_Enter struct {
+		SceneId uint `json:"sceneid"`
+	}
+	L2C_Enter struct {
+		Code uint `json:"code"`
+	}
+
 	G2L_Login struct {
 		User string `json:"user"`
 	}
 	L2G_Login struct {
 		Token string `json:"token"`
+	}
+
+	L2S_Enter struct {
+		UnitId uint `json:"unitid"`
+	}
+	S2L_Enter struct {
+		Code uint `json:"code"`
+	}
+	L2S_SayHello struct {
+		Txt string `json:"txt"`
+	}
+	S2L_SayHello struct {
+		BackTxt string `json:"backtxt"`
 	}
 )

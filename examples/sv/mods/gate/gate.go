@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	//GateModule 主模块
+	//GateModule Gate模块
 	GateModule struct {
 		gox.Module
 	}
