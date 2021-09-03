@@ -10,7 +10,7 @@ gox 的关注点：
 * 通过GRpc或内置rpc系统，轻松搞定跨服务间的通信。
 * 支持Actor,任何对象通过继承actor.Actor，且实现了ActorID()，都可以进行Actor注册，之后不管这个对象在哪个服务器，都可以通过ActorID直接发送消息
 
-# gox 获取和使用
+# 获取和使用
 
 获取：
 ```
@@ -118,7 +118,7 @@ backRsp := &netpack.S2L_Enter{}
 b := game.Engine.GetNetWork().GetActorCtrl().Call(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() 
 ```
 
-# gox examples运行
+# examples运行
 ```
 1、终端执行 go mod init github.com/xhaoh94/gox ，生成go.mod后，在go.mod文件写上下面代码
 replace (
