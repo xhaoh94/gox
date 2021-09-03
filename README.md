@@ -118,7 +118,7 @@ backRsp := &netpack.S2L_Enter{}
 b := game.Engine.GetNetWork().GetActorCtrl().Call(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() 
 ```
 
-例子运行：
+# gox examples运行
 ```
 1、终端执行 go mod init github.com/xhaoh94/gox ，生成go.mod后，在go.mod文件写上下面代码
 replace (
