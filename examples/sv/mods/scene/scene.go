@@ -26,13 +26,6 @@ type (
 	}
 )
 
-func newScene(id uint) *Scene {
-	scene := &Scene{Id: id, units: make(map[uint]*Unit)}
-	scene.OnInit()
-	game.Engine.GetNetWork().GetActorCtrl().Add(scene) //把场景添加进Actor
-	return scene
-}
-
 //OnInit 初始化
 func (m *SceneModule) OnInit() {
 
@@ -43,6 +36,12 @@ func (m *SceneModule) OnStart() {
 	m.scenes[scene1.Id] = scene1
 	scene2 := newScene(2) //创建场景2
 	m.scenes[scene2.Id] = scene2
+}
+func newScene(id uint) *Scene {
+	scene := &Scene{Id: id, units: make(map[uint]*Unit)}
+	scene.OnInit()
+	game.Engine.GetNetWork().GetActorCtrl().Add(scene) //把场景添加进Actor
+	return scene
 }
 
 func (s *Scene) ActorID() uint32 {

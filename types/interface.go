@@ -14,10 +14,15 @@ type (
 		ServiceID() uint
 		ServiceType() string
 		Version() string
+		//GetEvent 服务事件系统
 		GetEvent() IEvent
+		//GetNetWork 网络系统
 		GetNetWork() INetwork
+		//GetRPC rpc系统
 		GetRPC() IGRPC
+		//GetCodec 解码系统
 		GetCodec() ICodec
+		//GetEndian 网络大小端
 		GetEndian() binary.ByteOrder
 	}
 
@@ -30,31 +35,49 @@ type (
 		OnInit()
 		//业务逻辑初始化写这里
 		OnStart()
+		//模块销毁
 		OnDestroy()
 	}
 	//IEvent 事件接口
 	IEvent interface {
+		//On 事件监听
 		On(event interface{}, task interface{})
+		//Off 事件取消监听
 		Off(event interface{}, task interface{})
+		//Offs 取消所有监听源
 		Offs(event interface{})
+		//Has 是否监听此事件
 		Has(event interface{}, task interface{}) bool
+		//Run 派发事件
 		Run(event interface{}, params ...interface{})
 
+		//Bind 事件绑定，跟on的区别在于。此方法是同步的，且一个event只能对应一个事件。且可带返回值
 		Bind(event interface{}, task interface{}) error
+		//UnBind 取消事件绑定
 		UnBind(event interface{}) error
+		//UnBinds取消所有事件绑定
 		UnBinds()
+		//HasBind 是否拥有事件绑定
 		HasBind(event interface{}) bool
+		//BindCount 绑定数量
 		BindCount() int
+		//Call 事件响应
 		Call(event interface{}, params ...interface{}) ([]reflect.Value, error)
 	}
 
 	//INetwork 网络接口
 	INetwork interface {
+		//GetSessionById 通过Id获取通信Session
 		GetSessionById(uint32) ISession
+		//GetSessionByAddr 通过地址获取通信Session
 		GetSessionByAddr(string) ISession
+		//GetActorCtrl 获取Actor管理器
 		GetActorCtrl() IActorCtrl
+		//GetServiceCtrl 获取服务注册发现管理器
 		GetServiceCtrl() IServiceCtrl
+		//GetOutsideAddr 获得外部通信地址
 		GetOutsideAddr() string
+		//GetInteriorAddr 获得内部通信地址
 		GetInteriorAddr() string
 		RegisterRType(uint32, reflect.Type)
 		UnRegisterRType(uint32)
@@ -74,7 +97,9 @@ type (
 		ID() uint32
 		RemoteAddr() string
 		LocalAddr() string
+		//Send 发送数据
 		Send(uint32, interface{}) bool
+		//Call RPC请求
 		Call(interface{}, interface{}) IDefaultRPC
 		Close()
 	}
@@ -96,8 +121,11 @@ type (
 	}
 	//IServiceConfig 服务器配置
 	IServiceConfig interface {
+		//GetRpcAddr 获取rpc地址
 		GetRpcAddr() string
+		//GetOutsideAddr 获取外部通信地址
 		GetOutsideAddr() string
+		//GetInteriorAddr 获取内部通信地址
 		GetInteriorAddr() string
 		GetServiceID() uint
 		GetServiceType() string
@@ -106,8 +134,11 @@ type (
 
 	//IGRPC rpc接口
 	IGRPC interface {
+		//GetAddr 获取rpc地址
 		GetAddr() string
+		//GetServer 获取GRpc服务
 		GetServer() *grpc.Server
+		//GetConnByAddr 通过地址获取GRPC客户端
 		GetConnByAddr(string) *grpc.ClientConn
 	}
 	//IDefaultRPC 内部rpc

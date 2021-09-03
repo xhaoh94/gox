@@ -29,6 +29,7 @@ func (m *MainModule) OnInit() {
 	default:
 		m.Put(&gate.GateModule{})
 		m.Put(&login.LoginModule{})
+		m.Put(&scene.SceneModule{})
 		break
 	}
 }
