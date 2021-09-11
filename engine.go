@@ -75,19 +75,16 @@ func (engine *Engine) Version() string {
 }
 
 //Start 启动
-func (engine *Engine) Start(appConfPath string) {
+func (engine *Engine) Start() {
 	if engine.mol == nil {
 		log.Fatalf("没有设置主模块")
 		return
 	}
-	if appConfPath == "" {
-		xlog.Init(engine.sid)
+	if !app.IsLoadAppCfg() {
 		xlog.Warn("没有传入ini配置,使用默认配置")
-	} else {
-		app.LoadAppConfig(appConfPath)
-		xlog.Init(engine.sid)
 	}
-	xlog.Info("服务启动[sid:%d,type:%s,[ver:%s]", engine.sid, engine.stype, engine.version)
+	xlog.Init(engine.sid)
+	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", engine.sid, engine.stype, engine.version)
 	xlog.Info("[ByteOrder:%s]", engine.endian.String())
 	engine.nw.Init()
 	engine.rpc.Init()

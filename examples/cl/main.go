@@ -71,7 +71,7 @@ func main() {
 	engine.SetModule(new(MainModule))
 	engine.SetCodec(codec.Json)
 	engine.SetInteriorService(new(kcp.KService), addr)
-	engine.Start("")
+	engine.Start()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)
 	<-sigChan

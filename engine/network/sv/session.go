@@ -97,6 +97,7 @@ func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
 		return false
 	}
+
 	s.sendData(pkt.PktData())
 	return true
 }
@@ -176,6 +177,7 @@ func (s *Session) sendData(buf []byte) {
 	if !s.isAct() {
 		return
 	}
+	xlog.Debug("data %v", buf)
 	s.channel.Send(buf)
 }
 

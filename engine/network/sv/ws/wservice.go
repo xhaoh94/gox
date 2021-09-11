@@ -1,4 +1,4 @@
-package websocket
+package ws
 
 import (
 	"context"
@@ -27,16 +27,16 @@ type WService struct {
 }
 
 func (ws *WService) Init(addr string, engine types.IEngine, ctx context.Context) {
-	ws.patten = app.GetAppCfg().WebSocket.WebSocketPattern
-	ws.scheme = app.GetAppCfg().WebSocket.WebSocketScheme
-	ws.path = app.GetAppCfg().WebSocket.WebSocketPath
 	ws.Service.Init(addr, engine, ctx)
 	ws.Service.ConnectChannelFunc = ws.connectChannel
 }
 
 //Start 启动
 func (ws *WService) Start() {
-
+	ws.patten = app.GetAppCfg().WebSocket.WebSocketPattern
+	ws.scheme = app.GetAppCfg().WebSocket.WebSocketScheme
+	ws.path = app.GetAppCfg().WebSocket.WebSocketPath
+	xlog.Debug("patten[%s] scheme[%s] path[%s]", ws.patten, ws.scheme, ws.path)
 	mux := http.NewServeMux()
 	mux.HandleFunc(ws.patten, ws.wsPage)
 	ws.sv = &http.Server{Addr: ws.GetAddr(), Handler: mux}
@@ -86,6 +86,7 @@ func (ws *WService) wsPage(w http.ResponseWriter, r *http.Request) {
 		xlog.Error("websocket wsPage: [%s]", err.Error())
 		return
 	}
+	xlog.Info("webSocket 连接成功[%s]", conn.RemoteAddr().String())
 	go ws.connection(conn)
 }
 

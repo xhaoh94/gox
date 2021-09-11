@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox/app"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"

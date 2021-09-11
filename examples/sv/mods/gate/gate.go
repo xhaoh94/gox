@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
+	"github.com/xhaoh94/gox/examples/pb"
 	"github.com/xhaoh94/gox/examples/sv/game"
 	"github.com/xhaoh94/gox/types"
 )
@@ -19,10 +21,15 @@ type (
 //OnInit 初始化
 func (m *GateModule) OnInit() {
 	m.Register(netpack.CMD_C2G_Login, m.RspLogin)
+	m.Register(100, m.Test)
 }
 
 func (m *GateModule) OnStart() {
+}
 
+func (m *GateModule) Test(ctx context.Context, session types.ISession, msg *pb.A) {
+	xlog.Debug("test [%v]", msg)
+	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
 }
 
 func (m *GateModule) RspLogin(ctx context.Context, session types.ISession, msg *netpack.C2G_Login) {

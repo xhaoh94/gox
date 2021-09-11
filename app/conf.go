@@ -99,6 +99,8 @@ func initCfg() {
 		WebSocket: webSocketConf{
 			WebSocketMessageType: 2,
 			WebSocketPattern:     "ws",
+			WebSocketPath:        "/ws",
+			WebSocketScheme:      "/ws",
 			CertFile:             "",
 			KeyFile:              "",
 		},
@@ -116,7 +118,6 @@ func LoadAppConfig(appConfPath string) {
 		log.Printf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
 		return
 	}
-
 	appCfg.Network.ReConnectInterval *= time.Second
 	appCfg.Network.Heartbeat *= time.Second
 	appCfg.Network.ConnectTimeout *= time.Second

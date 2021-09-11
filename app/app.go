@@ -16,3 +16,12 @@ func GetAppCfg() *appConf {
 	}
 	return appCfg
 }
+
+//IsLoadAppCfg 是否加载过配置
+func IsLoadAppCfg() bool {
+	b := appCfg != nil
+	if !b {
+		initCfg()
+	}
+	return b
+}
