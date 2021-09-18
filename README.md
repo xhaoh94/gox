@@ -14,23 +14,23 @@ gox 的关注点：
 
 现在让我们来看看如果创建一个服务器：
 ```
-  	engine := gox.NewEngine(sid, sType, "1.0.0")//实例化一个服务器 传入id，服务器类型，和版本
-	game.Engine = engine //全局存储
-	engine.SetModule(new(mods.MainModule)) //设置启动模块
-	engine.SetCodec(codec.Json) //设置数据结构
-	engine.SetInteriorService(new(tcp.TService), iAddr)//设置内部通信类型
-	engine.SetOutsideService(new(kcp.KService), oAddr)//设置外部通信类型	
-	engine.Start("gox.ini")//启动服务
+engine := gox.NewEngine(sid, sType, "1.0.0")//实例化一个服务器 传入id，服务器类型，和版本
+game.Engine = engine //全局存储
+engine.SetModule(new(mods.MainModule)) //设置启动模块
+engine.SetCodec(codec.Json) //设置数据结构
+engine.SetInteriorService(new(tcp.TService), iAddr)//设置内部通信类型
+engine.SetOutsideService(new(kcp.KService), oAddr)//设置外部通信类型	
+engine.Start("gox.ini")//启动服务
   
 ```
 主模块：
 ```
-	type (
-	//MainModule 主模块
-	MainModule struct {
-		gox.Module//必须继承此
-	}
-	)
+type (
+//MainModule 主模块
+MainModule struct {
+	gox.Module//必须继承此
+}
+)
 
 func (m *MainModule) OnInit() {
   //通过服务类型组装不同的模块
