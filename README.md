@@ -126,7 +126,7 @@ replace (
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 )
 2、终端执行 go mod tidy，等待拉取代码完毕(如果存在墙的问题，请提前设置好GOPROXY为https://goproxy.cn，具体步骤可以百度)
-3、启动etcd服务，如果没有下载，可以自行前往下载 https://github.com/coreos/etcd/releases
+3、启动etcd服务，如果没有下载，可以自行前往下载（下面有链接）
 4、打开examples/sv/的终端 执行 go run main.go -sid 1 -type gate -iAddr 127.0.0.1:10001 -oAddr 127.0.0.1:10002
   再打开一个examples/sv/的终端 执行 go run main.go -sid 2 -type login -iAddr 127.0.0.1:20001 -oAddr 127.0.0.1:20002
   再打开一个examples/sv/的终端 执行 go run main.go -sid 3 -type scene -iAddr 127.0.0.1:30001
@@ -134,5 +134,5 @@ replace (
   然后打开examples/cl/的终端(模拟客户端行为) 执行 go run main.go
   没问题的话，就可以看到打印的日志啦！
 ```
-
+etcd:[https://github.com/coreos/etcd/releases](https://github.com/coreos/etcd/releases)
 
