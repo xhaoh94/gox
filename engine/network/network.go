@@ -44,7 +44,7 @@ func (nw *NetWork) GetActorCtrl() types.IActorCtrl {
 	return nw.atrCrtl
 }
 
-//GetSession 通过id获取Session
+// GetSession 通过id获取Session
 func (nw *NetWork) GetSessionById(sid uint32) types.ISession {
 	session := nw.interior.GetSessionById(sid)
 	if session == nil && nw.outside != nil {
@@ -53,7 +53,7 @@ func (nw *NetWork) GetSessionById(sid uint32) types.ISession {
 	return session
 }
 
-//GetSessionByAddr 通过地址获取Session
+// GetSessionByAddr 通过地址获取Session
 func (nw *NetWork) GetSessionByAddr(addr string) types.ISession {
 	return nw.interior.GetSessionByAddr(addr)
 }
@@ -71,7 +71,7 @@ func (nw *NetWork) GetInteriorAddr() string {
 	return ""
 }
 
-//RegisterRType 注册协议消息体类型
+// RegisterRType 注册协议消息体类型
 func (nw *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
 	defer nw.cmdLock.Unlock()
 	nw.cmdLock.Lock()
@@ -82,7 +82,7 @@ func (nw *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
 	nw.cmdType[cmd] = protoType
 }
 
-//RegisterRType 注册协议消息体类型
+// RegisterRType 注册协议消息体类型
 func (nw *NetWork) UnRegisterRType(cmd uint32) {
 	defer nw.cmdLock.Unlock()
 	nw.cmdLock.Lock()
@@ -91,7 +91,7 @@ func (nw *NetWork) UnRegisterRType(cmd uint32) {
 	}
 }
 
-//GetRegProtoMsg 获取协议消息体
+// GetRegProtoMsg 获取协议消息体
 func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
 	nw.cmdLock.RLock()
 	rType, ok := nw.cmdType[cmd]
@@ -125,20 +125,20 @@ func (nw *NetWork) Destroy() {
 	nw.interior.Stop()
 }
 
-//SetOutsideService 设置外部服务类型
-func (nw *NetWork) SetOutsideService(ser types.IService, addr string) {
+// SetOutsideService 设置外部服务类型
+func (nw *NetWork) SetOutsideService(ser types.IService, addr string, codec types.ICodec) {
 	if addr == "" {
 		return
 	}
 	nw.outside = ser
-	nw.outside.Init(addr, nw.engine, nw.context)
+	nw.outside.Init(addr, codec, nw.engine, nw.context)
 }
 
-//SetInteriorService 设置内部服务类型
-func (nw *NetWork) SetInteriorService(ser types.IService, addr string) {
+// SetInteriorService 设置内部服务类型
+func (nw *NetWork) SetInteriorService(ser types.IService, addr string, codec types.ICodec) {
 	if addr == "" {
 		return
 	}
 	nw.interior = ser
-	nw.interior.Init(addr, nw.engine, nw.context)
+	nw.interior.Init(addr, codec, nw.engine, nw.context)
 }

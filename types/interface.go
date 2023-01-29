@@ -20,8 +20,6 @@ type (
 		GetNetWork() INetwork
 		//GetRPC rpc系统
 		GetRPC() IGRPC
-		//GetCodec 解码系统
-		GetCodec() ICodec
 		//GetEndian 网络大小端
 		GetEndian() binary.ByteOrder
 	}
@@ -85,7 +83,7 @@ type (
 	}
 	//IService 服务器接口
 	IService interface {
-		Init(string, IEngine, context.Context)
+		Init(string, ICodec, IEngine, context.Context)
 		Start()
 		Stop()
 		GetAddr() string

@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//WService WebSocket服务器
+// WService WebSocket服务器
 type WService struct {
 	sv.Service
 	upgrader websocket.Upgrader
@@ -26,12 +26,12 @@ type WService struct {
 	path     string
 }
 
-func (ws *WService) Init(addr string, engine types.IEngine, ctx context.Context) {
-	ws.Service.Init(addr, engine, ctx)
+func (ws *WService) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {
+	ws.Service.Init(addr, codec, engine, ctx)
 	ws.Service.ConnectChannelFunc = ws.connectChannel
 }
 
-//Start 启动
+// Start 启动
 func (ws *WService) Start() {
 	ws.patten = app.GetAppCfg().WebSocket.WebSocketPattern
 	ws.scheme = app.GetAppCfg().WebSocket.WebSocketScheme
@@ -100,7 +100,7 @@ func (ws *WService) addChannel(conn *websocket.Conn) *WChannel {
 	return wChannel
 }
 
-//connectChannel 链接新信道
+// connectChannel 链接新信道
 func (ws *WService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
@@ -129,7 +129,7 @@ func (ws *WService) connectChannel(addr string) types.IChannel {
 
 }
 
-//Stop 停止服务
+// Stop 停止服务
 func (ws *WService) Stop() {
 	if !ws.IsRun {
 		return

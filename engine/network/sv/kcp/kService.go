@@ -17,12 +17,12 @@ type KService struct {
 	listen *kcp.Listener
 }
 
-func (ks *KService) Init(addr string, engine types.IEngine, ctx context.Context) {
-	ks.Service.Init(addr, engine, ctx)
+func (ks *KService) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {
+	ks.Service.Init(addr, codec, engine, ctx)
 	ks.Service.ConnectChannelFunc = ks.connectChannel
 }
 
-//Start 启动
+// Start 启动
 func (ks *KService) Start() {
 	//初始化socket
 	if ks.listen == nil {
@@ -69,7 +69,7 @@ func (ks *KService) addChannel(conn *kcp.UDPSession) *KChannel {
 	return kChannel
 }
 
-//connectChannel 链接新信道
+// connectChannel 链接新信道
 func (ks *KService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
@@ -90,7 +90,7 @@ func (ks *KService) connectChannel(addr string) types.IChannel {
 	}
 }
 
-//Stop 停止服务
+// Stop 停止服务
 func (ks *KService) Stop() {
 	if !ks.IsRun {
 		return

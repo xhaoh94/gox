@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/network/sv/kcp"
+	"github.com/xhaoh94/gox/engine/network/sv/ws"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/types"
@@ -31,7 +32,7 @@ func (m *MainModule) OnInit() {
 
 }
 
-//OnStart
+// OnStart
 func (m *MainModule) OnStart() {
 	xlog.Debug("test")
 	time.Sleep(1 * time.Second)
@@ -61,16 +62,16 @@ func (m *MainModule) RspEnter(ctx context.Context, session types.ISession, rsp *
 	xlog.Debug("进入结果返回Code:%d", rsp.Code)
 }
 
-//模拟客户端发数据
+// 模拟客户端发数据
 func main() {
 	sid := *flag.Uint("sid", uint(util.StringToHash(util.GetUUID())), "uuid")
 	sType := *flag.String("type", "client", "服务类型")
 	addr := *flag.String("addr", "127.0.0.1:9999", "服务地址")
 	flag.Parse()
+	app.LoadAppConfig("gox.ini")
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	engine.SetModule(new(MainModule))
-	engine.SetCodec(codec.Json)
-	engine.SetInteriorService(new(kcp.KService), addr)
+	engine.SetInteriorService(new(ws.WService), addr, codec.Json)
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)

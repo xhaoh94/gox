@@ -38,22 +38,22 @@ const (
 	RPC_R byte = 0x05
 )
 
-//UID 获取id
+// UID 获取id
 func (s *Session) ID() uint32 {
 	return s.id
 }
 
-//RemoteAddr 链接地址
+// RemoteAddr 链接地址
 func (s *Session) RemoteAddr() string {
 	return s.channel.RemoteAddr()
 }
 
-//LocalAddr 本地地址
+// LocalAddr 本地地址
 func (s *Session) LocalAddr() string {
 	return s.channel.LocalAddr()
 }
 
-//Init 初始化
+// Init 初始化
 func (s *Session) init(id uint32, service *Service, channel types.IChannel, t Tag) {
 	s.id = id
 	s.channel = channel
@@ -63,7 +63,7 @@ func (s *Session) init(id uint32, service *Service, channel types.IChannel, t Ta
 	s.channel.SetSession(s)
 }
 
-//start 启动
+// start 启动
 func (s *Session) start() {
 	s.channel.Start()
 	if s.IsConnector() { //如果是连接者 启动心跳发送
@@ -71,7 +71,7 @@ func (s *Session) start() {
 	}
 }
 
-//Stop 关闭
+// Stop 关闭
 func (s *Session) stop() {
 	if !s.isAct() {
 		return
@@ -79,12 +79,12 @@ func (s *Session) stop() {
 	s.channel.Stop()
 }
 
-//Close 关闭连接
+// Close 关闭连接
 func (s *Session) Close() {
 	s.stop()
 }
 
-//Send 发送
+// Send 发送
 func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	if !s.isAct() {
 		return false
@@ -102,7 +102,7 @@ func (s *Session) Send(cmd uint32, msg interface{}) bool {
 	return true
 }
 
-//Call 呼叫
+// Call 呼叫
 func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC {
 	dr := rpc.NewDefaultRpc(s.id, s.ctx, response)
 	if !s.isAct() {
@@ -156,7 +156,7 @@ func (s *Session) ActorCall(actorID uint32, msg interface{}, response interface{
 	return dr
 }
 
-//reply 回应
+// reply 回应
 func (s *Session) reply(msg interface{}, rpcid uint32) bool {
 	if !s.isAct() {
 		return false
@@ -177,7 +177,7 @@ func (s *Session) sendData(buf []byte) {
 	if !s.isAct() {
 		return
 	}
-	xlog.Debug("data %v", buf)
+	// xlog.Debug("data %v", buf)
 	s.channel.Send(buf)
 }
 
@@ -185,7 +185,7 @@ func (s *Session) isAct() bool {
 	return s.id != 0
 }
 
-//onHeartbeat 心跳
+// onHeartbeat 心跳
 func (s *Session) onHeartbeat() {
 	id := s.id
 	for s.id != 0 && s.id == id {
@@ -238,7 +238,7 @@ func (s *Session) parseReader(r io.Reader) bool {
 	return false
 }
 
-//parseMsg 解析包
+// parseMsg 解析包
 func (s *Session) parseMsg(buf []byte) {
 	if !s.isAct() {
 		return
@@ -313,7 +313,7 @@ func (s *Session) defaultRpc() *rpc.RPC {
 	return s.sv.Engine.GetRPC().(*rpc.RPC)
 }
 func (s *Session) codec() types.ICodec {
-	return s.sv.Engine.GetCodec()
+	return s.sv.Codec
 }
 func (s *Session) network() types.INetwork {
 	return s.sv.Engine.GetNetWork()
@@ -325,7 +325,7 @@ func (s *Session) endian() binary.ByteOrder {
 	return s.sv.Engine.GetEndian()
 }
 
-//callEvt 触发
+// callEvt 触发
 func (s *Session) callEvt(event uint32, params ...interface{}) (interface{}, error) {
 	values, err := s.event().Call(event, params...)
 	if err != nil {
@@ -351,14 +351,14 @@ func (s *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
 	}
 }
 
-//emitMessage 派发网络消息
+// emitMessage 派发网络消息
 func (s *Session) emitMessage(cmd uint32, msg interface{}) {
 	if _, err := s.callEvt(cmd, s.ctx, s, msg); err != nil {
 		xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }
 
-//release 回收session
+// release 回收session
 func (s *Session) release() {
 	xlog.Info("session 断开 id:[%d] remote:[%s] local:[%s] tag:[%s]", s.id, s.RemoteAddr(), s.LocalAddr(), s.GetTagName())
 	s.ctxCancelFunc()

@@ -18,7 +18,7 @@ type (
 	}
 )
 
-//OnInit 初始化
+// OnInit 初始化
 func (m *GateModule) OnInit() {
 	m.Register(netpack.CMD_C2G_Login, m.RspLogin)
 	m.Register(100, m.Test)

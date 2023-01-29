@@ -13,6 +13,7 @@ type (
 	//Service 服务器
 	Service struct {
 		Engine             types.IEngine
+		Codec              types.ICodec
 		ConnectChannelFunc func(addr string) types.IChannel
 		AcceptWg           sync.WaitGroup
 		IsRun              bool
@@ -31,21 +32,22 @@ type (
 
 var sessionPool *sync.Pool = &sync.Pool{New: func() interface{} { return &Session{} }}
 
-//Init 服务初始化
-func (ser *Service) Init(addr string, engine types.IEngine, ctx context.Context) {
+// Init 服务初始化
+func (ser *Service) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {
 	ser.Engine = engine
+	ser.Codec = codec
 	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(ctx)
 	ser.addr = addr
 	ser.idToSession = make(map[uint32]*Session)
 	ser.addrToSession = make(map[string]*Session)
 }
 
-//GetAddr 获取地址
+// GetAddr 获取地址
 func (ser *Service) GetAddr() string {
 	return ser.addr
 }
 
-//OnAccept 新链接回调
+// OnAccept 新链接回调
 func (ser *Service) OnAccept(channel types.IChannel) {
 	session := ser.createSession(channel, TagAccept)
 	if session != nil {
@@ -59,7 +61,7 @@ func (ser *Service) OnAccept(channel types.IChannel) {
 	}
 }
 
-//GetSessionById 通过id获取Session
+// GetSessionById 通过id获取Session
 func (ser *Service) GetSessionById(sid uint32) types.ISession {
 	defer ser.idMutex.Unlock()
 	ser.idMutex.Lock()
@@ -70,7 +72,7 @@ func (ser *Service) GetSessionById(sid uint32) types.ISession {
 	return nil
 }
 
-//GetSessionByAddr 通过addr地址获取Session
+// GetSessionByAddr 通过addr地址获取Session
 func (ser *Service) GetSessionByAddr(addr string) types.ISession {
 	defer ser.addrMutex.Unlock()
 	ser.addrMutex.Lock()
@@ -90,7 +92,7 @@ func (ser *Service) GetSessionByAddr(addr string) types.ISession {
 	return session
 }
 
-//Stop 停止服务
+// Stop 停止服务
 func (ser *Service) Stop() {
 	ser.idMutex.Lock()
 	for k := range ser.idToSession {

@@ -11,18 +11,18 @@ import (
 	"github.com/xhaoh94/gox/types"
 )
 
-//TService TCP服务器
+// TService TCP服务器
 type TService struct {
 	sv.Service
 	listen net.Listener
 }
 
-func (ts *TService) Init(addr string, engine types.IEngine, ctx context.Context) {
-	ts.Service.Init(addr, engine, ctx)
+func (ts *TService) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {
+	ts.Service.Init(addr, codec, engine, ctx)
 	ts.Service.ConnectChannelFunc = ts.connectChannel
 }
 
-//Start 启动
+// Start 启动
 func (ts *TService) Start() {
 	//初始化socket
 	if ts.listen == nil {
@@ -68,7 +68,7 @@ func (ts *TService) addChannel(conn *net.Conn) *TChannel {
 	return tChannel
 }
 
-//connectChannel 链接新信道
+// connectChannel 链接新信道
 func (ts *TService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
@@ -89,7 +89,7 @@ func (ts *TService) connectChannel(addr string) types.IChannel {
 	}
 }
 
-//Stop 停止服务
+// Stop 停止服务
 func (ts *TService) Stop() {
 	if !ts.IsRun {
 		return

@@ -23,7 +23,6 @@ type (
 		context   context.Context
 		contextFn context.CancelFunc
 		mol       types.IModule
-		codec     types.ICodec
 		event     types.IEvent
 		nw        *network.NetWork
 		rpc       *rpc.RPC
@@ -48,10 +47,6 @@ func (engine *Engine) GetEndian() binary.ByteOrder {
 	return engine.endian
 }
 
-func (engine *Engine) GetCodec() types.ICodec {
-	return engine.codec
-}
-
 func (engine *Engine) GetEvent() types.IEvent {
 	return engine.event
 }
@@ -74,7 +69,7 @@ func (engine *Engine) Version() string {
 	return engine.version
 }
 
-//Start 启动
+// Start 启动
 func (engine *Engine) Start() {
 	if engine.mol == nil {
 		log.Fatalf("没有设置主模块")
@@ -94,7 +89,7 @@ func (engine *Engine) Start() {
 	engine.event.Run(xdef.START_ENGINE_OK)
 }
 
-//Shutdown 关闭
+// Shutdown 关闭
 func (engine *Engine) Shutdown() {
 	engine.contextFn()
 	engine.mol.Destroy(engine.mol)
@@ -106,32 +101,27 @@ func (engine *Engine) Shutdown() {
 
 ////////////////////////////////////////////////////////////////
 
-//SetOutsideService 设置外部服务类型
-func (engine *Engine) SetOutsideService(ser types.IService, addr string) {
-	engine.nw.SetOutsideService(ser, addr)
+// SetOutsideService 设置外部服务类型
+func (engine *Engine) SetOutsideService(ser types.IService, addr string, c types.ICodec) {
+	engine.nw.SetOutsideService(ser, addr, c)
 }
 
-//SetInteriorService 设置内部服务类型
-func (engine *Engine) SetInteriorService(ser types.IService, addr string) {
-	engine.nw.SetInteriorService(ser, addr)
+// SetInteriorService 设置内部服务类型
+func (engine *Engine) SetInteriorService(ser types.IService, addr string, c types.ICodec) {
+	engine.nw.SetInteriorService(ser, addr, c)
 }
 
-//SetGrpcAddr 设置grpc服务
+// SetGrpcAddr 设置grpc服务
 func (engine *Engine) SetGrpcAddr(addr string) {
 	engine.rpc.SetAddr(addr)
 }
 
-//SetCodec 设置解码器
-func (engine *Engine) SetCodec(c types.ICodec) {
-	engine.codec = c
-}
-
-//SetCodec 设置解码器
+// SetEndian 设置大小端
 func (engine *Engine) SetEndian(bo binary.ByteOrder) {
 	engine.endian = bo
 }
 
-//SetModule 设置初始模块
+// SetModule 设置初始模块
 func (engine *Engine) SetModule(m types.IModule) {
 	engine.mol = m
 }

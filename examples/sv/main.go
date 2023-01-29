@@ -29,9 +29,9 @@ func main() {
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	game.Engine = engine
 	engine.SetModule(new(mods.MainModule))
-	engine.SetCodec(codec.Protobuf)
-	engine.SetInteriorService(new(kcp.KService), iAddr)
-	engine.SetOutsideService(new(ws.WService), oAddr)
+	// engine.SetCodec()
+	engine.SetInteriorService(new(kcp.KService), iAddr, codec.Json)
+	engine.SetOutsideService(new(ws.WService), oAddr, codec.Json)
 	// engine.SetGrpcAddr(rAddr)
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)
