@@ -4,7 +4,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/aoi/aoibase"
+	"github.com/xhaoh94/gox/aoi/aoibase"
 	"github.com/xhaoh94/gox/helper/mathhelper"
 )
 

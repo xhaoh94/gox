@@ -10,10 +10,11 @@ type (
 		Version() string
 		//Event 服务事件系统
 		Event() IEvent
+
+		Discovery() IDiscovery
 		//GetNetWork 网络系统
 		GetNetWork() INetwork
-		//GetRPC rpc系统
-		GetRPC() IGRPC
+
 		//GetEndian 网络大小端
 		GetEndian() binary.ByteOrder
 	}

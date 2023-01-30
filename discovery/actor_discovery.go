@@ -25,6 +25,7 @@ var (
 type (
 	ActorDiscovery struct {
 		engine         types.IEngine
+		context        context.Context
 		actorPrefix    string
 		es             *etcd.EtcdService
 		keyLock        sync.RWMutex
@@ -44,8 +45,9 @@ func init() {
 	}
 }
 
-func NewActorDiscovery(engine types.IEngine) *ActorDiscovery {
+func newActorDiscovery(engine types.IEngine, ctx context.Context) *ActorDiscovery {
 	return &ActorDiscovery{
+		context:        ctx,
 		engine:         engine,
 		actorPrefix:    "location/actor",
 		keyToActorConf: make(map[string]ActorEntity),
@@ -172,7 +174,7 @@ func (crtl *ActorDiscovery) getSession(actorID uint32) types.ISession {
 	if !ok {
 		return nil
 	}
-	svConf := crtl.engine.GetNetWork().ServiceDiscovery().GetServiceConfByID(conf.ServiceID)
+	svConf := crtl.engine.Discovery().Service().GetServiceConfByID(conf.ServiceID)
 	if svConf == nil {
 		xlog.Error("Actor没有找到服务 ServiceID:[%s]", conf.ServiceID)
 		return nil
@@ -193,7 +195,7 @@ func (crtl *ActorDiscovery) Send(actorID uint32, msg interface{}) bool {
 	cmd := cmdhelper.ToCmd(msg, nil, actorID)
 	return session.Send(cmd, msg)
 }
-func (crtl *ActorDiscovery) Call(actorID uint32, msg interface{}, response interface{}) types.IDefaultRPC {
+func (crtl *ActorDiscovery) Call(actorID uint32, msg interface{}, response interface{}) types.IXRPC {
 	session := crtl.getSession(actorID)
 	if session == nil {
 		dr := rpc.NewDefaultRpc(0, context.TODO(), response)
@@ -203,9 +205,9 @@ func (crtl *ActorDiscovery) Call(actorID uint32, msg interface{}, response inter
 	return session.ActorCall(actorID, msg, response)
 }
 
-func (crtl *ActorDiscovery) Start(ctx context.Context) {
+func (crtl *ActorDiscovery) Start() {
 
-	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
+	timeoutCtx, timeoutCancelFunc := context.WithCancel(crtl.context)
 	go crtl.checkTimeout(timeoutCtx)
 	var err error
 	crtl.es, err = etcd.NewEtcdService(crtl.get, crtl.put, crtl.del)

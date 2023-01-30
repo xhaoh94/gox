@@ -18,6 +18,7 @@ import (
 type (
 	ServiceDiscovery struct {
 		engine       types.IEngine
+		context      context.Context
 		es           *etcd.EtcdService
 		lock         sync.RWMutex
 		keyToService map[string]ServiceEntity
@@ -61,9 +62,10 @@ func (sc ServiceEntity) GetVersion() string {
 	return sc.Version
 }
 
-func NewServiceDiscovery(engine types.IEngine) *ServiceDiscovery {
+func newServiceDiscovery(engine types.IEngine, ctx context.Context) *ServiceDiscovery {
 	return &ServiceDiscovery{
 		engine:       engine,
+		context:      ctx,
 		keyToService: make(map[string]ServiceEntity),
 		idToService:  make(map[uint]ServiceEntity),
 	}
@@ -90,16 +92,16 @@ func newServiceConfig(val []byte) (ServiceEntity, error) {
 	return service, nil
 }
 
-func (reg *ServiceDiscovery) Start(ctx context.Context) {
+func (reg *ServiceDiscovery) Start() {
 	reg.curService = ServiceEntity{
 		ServiceID:    reg.engine.EID(),
 		ServiceType:  reg.engine.EType(),
 		Version:      reg.engine.Version(),
-		OutsideAddr:  reg.engine.GetNetWork().GetOutsideAddr(),
-		InteriorAddr: reg.engine.GetNetWork().GetInteriorAddr(),
-		RPCAddr:      reg.engine.GetRPC().GetAddr(),
+		OutsideAddr:  reg.engine.GetNetWork().OutsideAddr(),
+		InteriorAddr: reg.engine.GetNetWork().InteriorAddr(),
+		RPCAddr:      reg.engine.GetNetWork().Rpc().GetAddr(),
 	}
-	timeoutCtx, timeoutCancelFunc := context.WithCancel(ctx)
+	timeoutCtx, timeoutCancelFunc := context.WithCancel(reg.context)
 	go reg.checkTimeout(timeoutCtx)
 	var err error
 	reg.es, err = etcd.NewEtcdService(reg.get, reg.put, reg.del)

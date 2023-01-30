@@ -21,7 +21,7 @@ type (
 	Session struct {
 		SessionTag
 		id            uint32
-		sv            *Service
+		service       *Service
 		channel       types.IChannel
 		ctx           context.Context
 		ctxCancelFunc context.CancelFunc
@@ -39,97 +39,96 @@ const (
 )
 
 // UID 获取id
-func (s *Session) ID() uint32 {
-	return s.id
+func (session *Session) ID() uint32 {
+	return session.id
 }
 
 // RemoteAddr 链接地址
-func (s *Session) RemoteAddr() string {
-	return s.channel.RemoteAddr()
+func (session *Session) RemoteAddr() string {
+	return session.channel.RemoteAddr()
 }
 
 // LocalAddr 本地地址
-func (s *Session) LocalAddr() string {
-	return s.channel.LocalAddr()
+func (session *Session) LocalAddr() string {
+	return session.channel.LocalAddr()
 }
 
 // Init 初始化
-func (s *Session) init(id uint32, service *Service, channel types.IChannel, t Tag) {
-	s.id = id
-	s.channel = channel
-	s.tag = t
-	s.sv = service
-	s.ctx, s.ctxCancelFunc = context.WithCancel(service.Ctx)
-	s.channel.SetSession(s)
+func (session *Session) init(id uint32, service *Service, channel types.IChannel, t Tag) {
+	session.id = id
+	session.channel = channel
+	session.tag = t
+	session.service = service
+	session.ctx, session.ctxCancelFunc = context.WithCancel(service.Ctx)
+	session.channel.SetSession(session)
 }
 
 // start 启动
-func (s *Session) start() {
-	s.channel.Start()
-	if s.IsConnector() { //如果是连接者 启动心跳发送
-		go s.onHeartbeat()
+func (session *Session) start() {
+	session.channel.Start()
+	if session.IsConnector() { //如果是连接者 启动心跳发送
+		go session.onHeartbeat()
 	}
 }
 
 // Stop 关闭
-func (s *Session) stop() {
-	if !s.isAct() {
+func (session *Session) stop() {
+	if !session.isAct() {
 		return
 	}
-	s.channel.Stop()
+	session.channel.Stop()
 }
 
 // Close 关闭连接
-func (s *Session) Close() {
-	s.stop()
+func (session *Session) Close() {
+	session.stop()
 }
 
 // Send 发送
-func (s *Session) Send(cmd uint32, msg interface{}) bool {
-	if !s.isAct() {
+func (session *Session) Send(cmd uint32, msg interface{}) bool {
+	if !session.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0), s.endian())
+	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(C_S_C)
 	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+	if err := pkt.AppendMessage(msg, session.codec()); err != nil {
 		return false
 	}
 
-	s.sendData(pkt.PktData())
+	session.sendData(pkt.PktData())
 	return true
 }
 
 // Call 呼叫
-func (s *Session) Call(msg interface{}, response interface{}) types.IDefaultRPC {
-	dr := rpc.NewDefaultRpc(s.id, s.ctx, response)
-	if !s.isAct() {
+func (session *Session) Call(msg interface{}, response interface{}) types.IXRPC {
+	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
+	if !session.isAct() {
 		defer dr.Run(false)
 		return dr
 	}
 	cmd := cmdhelper.ToCmd(msg, response, 0)
-	rpcid := s.defaultRpc().AssignID()
-	pkt := NewByteArray(make([]byte, 0), s.endian())
+	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_S)
 	pkt.AppendUint32(cmd)
-	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+	pkt.AppendUint32(dr.RID())
+	if err := pkt.AppendMessage(msg, session.codec()); err != nil {
 		defer dr.Run(false)
 		return dr
 	}
-	s.defaultRpc().Put(rpcid, dr)
-	s.sendData(pkt.PktData())
+	session.Rpc().Put(dr)
+	session.sendData(pkt.PktData())
 	return dr
 }
 
-func (s *Session) ActorCall(actorID uint32, msg interface{}, response interface{}) types.IDefaultRPC {
+func (session *Session) ActorCall(actorID uint32, msg interface{}, response interface{}) types.IXRPC {
 
-	dr := rpc.NewDefaultRpc(s.id, s.ctx, response)
-	if !s.isAct() {
+	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
+	if !session.isAct() {
 		defer dr.Run(false)
 		return dr
 	}
@@ -140,45 +139,44 @@ func (s *Session) ActorCall(actorID uint32, msg interface{}, response interface{
 	}
 
 	cmd := cmdhelper.ToCmd(msg, response, actorID)
-	rpcid := s.defaultRpc().AssignID()
-	pkt := NewByteArray(make([]byte, 0), s.endian())
+	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_S)
 	pkt.AppendUint32(cmd)
-	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+	pkt.AppendUint32(dr.RID())
+	if err := pkt.AppendMessage(msg, session.codec()); err != nil {
 		defer dr.Run(false)
 		return dr
 	}
-	s.defaultRpc().Put(rpcid, dr)
-	s.sendData(pkt.PktData())
+	session.Rpc().Put(dr)
+	session.sendData(pkt.PktData())
 	return dr
 }
 
 // reply 回应
-func (s *Session) reply(msg interface{}, rpcid uint32) bool {
-	if !s.isAct() {
+func (session *Session) reply(msg interface{}, rpcid uint32) bool {
+	if !session.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0), s.endian())
+	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_R)
 	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg, s.codec()); err != nil {
+	if err := pkt.AppendMessage(msg, session.codec()); err != nil {
 		return false
 	}
-	s.sendData(pkt.PktData())
+	session.sendData(pkt.PktData())
 	return true
 }
 
-func (s *Session) sendData(buf []byte) {
-	if !s.isAct() {
+func (session *Session) sendData(buf []byte) {
+	if !session.isAct() {
 		return
 	}
 	// xlog.Debug("data %v", buf)
-	s.channel.Send(buf)
+	session.channel.Send(buf)
 }
 
 func (s *Session) isAct() bool {
@@ -186,31 +184,31 @@ func (s *Session) isAct() bool {
 }
 
 // onHeartbeat 心跳
-func (s *Session) onHeartbeat() {
-	id := s.id
-	for s.id != 0 && s.id == id {
+func (session *Session) onHeartbeat() {
+	id := session.id
+	for session.id != 0 && session.id == id {
 		select {
-		case <-s.ctx.Done():
+		case <-session.ctx.Done():
 			goto end
 		case <-time.After(app.GetAppCfg().Network.Heartbeat):
-			s.sendHeartbeat(H_B_S) //发送空的心跳包
+			session.sendHeartbeat(H_B_S) //发送空的心跳包
 		}
 	}
 end:
 }
-func (s *Session) sendHeartbeat(t byte) {
-	if !s.isAct() {
+func (session *Session) sendHeartbeat(t byte) {
+	if !session.isAct() {
 		return
 	}
-	pkt := NewByteArray(make([]byte, 0), s.endian())
+	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(t)
-	s.sendData(pkt.PktData())
+	session.sendData(pkt.PktData())
 }
 
-func (s *Session) parseReader(r io.Reader) bool {
-	if !s.isAct() {
+func (session *Session) parseReader(r io.Reader) bool {
+	if !session.isAct() {
 		return true
 	}
 	header := make([]byte, 2)
@@ -218,14 +216,14 @@ func (s *Session) parseReader(r io.Reader) bool {
 	if err != nil {
 		return true
 	}
-	msgLen := codechelper.BytesToUint16(header, s.endian())
+	msgLen := codechelper.BytesToUint16(header, session.endian())
 	if msgLen == 0 {
-		xlog.Error("读取到网络空包 local:[%s] remote:[%s]", s.LocalAddr(), s.RemoteAddr())
+		xlog.Error("读取到网络空包 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
 		return true
 	}
 
 	if int(msgLen) > app.GetAppCfg().Network.ReadMsgMaxLen {
-		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", s.LocalAddr(), s.RemoteAddr())
+		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
 		return true
 	}
 	buf := make([]byte, msgLen)
@@ -234,100 +232,86 @@ func (s *Session) parseReader(r io.Reader) bool {
 	if err != nil {
 		return true
 	}
-	go s.parseMsg(buf)
+	go session.parseMsg(buf)
 	return false
 }
 
 // parseMsg 解析包
-func (s *Session) parseMsg(buf []byte) {
-	if !s.isAct() {
+func (session *Session) parseMsg(buf []byte) {
+	if !session.isAct() {
 		return
 	}
-	pkt := NewByteArray(buf, s.endian())
+	pkt := NewByteArray(buf, session.endian())
 	defer pkt.Release()
 	pkt.ReadBytes(8) //8位预留的字节
 
 	t := pkt.ReadOneByte()
 	switch t {
 	case H_B_S:
-		s.sendHeartbeat(H_B_R)
-		break
+		session.sendHeartbeat(H_B_R)
+		return
 	case C_S_C:
 		cmd := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
 		if msgLen == 0 {
-			s.emitMessage(cmd, nil)
+			session.emitMessage(cmd, nil)
 			return
 		}
-		msg := s.network().GetRegProtoMsg(cmd)
+		msg := session.network().GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
 		}
-		if err := pkt.ReadMessage(msg, s.codec()); err != nil {
+		if err := pkt.ReadMessage(msg, session.codec()); err != nil {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
-		s.emitMessage(cmd, msg)
-		break
+		session.emitMessage(cmd, msg)
+		return
 	case RPC_S:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
 		if msgLen == 0 {
-			s.emitRpc(cmd, rpcID, nil)
+			session.emitRpc(cmd, rpcID, nil)
 			return
 		}
-		msg := s.network().GetRegProtoMsg(cmd)
+		msg := session.network().GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
 		}
-		if err := pkt.ReadMessage(msg, s.codec()); err != nil {
+		if err := pkt.ReadMessage(msg, session.codec()); err != nil {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
-		s.emitRpc(cmd, rpcID, msg)
-		break
+		session.emitRpc(cmd, rpcID, msg)
+		return
 	case RPC_R:
-		rpcID := pkt.ReadUint32()
-		dr := s.defaultRpc().Get(rpcID)
-		if dr != nil {
-			msgLen := pkt.RemainLength()
-			if msgLen == 0 {
-				dr.Run(false)
-				return
-			}
-			if err := pkt.ReadMessage(dr.GetResponse(), s.codec()); err != nil {
-				xlog.Error("解析网络包体失败 err:[%v]", err)
-				dr.Run(false)
-				return
-			}
-			dr.Run(true)
-		}
-		break
+		session.Rpc().ParseMsg(pkt, session.codec())
+		return
 	}
 }
 
-func (s *Session) defaultRpc() *rpc.RPC {
-	return s.sv.Engine.GetRPC().(*rpc.RPC)
+func (session *Session) Rpc() types.IRPC {
+	return session.network().Rpc()
 }
-func (s *Session) codec() types.ICodec {
-	return s.sv.Codec
+func (session *Session) codec() types.ICodec {
+	return session.service.Codec
 }
-func (s *Session) network() types.INetwork {
-	return s.sv.Engine.GetNetWork()
+func (session *Session) network() types.INetwork {
+	return session.service.Engine.GetNetWork()
 }
-func (s *Session) event() types.IEvent {
-	return s.sv.Engine.Event()
+func (session *Session) event() types.IEvent {
+	return session.service.Engine.Event()
 }
-func (s *Session) endian() binary.ByteOrder {
-	return s.sv.Engine.GetEndian()
+func (session *Session) endian() binary.ByteOrder {
+	return session.service.Engine.GetEndian()
 }
 
 // callEvt 触发
-func (s *Session) callEvt(event uint32, params ...interface{}) (interface{}, error) {
-	values, err := s.event().Call(event, params...)
+func (session *Session) callEvt(event uint32, params ...interface{}) (interface{}, error) {
+	values, err := session.event().Call(event, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -343,32 +327,32 @@ func (s *Session) callEvt(event uint32, params ...interface{}) (interface{}, err
 	}
 }
 
-func (s *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
-	if r, err := s.callEvt(cmd, s.ctx, msg); err == nil {
-		s.reply(r, rpc)
+func (session *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
+	if r, err := session.callEvt(cmd, session.ctx, msg); err == nil {
+		session.reply(r, rpc)
 	} else {
 		xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }
 
 // emitMessage 派发网络消息
-func (s *Session) emitMessage(cmd uint32, msg interface{}) {
-	if _, err := s.callEvt(cmd, s.ctx, s, msg); err != nil {
+func (session *Session) emitMessage(cmd uint32, msg interface{}) {
+	if _, err := session.callEvt(cmd, session.ctx, session, msg); err != nil {
 		xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }
 
 // release 回收session
-func (s *Session) release() {
-	xlog.Info("session 断开 id:[%d] remote:[%s] local:[%s] tag:[%s]", s.id, s.RemoteAddr(), s.LocalAddr(), s.GetTagName())
-	s.ctxCancelFunc()
-	s.sv.delSession(s)
+func (session *Session) release() {
+	xlog.Info("session 断开 id:[%d] remote:[%s] local:[%s] tag:[%s]", session.id, session.RemoteAddr(), session.LocalAddr(), session.GetTagName())
+	session.ctxCancelFunc()
+	session.service.delSession(session)
 	// rpc.DelRPCBySessionID(s.id) 现在通过ctx 关闭
-	s.ctx = nil
-	s.ctxCancelFunc = nil
-	s.tag = 0
-	s.id = 0
-	s.channel = nil
-	s.sv = nil
-	sessionPool.Put(s)
+	session.ctx = nil
+	session.ctxCancelFunc = nil
+	session.tag = 0
+	session.id = 0
+	session.channel = nil
+	session.service = nil
+	sessionPool.Put(session)
 }

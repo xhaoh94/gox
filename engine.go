@@ -6,12 +6,11 @@ import (
 	"log"
 
 	"github.com/xhaoh94/gox/app"
+	"github.com/xhaoh94/gox/discovery"
 	"github.com/xhaoh94/gox/engine/network"
-	"github.com/xhaoh94/gox/engine/rpc"
 	"github.com/xhaoh94/gox/engine/xevent"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/xdef"
 )
 
 type (
@@ -25,8 +24,9 @@ type (
 		mol       types.IModule
 		event     types.IEvent
 		nw        *network.NetWork
-		rpc       *rpc.RPC
-		endian    binary.ByteOrder
+		discovery *discovery.Discovery
+
+		endian binary.ByteOrder
 	}
 )
 
@@ -38,7 +38,8 @@ func NewEngine(sid uint, sType string, version string) *Engine {
 	e.event = xevent.New()
 	e.context, e.contextFn = context.WithCancel(context.Background())
 	e.nw = network.New(e, e.context)
-	e.rpc = rpc.New(e)
+	e.discovery = discovery.New(e, e.context)
+
 	e.endian = binary.LittleEndian
 	return e
 }
@@ -51,10 +52,9 @@ func (engine *Engine) Event() types.IEvent {
 	return engine.event
 }
 
-func (engine *Engine) GetRPC() types.IGRPC {
-	return engine.rpc
+func (engine *Engine) Discovery() types.IDiscovery {
+	return engine.discovery
 }
-
 func (engine *Engine) GetNetWork() types.INetwork {
 	return engine.nw
 }
@@ -82,18 +82,18 @@ func (engine *Engine) Start() {
 	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", engine.eid, engine.etype, engine.version)
 	xlog.Info("[ByteOrder:%s]", engine.endian.String())
 	engine.nw.Init()
-	engine.rpc.Init()
-	engine.mol.Init(engine.mol, engine)
-
-	engine.rpc.Serve()
-	engine.event.Run(xdef.START_ENGINE_OK)
+	engine.discovery.Init()
+	engine.mol.Init(engine.mol, engine, func() {
+		engine.nw.Serve()
+	})
 }
 
 // Shutdown 关闭
 func (engine *Engine) Shutdown() {
 	engine.contextFn()
 	engine.mol.Destroy(engine.mol)
-	engine.rpc.Destroy()
+
+	engine.discovery.Destroy()
 	engine.nw.Destroy()
 	xlog.Info("服务退出[sid:%d]", engine.eid)
 	xlog.Destroy()
@@ -113,7 +113,7 @@ func (engine *Engine) SetInteriorService(ser types.IService, addr string, c type
 
 // SetGrpcAddr 设置grpc服务
 func (engine *Engine) SetGrpcAddr(addr string) {
-	engine.rpc.SetAddr(addr)
+	engine.nw.SetGrpcAddr(addr)
 }
 
 // SetEndian 设置大小端

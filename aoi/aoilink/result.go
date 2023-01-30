@@ -3,7 +3,7 @@ package aoilink
 import (
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/aoi/aoibase"
+	"github.com/xhaoh94/gox/aoi/aoibase"
 )
 
 var resultPool sync.Pool = sync.Pool{

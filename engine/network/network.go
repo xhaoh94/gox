@@ -5,8 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/xhaoh94/gox/discovery"
-
+	"github.com/xhaoh94/gox/engine/rpc"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/helper/commonhelper"
 	"github.com/xhaoh94/gox/types"
@@ -14,38 +13,29 @@ import (
 
 type (
 	NetWork struct {
-		engine   types.IEngine
-		outside  types.IService
-		interior types.IService
-
 		context   context.Context
 		contextFn context.CancelFunc
 
-		actorDiscovery   *discovery.ActorDiscovery
-		serviceDiscovery *discovery.ServiceDiscovery
-		cmdType          map[uint32]reflect.Type
-		cmdLock          sync.RWMutex
+		engine   types.IEngine
+		outside  types.IService
+		interior types.IService
+		rpc      types.IRPC
+		cmdType  map[uint32]reflect.Type
+		cmdLock  sync.RWMutex
 	}
 )
 
 func New(engine types.IEngine, ctx context.Context) *NetWork {
 	nw := new(NetWork)
 	nw.engine = engine
-	nw.actorDiscovery = discovery.NewActorDiscovery(engine)
-	nw.serviceDiscovery = discovery.NewServiceDiscovery(engine)
 	nw.cmdType = make(map[uint32]reflect.Type)
 	nw.context, nw.contextFn = context.WithCancel(ctx)
+	nw.rpc = rpc.New(engine)
 	return nw
 }
 
 func (nw *NetWork) Engine() types.IEngine {
 	return nw.engine
-}
-func (nw *NetWork) ServiceDiscovery() types.IServiceDiscovery {
-	return nw.serviceDiscovery
-}
-func (nw *NetWork) ActorDiscovery() types.IActorDiscovery {
-	return nw.actorDiscovery
 }
 
 // GetSession 通过id获取Session
@@ -61,14 +51,16 @@ func (nw *NetWork) GetSessionById(sid uint32) types.ISession {
 func (nw *NetWork) GetSessionByAddr(addr string) types.ISession {
 	return nw.interior.GetSessionByAddr(addr)
 }
-
-func (nw *NetWork) GetOutsideAddr() string {
+func (nw *NetWork) Rpc() types.IRPC {
+	return nw.rpc
+}
+func (nw *NetWork) OutsideAddr() string {
 	if nw.outside != nil {
 		return nw.outside.GetAddr()
 	}
 	return ""
 }
-func (nw *NetWork) GetInteriorAddr() string {
+func (nw *NetWork) InteriorAddr() string {
 	if nw.interior != nil {
 		return nw.interior.GetAddr()
 	}
@@ -116,17 +108,18 @@ func (nw *NetWork) Init() {
 	if nw.outside != nil {
 		nw.outside.Start()
 	}
-	nw.serviceDiscovery.Start(nw.context)
-	nw.actorDiscovery.Start(nw.context)
+	nw.rpc.Start()
 }
 func (nw *NetWork) Destroy() {
 	nw.contextFn()
-	nw.actorDiscovery.Stop()
-	nw.serviceDiscovery.Stop()
 	if nw.outside != nil {
 		nw.outside.Stop()
 	}
 	nw.interior.Stop()
+	nw.rpc.Stop()
+}
+func (nw *NetWork) Serve() {
+	nw.rpc.Serve()
 }
 
 // SetOutsideService 设置外部服务类型
@@ -145,4 +138,9 @@ func (nw *NetWork) SetInteriorService(ser types.IService, addr string, codec typ
 	}
 	nw.interior = ser
 	nw.interior.Init(addr, codec, nw.engine, nw.context)
+}
+
+// SetGrpcAddr 设置grpc服务
+func (nw *NetWork) SetGrpcAddr(addr string) {
+	nw.rpc.SetAddr(addr)
 }

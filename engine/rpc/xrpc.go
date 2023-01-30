@@ -3,12 +3,13 @@ package rpc
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-// DefalutRPC 自定义rpcdata
+// XRPC 自定义rpcdata
 type (
-	DefalutRPC struct {
+	XRPC struct {
 		sid      uint32
 		rid      uint32
 		c        chan bool
@@ -19,19 +20,20 @@ type (
 )
 
 var (
-	pool *sync.Pool
+	pool   *sync.Pool
+	rpcOps uint32
 )
 
 func init() {
 	pool = &sync.Pool{
 		New: func() interface{} {
-			return &DefalutRPC{}
+			return &XRPC{}
 		},
 	}
 }
 
-func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *DefalutRPC {
-	dr := pool.Get().(*DefalutRPC)
+func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *XRPC {
+	dr := pool.Get().(*XRPC)
 	dr.sid = sid
 	dr.c = make(chan bool)
 	dr.ctx = ctx
@@ -40,12 +42,12 @@ func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *Defal
 }
 
 // Run 调用
-func (nr *DefalutRPC) Run(success bool) {
+func (nr *XRPC) Run(success bool) {
 	nr.c <- success
 }
 
 // Await 异步等待
-func (nr *DefalutRPC) Await() bool {
+func (nr *XRPC) Await() bool {
 	select {
 	case <-nr.ctx.Done():
 		nr.close()
@@ -59,14 +61,14 @@ func (nr *DefalutRPC) Await() bool {
 	}
 }
 
-func (dr *DefalutRPC) close() {
+func (dr *XRPC) close() {
 	close(dr.c)
 	if dr.rid != 0 && dr.del != nil {
 		dr.del(dr.rid)
 	}
 }
 
-func (dr *DefalutRPC) release() {
+func (dr *XRPC) release() {
 	dr.sid = 0
 	dr.rid = 0
 	dr.c = nil
@@ -76,6 +78,18 @@ func (dr *DefalutRPC) release() {
 	pool.Put(dr)
 }
 
-func (dr *DefalutRPC) GetResponse() interface{} {
+func (dr *XRPC) GetResponse() interface{} {
 	return dr.response
+}
+
+// RID 获取RPCID
+func (dr *XRPC) RID() uint32 {
+	if dr.rid == 0 {
+		dr.rid = AssignID()
+	}
+	return dr.rid
+}
+
+func AssignID() uint32 {
+	return atomic.AddUint32(&rpcOps, 1)
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/helper/strhelper"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/xdef"
 	"google.golang.org/grpc"
 )
 
@@ -21,14 +20,22 @@ type (
 )
 
 // Init 初始化模块
-func (m *Module) Init(self types.IModule, engine types.IEngine) {
+func (m *Module) Init(self types.IModule, engine types.IEngine, fn func()) {
 	m.engine = engine
-	m.engine.Event().On(xdef.START_ENGINE_OK, self.OnStart)
 	self.OnInit()
 	if m.childModules != nil {
 		for i := range m.childModules {
 			v := m.childModules[i]
-			v.Init(v, engine)
+			v.Init(v, engine, nil)
+		}
+	}
+	if fn != nil {
+		fn()
+		if m.childModules != nil {
+			for i := range m.childModules {
+				v := m.childModules[i]
+				v.OnStart()
+			}
 		}
 	}
 }
@@ -61,7 +68,7 @@ func (m *Module) GetEngine() types.IEngine {
 	return m.engine
 }
 func (m *Module) GetActorCtrl() types.IActorDiscovery {
-	return m.engine.GetNetWork().ActorDiscovery()
+	return m.engine.Discovery().Actor()
 }
 
 func (m *Module) GetSessionById(sid uint32) types.ISession {
@@ -71,16 +78,16 @@ func (m *Module) GetSessionByAddr(addr string) types.ISession {
 	return m.engine.GetNetWork().GetSessionByAddr(addr)
 }
 func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
-	return m.engine.GetRPC().GetConnByAddr(addr)
+	return m.engine.GetNetWork().Rpc().GetConnByAddr(addr)
 }
 func (m *Module) GetGrpcServer() *grpc.Server {
-	return m.engine.GetRPC().GetServer()
+	return m.engine.GetNetWork().Rpc().GetServer()
 }
 func (m *Module) GetServiceConfListByType(sType string) []types.IServiceEntity {
-	return m.engine.GetNetWork().ServiceDiscovery().GetServiceConfListByType(sType)
+	return m.engine.Discovery().Service().GetServiceConfListByType(sType)
 }
 func (m *Module) GetServiceConfByID(id uint) types.IServiceEntity {
-	return m.engine.GetNetWork().ServiceDiscovery().GetServiceConfByID(id)
+	return m.engine.Discovery().Service().GetServiceConfByID(id)
 }
 
 // Register 注册协议对应消息体和回调函数

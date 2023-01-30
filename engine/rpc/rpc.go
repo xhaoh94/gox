@@ -3,7 +3,6 @@ package rpc
 import (
 	"net"
 	"sync"
-	"sync/atomic"
 
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
@@ -16,7 +15,6 @@ type (
 		engine types.IEngine
 		grpc   *gRPC    //谷歌的grpc框架
 		rpcMap sync.Map //内部自带的rpc存储器
-		rpcOps uint32
 	}
 	gRPC struct {
 		rpcAddr   string
@@ -28,24 +26,41 @@ type (
 )
 
 // Put 添加rpc
-func (g *RPC) Put(id uint32, dr *DefalutRPC) {
-	dr.rid = id
-	dr.del = g.del
-	g.rpcMap.Store(id, dr)
+func (g *RPC) Put(dr types.IXRPC) {
+	dr.(*XRPC).del = g.del
+	g.rpcMap.Store(dr.RID(), dr)
 }
 
 // Get 获取RPC
-func (g *RPC) Get(id uint32) *DefalutRPC {
+func (g *RPC) Get(id uint32) types.IXRPC {
 	if dr, ok := g.rpcMap.Load(id); ok {
-		return dr.(*DefalutRPC)
+		return dr.(*XRPC)
 	}
 	return nil
+}
+
+func (g *RPC) ParseMsg(pkt types.IByteArray, codec types.ICodec) {
+	rpcID := pkt.ReadUint32()
+	dr := g.Get(rpcID).(*XRPC)
+	if dr != nil {
+		msgLen := pkt.RemainLength()
+		if msgLen == 0 {
+			dr.Run(false)
+			return
+		}
+		if err := pkt.ReadMessage(dr.GetResponse(), codec); err != nil {
+			xlog.Error("解析网络包体失败 err:[%v]", err)
+			dr.Run(false)
+			return
+		}
+		dr.Run(true)
+	}
 }
 
 // Del 删除rpc
 func (g *RPC) del(id uint32) {
 	if dr, ok := g.rpcMap.LoadAndDelete(id); ok {
-		dr.(*DefalutRPC).release()
+		dr.(*XRPC).release()
 	}
 }
 
@@ -66,20 +81,15 @@ func (g *RPC) Serve() {
 	}
 }
 
-// AssignID 获取RPCID
-func (g *RPC) AssignID() uint32 {
-	return atomic.AddUint32(&g.rpcOps, 1)
-}
-
 // Init 开启服务
-func (g *RPC) Init() {
+func (g *RPC) Start() {
 	if g.grpc != nil {
 		g.grpc.start()
 	}
 }
 
 // Destroy 停止服务
-func (g *RPC) Destroy() {
+func (g *RPC) Stop() {
 	if g.grpc != nil {
 		g.grpc.stop()
 	}
@@ -99,8 +109,8 @@ func (g *RPC) GetConnByAddr(addr string) *grpc.ClientConn {
 }
 
 // NewGrpcServer 初始化
-func New(engine types.IEngine) *RPC {
-	return &RPC{engine: engine, rpcOps: 0}
+func New(engine types.IEngine) types.IRPC {
+	return &RPC{engine: engine}
 }
 
 // start 开启服务

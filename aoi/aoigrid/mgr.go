@@ -5,7 +5,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/aoi/aoibase"
+	"github.com/xhaoh94/gox/aoi/aoibase"
 )
 
 type (
@@ -99,7 +99,7 @@ func (m *AOIGridManager) Find(id string) aoibase.IAOIResult {
 	return ids
 }
 
-//通过横纵坐标得到周边九宫格内的全部PlayerIDs
+// 通过横纵坐标得到周边九宫格内的全部PlayerIDs
 func (m *AOIGridManager) FindByPos(x, y float32) (ids []string) {
 	//根据横纵坐标得到当前坐标属于哪个格子ID
 	gID := m.getGridIDByPos(x, y)
@@ -112,7 +112,7 @@ func (m *AOIGridManager) FindByPos(x, y float32) (ids []string) {
 	return
 }
 
-//根据格子的gID得到当前周边的九宫格信息
+// 根据格子的gID得到当前周边的九宫格信息
 func (m *AOIGridManager) getSurroundGridsByGid(gID int) (grids []*AOIGrid) {
 	//判断gID是否存在
 	if _, ok := m.grids[gID]; !ok {
@@ -135,14 +135,14 @@ func (m *AOIGridManager) getSurroundGridsByGid(gID int) (grids []*AOIGrid) {
 	return
 }
 
-//通过横纵坐标获取对应的格子ID
+// 通过横纵坐标获取对应的格子ID
 func (m *AOIGridManager) getGridIDByPos(x, y float32) int {
 	gx := int(x-float32(m.Left)) / m.GridWidth
 	gy := int(y-float32(m.Top)) / m.GridHeight
 	return gy*m.cntsX + gx
 }
 
-//打印信息方法
+// 打印信息方法
 func (m *AOIGridManager) String() string {
 	s := fmt.Sprintf("AOIManagr:\nminX:%d, maxX:%d, cntsX:%d, minY:%d, maxY:%d, cntsY:%d\n Grids in AOI Manager:\n",
 		m.Left, m.Right, m.cntsX, m.Top, m.Bottom, m.cntsY)
