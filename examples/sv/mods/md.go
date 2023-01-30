@@ -16,7 +16,7 @@ type (
 )
 
 func (m *MainModule) OnInit() {
-	switch m.GetEngine().ServiceType() {
+	switch m.GetEngine().EType() {
 	case game.Gate:
 		m.Put(&gate.GateModule{})
 		break
@@ -34,7 +34,7 @@ func (m *MainModule) OnInit() {
 	}
 }
 
-//OnStart 初始化
+// OnStart 初始化
 func (m *MainModule) OnStart() {
 
 }

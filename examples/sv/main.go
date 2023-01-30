@@ -7,18 +7,19 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/network/sv/kcp"
-	"github.com/xhaoh94/gox/engine/network/sv/ws"
+	"github.com/xhaoh94/gox/engine/network/service/kcp"
+	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/examples/sv/game"
 	"github.com/xhaoh94/gox/examples/sv/mods"
-	"github.com/xhaoh94/gox/util"
+	"github.com/xhaoh94/gox/helper/codechelper"
+	"github.com/xhaoh94/gox/helper/commonhelper"
+	"github.com/xhaoh94/gox/helper/strhelper"
 )
 
 func main() {
 
 	var sid uint
-	flag.UintVar(&sid, "sid", uint(util.StringToHash(util.GetUUID())), "uuid")
+	flag.UintVar(&sid, "sid", uint(strhelper.StringToHash(commonhelper.GetUUID())), "uuid")
 	var sType, iAddr, oAddr string
 	flag.StringVar(&sType, "type", "all", "服务类型")
 	flag.StringVar(&iAddr, "iAddr", "127.0.0.1:10001", "服务地址")
@@ -30,8 +31,8 @@ func main() {
 	game.Engine = engine
 	engine.SetModule(new(mods.MainModule))
 	// engine.SetCodec()
-	engine.SetInteriorService(new(kcp.KService), iAddr, codec.Json)
-	engine.SetOutsideService(new(ws.WService), oAddr, codec.Json)
+	engine.SetInteriorService(new(kcp.KService), iAddr, codechelper.Json)
+	engine.SetOutsideService(new(ws.WService), oAddr, codechelper.Json)
 	// engine.SetGrpcAddr(rAddr)
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)

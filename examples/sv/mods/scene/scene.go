@@ -26,7 +26,7 @@ type (
 	}
 )
 
-//OnInit 初始化
+// OnInit 初始化
 func (m *SceneModule) OnInit() {
 
 }
@@ -40,7 +40,7 @@ func (m *SceneModule) OnStart() {
 func newScene(id uint) *Scene {
 	scene := &Scene{Id: id, units: make(map[uint]*Unit)}
 	scene.OnInit()
-	game.Engine.GetNetWork().GetActorCtrl().Add(scene) //把场景添加进Actor
+	game.Engine.GetNetWork().ActorDiscovery().Add(scene) //把场景添加进Actor
 	return scene
 }
 

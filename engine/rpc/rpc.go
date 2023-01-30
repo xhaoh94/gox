@@ -27,14 +27,14 @@ type (
 	}
 )
 
-//Put 添加rpc
+// Put 添加rpc
 func (g *RPC) Put(id uint32, dr *DefalutRPC) {
 	dr.rid = id
 	dr.del = g.del
 	g.rpcMap.Store(id, dr)
 }
 
-//Get 获取RPC
+// Get 获取RPC
 func (g *RPC) Get(id uint32) *DefalutRPC {
 	if dr, ok := g.rpcMap.Load(id); ok {
 		return dr.(*DefalutRPC)
@@ -42,24 +42,12 @@ func (g *RPC) Get(id uint32) *DefalutRPC {
 	return nil
 }
 
-//Del 删除rpc
+// Del 删除rpc
 func (g *RPC) del(id uint32) {
 	if dr, ok := g.rpcMap.LoadAndDelete(id); ok {
 		dr.(*DefalutRPC).release()
 	}
 }
-
-//DelRPCBySessionID 删除RPC
-// func (g *RPC) DelRPCBySessionID(id string) {
-// 	g.rpcMap.Range(func(k interface{}, v interface{}) bool {
-// 		dr := v.(*DefalutRPC)
-// 		if dr.sid == id {
-// 			dr.Run(false)
-// 			g.rpcMap.Delete(k)
-// 		}
-// 		return true
-// 	})
-// }
 
 func (g *RPC) GetAddr() string {
 	if g.grpc != nil {
@@ -78,26 +66,26 @@ func (g *RPC) Serve() {
 	}
 }
 
-//AssignID 获取RPCID
+// AssignID 获取RPCID
 func (g *RPC) AssignID() uint32 {
 	return atomic.AddUint32(&g.rpcOps, 1)
 }
 
-//Init 开启服务
+// Init 开启服务
 func (g *RPC) Init() {
 	if g.grpc != nil {
 		g.grpc.start()
 	}
 }
 
-//Destroy 停止服务
+// Destroy 停止服务
 func (g *RPC) Destroy() {
 	if g.grpc != nil {
 		g.grpc.stop()
 	}
 }
 
-//GetServer 获取grpc 服务端
+// GetServer 获取grpc 服务端
 func (g *RPC) GetServer() *grpc.Server {
 	if g.grpc != nil {
 		return g.grpc.server
@@ -105,17 +93,17 @@ func (g *RPC) GetServer() *grpc.Server {
 	return nil
 }
 
-//GetConnByAddr 获取grpc客户端
+// GetConnByAddr 获取grpc客户端
 func (g *RPC) GetConnByAddr(addr string) *grpc.ClientConn {
 	return g.grpc.getConnByAddr(addr)
 }
 
-//NewGrpcServer 初始化
+// NewGrpcServer 初始化
 func New(engine types.IEngine) *RPC {
 	return &RPC{engine: engine, rpcOps: 0}
 }
 
-//start 开启服务
+// start 开启服务
 func (g *gRPC) start() {
 	g.addr2Conn = make(map[string]*grpc.ClientConn)
 	if g.listen == nil {
@@ -129,19 +117,14 @@ func (g *gRPC) start() {
 	}
 }
 
-//stop 停止服务
+// stop 停止服务
 func (g *gRPC) stop() {
 	if g.listen != nil {
 		g.listen.Close()
 	}
 }
 
-//getServer 获取grpc 服务端
-func (g *gRPC) getServer() *grpc.Server {
-	return g.server
-}
-
-//getConnByAddr 获取grpc客户端
+// getConnByAddr 获取grpc客户端
 func (g *gRPC) getConnByAddr(addr string) *grpc.ClientConn {
 	defer g.addrMutex.Unlock()
 	g.addrMutex.Lock()

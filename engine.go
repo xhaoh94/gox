@@ -16,8 +16,8 @@ import (
 
 type (
 	Engine struct {
-		sid     uint
-		stype   string
+		eid     uint
+		etype   string
 		version string
 
 		context   context.Context
@@ -32,8 +32,8 @@ type (
 
 func NewEngine(sid uint, sType string, version string) *Engine {
 	e := new(Engine)
-	e.sid = sid
-	e.stype = sType
+	e.eid = sid
+	e.etype = sType
 	e.version = version
 	e.event = xevent.New()
 	e.context, e.contextFn = context.WithCancel(context.Background())
@@ -47,7 +47,7 @@ func (engine *Engine) GetEndian() binary.ByteOrder {
 	return engine.endian
 }
 
-func (engine *Engine) GetEvent() types.IEvent {
+func (engine *Engine) Event() types.IEvent {
 	return engine.event
 }
 
@@ -59,11 +59,11 @@ func (engine *Engine) GetNetWork() types.INetwork {
 	return engine.nw
 }
 
-func (engine *Engine) ServiceID() uint {
-	return engine.sid
+func (engine *Engine) EID() uint {
+	return engine.eid
 }
-func (engine *Engine) ServiceType() string {
-	return engine.stype
+func (engine *Engine) EType() string {
+	return engine.etype
 }
 func (engine *Engine) Version() string {
 	return engine.version
@@ -78,8 +78,8 @@ func (engine *Engine) Start() {
 	if !app.IsLoadAppCfg() {
 		xlog.Warn("没有传入ini配置,使用默认配置")
 	}
-	xlog.Init(engine.sid)
-	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", engine.sid, engine.stype, engine.version)
+	xlog.Init(engine.eid)
+	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", engine.eid, engine.etype, engine.version)
 	xlog.Info("[ByteOrder:%s]", engine.endian.String())
 	engine.nw.Init()
 	engine.rpc.Init()
@@ -95,7 +95,7 @@ func (engine *Engine) Shutdown() {
 	engine.mol.Destroy(engine.mol)
 	engine.rpc.Destroy()
 	engine.nw.Destroy()
-	xlog.Info("服务退出[sid:%d]", engine.sid)
+	xlog.Info("服务退出[sid:%d]", engine.eid)
 	xlog.Destroy()
 }
 

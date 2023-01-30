@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/helper/strhelper"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/util"
 	"github.com/xhaoh94/gox/xdef"
 	"google.golang.org/grpc"
 )
@@ -20,10 +20,10 @@ type (
 	}
 )
 
-//Init 初始化模块
+// Init 初始化模块
 func (m *Module) Init(self types.IModule, engine types.IEngine) {
 	m.engine = engine
-	m.engine.GetEvent().On(xdef.START_ENGINE_OK, self.OnStart)
+	m.engine.Event().On(xdef.START_ENGINE_OK, self.OnStart)
 	self.OnInit()
 	if m.childModules != nil {
 		for i := range m.childModules {
@@ -33,7 +33,7 @@ func (m *Module) Init(self types.IModule, engine types.IEngine) {
 	}
 }
 
-//Put 添加模块
+// Put 添加模块
 func (m *Module) Put(mod types.IModule) {
 	defer m.lock.Unlock()
 	m.lock.Lock()
@@ -43,7 +43,7 @@ func (m *Module) Put(mod types.IModule) {
 	m.childModules = append(m.childModules, mod)
 }
 
-//Destroy 销毁模块
+// Destroy 销毁模块
 func (m *Module) Destroy(self types.IModule) {
 	for i := range m.childModules {
 		v := m.childModules[i]
@@ -52,7 +52,7 @@ func (m *Module) Destroy(self types.IModule) {
 	self.OnDestroy()
 }
 
-//OnStop 模块关闭
+// OnStop 模块关闭
 func (mm *Module) OnDestroy() {
 
 }
@@ -60,8 +60,8 @@ func (mm *Module) OnDestroy() {
 func (m *Module) GetEngine() types.IEngine {
 	return m.engine
 }
-func (m *Module) GetActorCtrl() types.IActorCtrl {
-	return m.engine.GetNetWork().GetActorCtrl()
+func (m *Module) GetActorCtrl() types.IActorDiscovery {
+	return m.engine.GetNetWork().ActorDiscovery()
 }
 
 func (m *Module) GetSessionById(sid uint32) types.ISession {
@@ -76,14 +76,14 @@ func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
 func (m *Module) GetGrpcServer() *grpc.Server {
 	return m.engine.GetRPC().GetServer()
 }
-func (m *Module) GetServiceConfListByType(sType string) []types.IServiceConfig {
-	return m.engine.GetNetWork().GetServiceCtrl().GetServiceConfListByType(sType)
+func (m *Module) GetServiceConfListByType(sType string) []types.IServiceEntity {
+	return m.engine.GetNetWork().ServiceDiscovery().GetServiceConfListByType(sType)
 }
-func (m *Module) GetServiceConfByID(id uint) types.IServiceConfig {
-	return m.engine.GetNetWork().GetServiceCtrl().GetServiceConfByID(id)
+func (m *Module) GetServiceConfByID(id uint) types.IServiceEntity {
+	return m.engine.GetNetWork().ServiceDiscovery().GetServiceConfByID(id)
 }
 
-//Register 注册协议对应消息体和回调函数
+// Register 注册协议对应消息体和回调函数
 func (m *Module) Register(cmd uint32, fn interface{}) {
 
 	tVlaue := reflect.ValueOf(fn)
@@ -107,10 +107,10 @@ func (m *Module) Register(cmd uint32, fn interface{}) {
 		xlog.Error("协议回调函数参数有误")
 		return
 	}
-	m.engine.GetEvent().Bind(cmd, fn)
+	m.engine.Event().Bind(cmd, fn)
 }
 
-//RegisterRPC 注册RPC
+// RegisterRPC 注册RPC
 func (m *Module) RegisterRPC(args ...interface{}) {
 	l := len(args)
 	var cmd uint32
@@ -154,7 +154,7 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 		}
 		if cmd == 0 {
 			key = in.Elem().Name() + key
-			cmd = util.StringToHash(key)
+			cmd = strhelper.StringToHash(key)
 		}
 		m.engine.GetNetWork().RegisterRType(cmd, in)
 		break
@@ -164,7 +164,7 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 	}
 
 	if cmd == 0 {
-		cmd = util.StringToHash(key)
+		cmd = strhelper.StringToHash(key)
 	}
-	m.engine.GetEvent().Bind(cmd, fn)
+	m.engine.Event().Bind(cmd, fn)
 }

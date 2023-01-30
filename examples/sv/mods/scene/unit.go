@@ -19,7 +19,7 @@ type (
 func newUnit(id uint) *Unit {
 	unit := &Unit{Id: id}
 	unit.OnInit()
-	game.Engine.GetNetWork().GetActorCtrl().Add(unit) //添加到Actor
+	game.Engine.GetNetWork().ActorDiscovery().Add(unit) //添加到Actor
 	return unit
 }
 

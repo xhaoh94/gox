@@ -5,10 +5,11 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/network/actor"
+	"github.com/xhaoh94/gox/discovery"
+
 	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/helper/commonhelper"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/util"
 )
 
 type (
@@ -20,28 +21,31 @@ type (
 		context   context.Context
 		contextFn context.CancelFunc
 
-		atrCrtl *actor.ActorCrtl
-		svCrtl  *ServiceCrtl
-		cmdType map[uint32]reflect.Type
-		cmdLock sync.RWMutex
+		actorDiscovery   *discovery.ActorDiscovery
+		serviceDiscovery *discovery.ServiceDiscovery
+		cmdType          map[uint32]reflect.Type
+		cmdLock          sync.RWMutex
 	}
 )
 
 func New(engine types.IEngine, ctx context.Context) *NetWork {
 	nw := new(NetWork)
 	nw.engine = engine
-	nw.atrCrtl = actor.New(engine)
-	nw.svCrtl = newServiceReg(nw)
+	nw.actorDiscovery = discovery.NewActorDiscovery(engine)
+	nw.serviceDiscovery = discovery.NewServiceDiscovery(engine)
 	nw.cmdType = make(map[uint32]reflect.Type)
 	nw.context, nw.contextFn = context.WithCancel(ctx)
 	return nw
 }
 
-func (nw *NetWork) GetServiceCtrl() types.IServiceCtrl {
-	return nw.svCrtl
+func (nw *NetWork) Engine() types.IEngine {
+	return nw.engine
 }
-func (nw *NetWork) GetActorCtrl() types.IActorCtrl {
-	return nw.atrCrtl
+func (nw *NetWork) ServiceDiscovery() types.IServiceDiscovery {
+	return nw.serviceDiscovery
+}
+func (nw *NetWork) ActorDiscovery() types.IActorDiscovery {
+	return nw.actorDiscovery
 }
 
 // GetSession 通过id获取Session
@@ -99,7 +103,7 @@ func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
 	if !ok {
 		return nil
 	}
-	return util.RTypeToInterface(rType)
+	return commonhelper.RTypeToInterface(rType)
 }
 
 func (nw *NetWork) Init() {
@@ -112,13 +116,13 @@ func (nw *NetWork) Init() {
 	if nw.outside != nil {
 		nw.outside.Start()
 	}
-	nw.svCrtl.Start(nw.context)
-	nw.atrCrtl.Start(nw.context)
+	nw.serviceDiscovery.Start(nw.context)
+	nw.actorDiscovery.Start(nw.context)
 }
 func (nw *NetWork) Destroy() {
 	nw.contextFn()
-	nw.atrCrtl.Stop()
-	nw.svCrtl.Stop()
+	nw.actorDiscovery.Stop()
+	nw.serviceDiscovery.Stop()
 	if nw.outside != nil {
 		nw.outside.Stop()
 	}

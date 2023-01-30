@@ -9,12 +9,13 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/codec"
-	"github.com/xhaoh94/gox/engine/network/sv/ws"
+	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
+	"github.com/xhaoh94/gox/helper/codechelper"
+	"github.com/xhaoh94/gox/helper/commonhelper"
+	"github.com/xhaoh94/gox/helper/strhelper"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/util"
 )
 
 type (
@@ -64,14 +65,14 @@ func (m *MainModule) RspEnter(ctx context.Context, session types.ISession, rsp *
 
 // 模拟客户端发数据
 func main() {
-	sid := *flag.Uint("sid", uint(util.StringToHash(util.GetUUID())), "uuid")
+	sid := *flag.Uint("sid", uint(strhelper.StringToHash(commonhelper.GetUUID())), "uuid")
 	sType := *flag.String("type", "client", "服务类型")
 	addr := *flag.String("addr", "127.0.0.1:9999", "服务地址")
 	flag.Parse()
 	app.LoadAppConfig("gox.ini")
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	engine.SetModule(new(MainModule))
-	engine.SetInteriorService(new(ws.WService), addr, codec.Json)
+	engine.SetInteriorService(new(ws.WService), addr, codechelper.Json)
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)

@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/xlog"
-	"github.com/xhaoh94/gox/util"
+	"github.com/xhaoh94/gox/helper/strhelper"
 )
 
-//Event 事件
+// Event 事件
 type Event struct {
 	bingLock  sync.RWMutex
 	bingFnMap map[interface{}]reflect.Value
@@ -19,7 +19,7 @@ type Event struct {
 	onFnMap   map[interface{}]map[string]reflect.Value
 }
 
-//New 创建事件实例
+// New 创建事件实例
 func New() *Event {
 	return &Event{
 		bingFnMap: make(map[interface{}]reflect.Value),
@@ -28,11 +28,11 @@ func New() *Event {
 }
 func getKeyName(event interface{}, f reflect.Value) string {
 	fnName := runtime.FuncForPC(f.Pointer()).Name()
-	eName := util.ValToString(event)
+	eName := strhelper.ValToString(event)
 	return eName + "_" + fnName
 }
 
-//On 监听事件 回调不可带参数
+// On 监听事件 回调不可带参数
 func (evt *Event) On(event interface{}, task interface{}) {
 	evt.onLock.Lock()
 	defer evt.onLock.Unlock()
@@ -80,7 +80,7 @@ func (evt *Event) Offs(event interface{}) {
 	delete(evt.onFnMap, event)
 }
 
-//Run 派发事件 不会返回参数
+// Run 派发事件 不会返回参数
 func (evt *Event) Run(event interface{}, params ...interface{}) {
 	evt.onLock.RLock()
 	fnMap, ok := evt.onFnMap[event]
@@ -125,7 +125,7 @@ func (evt *Event) Has(event interface{}, task interface{}) bool {
 	return ok
 }
 
-//Bind 绑定事件，一个事件只能绑定一个回调，回调可带返回参数
+// Bind 绑定事件，一个事件只能绑定一个回调，回调可带返回参数
 func (evt *Event) Bind(event interface{}, task interface{}) error {
 	evt.bingLock.Lock()
 	defer evt.bingLock.Unlock()
@@ -160,7 +160,7 @@ func (evt *Event) UnBinds() {
 	evt.bingFnMap = make(map[interface{}]reflect.Value)
 }
 
-//Call 发送事件，存在返回参数
+// Call 发送事件，存在返回参数
 func (evt *Event) Call(event interface{}, params ...interface{}) ([]reflect.Value, error) {
 	evt.bingLock.RLock()
 	fn, ok := evt.bingFnMap[event]

@@ -8,8 +8,9 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
+	"github.com/xhaoh94/gox/helper/commonhelper"
+	"github.com/xhaoh94/gox/helper/strhelper"
 	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/util"
 )
 
 type (
@@ -26,7 +27,7 @@ type (
 	}
 )
 
-//OnInit 初始化
+// OnInit 初始化
 func (m *LoginModule) OnInit() {
 	m.user2Token = make(map[string]UserToken)
 	m.RegisterRPC(m.RspToken)
@@ -67,7 +68,7 @@ func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req 
 }
 
 func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) *netpack.L2G_Login {
-	token := util.GetUUID() //创建user对应的token
+	token := commonhelper.GetUUID() //创建user对应的token
 	xlog.Debug("创建user[%s]对应的token[%s]", req.User, token)
 	m.mux.Lock()
 	m.user2Token[req.User] = UserToken{user: req.User, token: token, time: time.Now()} //将user、token保存
@@ -83,7 +84,7 @@ func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req 
 	enterRsp := &netpack.L2C_Enter{}
 	if b { //玩家进入场景成功
 		rsp := &netpack.S2L_SayHello{}
-		b = m.GetActorCtrl().Call(uint32(req.UnitId), &netpack.L2S_SayHello{Txt: "你好啊，我是机器人:" + util.ValToString(req.UnitId)}, rsp).Await() //Actor 玩家发言
+		b = m.GetActorCtrl().Call(uint32(req.UnitId), &netpack.L2S_SayHello{Txt: "你好啊，我是机器人:" + strhelper.ValToString(req.UnitId)}, rsp).Await() //Actor 玩家发言
 		if b {
 			xlog.Debug("发言返回:%s", rsp.BackTxt)
 			enterRsp.Code = 0

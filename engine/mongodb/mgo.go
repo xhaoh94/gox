@@ -6,7 +6,7 @@ import (
 
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/engine/xlog"
-	"github.com/xhaoh94/gox/util"
+	"github.com/xhaoh94/gox/helper/commonhelper"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,7 +17,7 @@ var (
 	client *mongo.Client
 )
 
-//ApplyDefaultUrl 连接默认数据库 mongodb://127.0.0.1:27017
+// ApplyDefaultUrl 连接默认数据库 mongodb://127.0.0.1:27017
 func ApplyDefaultUrl() {
 	url := "mongodb://"
 	appCfg := app.GetAppCfg()
@@ -28,7 +28,7 @@ func ApplyDefaultUrl() {
 	ApplyURI(url)
 }
 
-//ApplyURI 连接数据库
+// ApplyURI 连接数据库
 func ApplyURI(url string) {
 	// 设置客户端连接配置
 	clientOptions := options.Client().ApplyURI(url)
@@ -46,17 +46,17 @@ func ApplyURI(url string) {
 	xlog.Info("成功连接 MongoDB! -> [%s]", url)
 }
 
-//GetClient 获取mongo客户端
+// GetClient 获取mongo客户端
 func GetClient() *mongo.Client {
 	return client
 }
 
-//GetDefaultDatabase 默认database
+// GetDefaultDatabase 默认database
 func GetDefaultDatabase() *mongo.Database {
 	return client.Database(app.GetAppCfg().MongoDb.Database)
 }
 
-//CountDocuments 查询数量
+// CountDocuments 查询数量
 func CountDocuments(cctn *mongo.Collection, filter interface{}) int64 {
 	//filter模板 bson.M{"Email": ds.Email}
 	count, err := cctn.CountDocuments(context.TODO(), filter)
@@ -66,7 +66,7 @@ func CountDocuments(cctn *mongo.Collection, filter interface{}) int64 {
 	return count
 }
 
-//PushOne 添加一个
+// PushOne 添加一个
 func PushOne(cctn *mongo.Collection, doc interface{}) string {
 	rs, err := cctn.InsertOne(context.TODO(), doc)
 	if err != nil {
@@ -76,7 +76,7 @@ func PushOne(cctn *mongo.Collection, doc interface{}) string {
 	return (rs.InsertedID.(primitive.ObjectID)).Hex()
 }
 
-//PushMany 添加多个
+// PushMany 添加多个
 func PushMany(cctn *mongo.Collection, docs []interface{}) []string {
 	rs, err := cctn.InsertMany(context.TODO(), docs)
 	if err != nil {
@@ -91,7 +91,7 @@ func PushMany(cctn *mongo.Collection, docs []interface{}) []string {
 	return result
 }
 
-//GetOne 查询一个 filter[查询条件] out[返回查询数据]
+// GetOne 查询一个 filter[查询条件] out[返回查询数据]
 func GetOne(cctn *mongo.Collection, filter interface{}, out interface{}) bool {
 	t := reflect.TypeOf(out)
 	if t.Kind() != reflect.Ptr {
@@ -106,7 +106,7 @@ func GetOne(cctn *mongo.Collection, filter interface{}, out interface{}) bool {
 	return true
 }
 
-//GetMany 查询多个 filter[查询条件] out[返回查询的列表] findOptions[查询选项]
+// GetMany 查询多个 filter[查询条件] out[返回查询的列表] findOptions[查询选项]
 func GetMany(cctn *mongo.Collection, filter interface{}, out interface{}, findOptions *options.FindOptions) {
 	t := reflect.TypeOf(out)
 	if t.Kind() != reflect.Ptr {
@@ -137,7 +137,7 @@ func GetMany(cctn *mongo.Collection, filter interface{}, out interface{}, findOp
 	// 遍历游标允许我们一次解码一个文档
 	for cur.Next(context.TODO()) {
 		// 创建一个值，将单个文档解码为该值
-		elem := util.RTypeToInterface(childType)
+		elem := commonhelper.RTypeToInterface(childType)
 		err := cur.Decode(elem)
 		if err != nil {
 			xlog.Error("MongoDB 查询多个错误[%v]", err)
@@ -154,7 +154,7 @@ func GetMany(cctn *mongo.Collection, filter interface{}, out interface{}, findOp
 	v.Set(v2)
 }
 
-//DelOne 删除一个 filter[删除条件]
+// DelOne 删除一个 filter[删除条件]
 func DelOne(cctn *mongo.Collection, filter interface{}) int64 {
 	// 删除名字是小黄的那个
 	rs, err := cctn.DeleteOne(context.TODO(), filter)
@@ -165,7 +165,7 @@ func DelOne(cctn *mongo.Collection, filter interface{}) int64 {
 	return rs.DeletedCount
 }
 
-//DelMany 删除多个  filter[删除条件] delOptions[删除选项]
+// DelMany 删除多个  filter[删除条件] delOptions[删除选项]
 func DelMany(cctn *mongo.Collection, filter interface{}, delOptions *options.DeleteOptions) int64 {
 	rs, err := cctn.DeleteMany(context.TODO(), filter, delOptions)
 	if err != nil {
@@ -175,7 +175,7 @@ func DelMany(cctn *mongo.Collection, filter interface{}, delOptions *options.Del
 	return rs.DeletedCount
 }
 
-//UpdateOne 更新单个 filter[查询条件] update[更新条件]
+// UpdateOne 更新单个 filter[查询条件] update[更新条件]
 func UpdateOne(cctn *mongo.Collection, filter interface{}, update interface{}) (int64, int64, int64, interface{}) {
 	rs, err := cctn.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
@@ -185,7 +185,7 @@ func UpdateOne(cctn *mongo.Collection, filter interface{}, update interface{}) (
 	return rs.MatchedCount, rs.ModifiedCount, rs.UpsertedCount, rs.UpsertedID
 }
 
-//UpdateMany 更新多个 filter[查询条件] update[更新条件]
+// UpdateMany 更新多个 filter[查询条件] update[更新条件]
 func UpdateMany(cctn *mongo.Collection, filter interface{}, update interface{}) (int64, int64, int64, interface{}) {
 	rs, err := cctn.UpdateMany(context.TODO(), filter, update)
 	if err != nil {

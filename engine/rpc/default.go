@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-//DefalutRPC 自定义rpcdata
+// DefalutRPC 自定义rpcdata
 type (
 	DefalutRPC struct {
 		sid      uint32
@@ -39,12 +39,12 @@ func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *Defal
 	return dr
 }
 
-//Run 调用
+// Run 调用
 func (nr *DefalutRPC) Run(success bool) {
 	nr.c <- success
 }
 
-//Await 异步等待
+// Await 异步等待
 func (nr *DefalutRPC) Await() bool {
 	select {
 	case <-nr.ctx.Done():
@@ -79,10 +79,3 @@ func (dr *DefalutRPC) release() {
 func (dr *DefalutRPC) GetResponse() interface{} {
 	return dr.response
 }
-
-// var rpcOps uint32
-
-// //AssignID 获取RPCID
-// func AssignID() uint32 {
-// 	return atomic.AddUint32(&rpcOps, 1)
-// }
