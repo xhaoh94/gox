@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/helper/strhelper"
+	"github.com/xhaoh94/gox/xlog"
 )
 
 // Event 事件
@@ -18,6 +18,8 @@ type Event struct {
 	onLock    sync.RWMutex
 	onFnMap   map[interface{}]map[string]reflect.Value
 }
+
+var Default = New()
 
 // New 创建事件实例
 func New() *Event {
@@ -192,4 +194,49 @@ func (evt *Event) BindCount() int {
 	evt.bingLock.RLock()
 	defer evt.bingLock.RUnlock()
 	return len(evt.bingFnMap)
+}
+
+func On(event interface{}, task interface{}) {
+	Default.On(event, task)
+}
+func Off(event interface{}, task interface{}) {
+	Default.Off(event, task)
+}
+
+func Offs(event interface{}) {
+	Default.Offs(event)
+}
+
+// Run 派发事件 不会返回参数
+func Run(event interface{}, params ...interface{}) {
+	Default.Run(event, params...)
+}
+
+func Has(event interface{}, task interface{}) bool {
+	return Default.Has(event, task)
+}
+
+// Bind 绑定事件，一个事件只能绑定一个回调，回调可带返回参数
+func Bind(event interface{}, task interface{}) error {
+	return Default.Bind(event, task)
+}
+func UnBind(event interface{}) error {
+	return Default.UnBind(event)
+}
+
+func UnBinds() {
+	Default.UnBinds()
+}
+
+// Call 发送事件，存在返回参数
+func Call(event interface{}, params ...interface{}) ([]reflect.Value, error) {
+	return Default.Call(event, params...)
+}
+
+func HasBind(event interface{}) bool {
+	return Default.HasBind(event)
+}
+
+func BindCount() int {
+	return Default.BindCount()
 }

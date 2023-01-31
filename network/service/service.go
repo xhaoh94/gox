@@ -5,14 +5,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/xlog"
 )
 
 type (
 	//Service 服务器
 	Service struct {
-		Engine             types.IEngine
 		Codec              types.ICodec
 		ConnectChannelFunc func(addr string) types.IChannel
 		AcceptWg           sync.WaitGroup
@@ -33,8 +32,7 @@ type (
 var sessionPool *sync.Pool = &sync.Pool{New: func() interface{} { return &Session{} }}
 
 // Init 服务初始化
-func (ser *Service) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {
-	ser.Engine = engine
+func (ser *Service) Init(addr string, codec types.ICodec, ctx context.Context) {
 	ser.Codec = codec
 	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(ctx)
 	ser.addr = addr

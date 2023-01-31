@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/network/service"
+	"github.com/xhaoh94/gox/xlog"
 )
 
 var channelPool *sync.Pool = &sync.Pool{New: func() interface{} { return &TChannel{} }}

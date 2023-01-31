@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/helper/strhelper"
+	"github.com/xhaoh94/gox/xlog"
 )
 
 var (

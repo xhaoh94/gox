@@ -10,7 +10,6 @@ import (
 type (
 	//INetwork 网络接口
 	INetwork interface {
-		Engine() IEngine
 		//GetSessionById 通过Id获取通信Session
 		GetSessionById(uint32) ISession
 		//GetSessionByAddr 通过地址获取通信Session
@@ -19,6 +18,8 @@ type (
 		OutsideAddr() string
 		//InteriorAddr 获得内部通信地址
 		InteriorAddr() string
+		ServiceDiscovery() IServiceDiscovery
+		ActorDiscovery() IActorDiscovery
 		//Rpc rpc系统
 		Rpc() IRPC
 		RegisterRType(uint32, reflect.Type)
@@ -27,7 +28,7 @@ type (
 	}
 	//IService 服务器接口
 	IService interface {
-		Init(string, ICodec, IEngine, context.Context)
+		Init(string, ICodec, context.Context)
 		Start()
 		Stop()
 		GetAddr() string
@@ -71,7 +72,7 @@ type (
 		//GetConnByAddr 通过地址获取GRPC客户端
 		GetConnByAddr(string) *grpc.ClientConn
 		Put(IXRPC)
-		ParseMsg(IByteArray, ICodec)
+		Get(uint32) IXRPC
 	}
 	//IXRPC 内部rpc
 	IXRPC interface {

@@ -4,15 +4,14 @@ import (
 	"net"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/xlog"
 
 	"google.golang.org/grpc"
 )
 
 type (
 	RPC struct {
-		engine types.IEngine
 		grpc   *gRPC    //谷歌的grpc框架
 		rpcMap sync.Map //内部自带的rpc存储器
 	}
@@ -37,24 +36,6 @@ func (g *RPC) Get(id uint32) types.IXRPC {
 		return dr.(*XRPC)
 	}
 	return nil
-}
-
-func (g *RPC) ParseMsg(pkt types.IByteArray, codec types.ICodec) {
-	rpcID := pkt.ReadUint32()
-	dr := g.Get(rpcID).(*XRPC)
-	if dr != nil {
-		msgLen := pkt.RemainLength()
-		if msgLen == 0 {
-			dr.Run(false)
-			return
-		}
-		if err := pkt.ReadMessage(dr.GetResponse(), codec); err != nil {
-			xlog.Error("解析网络包体失败 err:[%v]", err)
-			dr.Run(false)
-			return
-		}
-		dr.Run(true)
-	}
 }
 
 // Del 删除rpc
@@ -109,8 +90,8 @@ func (g *RPC) GetConnByAddr(addr string) *grpc.ClientConn {
 }
 
 // NewGrpcServer 初始化
-func New(engine types.IEngine) types.IRPC {
-	return &RPC{engine: engine}
+func New() types.IRPC {
+	return &RPC{}
 }
 
 // start 开启服务

@@ -1,4 +1,4 @@
-package discovery
+package network
 
 import (
 	"context"
@@ -8,28 +8,26 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/etcd"
-	"github.com/xhaoh94/gox/engine/rpc"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/etcd"
 	"github.com/xhaoh94/gox/helper/cmdhelper"
+	"github.com/xhaoh94/gox/network/rpc"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/xevent"
+	"github.com/xhaoh94/gox/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
 )
 
-var (
-	actorPool *sync.Pool
-)
-
 type (
 	ActorDiscovery struct {
-		engine         types.IEngine
 		context        context.Context
 		actorPrefix    string
 		es             *etcd.EtcdService
 		keyLock        sync.RWMutex
 		keyToActorConf map[string]ActorEntity
+		sid            uint
+		netWork        types.INetwork
 	}
 	ActorEntity struct {
 		ActorID   uint32
@@ -37,20 +35,13 @@ type (
 	}
 )
 
-func init() {
-	actorPool = &sync.Pool{
-		New: func() interface{} {
-			return ActorEntity{}
-		},
-	}
-}
-
-func newActorDiscovery(engine types.IEngine, ctx context.Context) *ActorDiscovery {
+func NewActorDiscovery(ctx context.Context, sid uint, netWork types.INetwork) *ActorDiscovery {
 	return &ActorDiscovery{
 		context:        ctx,
-		engine:         engine,
 		actorPrefix:    "location/actor",
 		keyToActorConf: make(map[string]ActorEntity),
+		sid:            sid,
+		netWork:        netWork,
 	}
 }
 
@@ -67,10 +58,8 @@ func (crtl *ActorDiscovery) parseFn(aid uint32, fn interface{}) uint32 {
 		break
 	case 1:
 		out = tFun.Out(0)
-		break
 	default:
 		xlog.Error("Actor回调参数有误")
-		break
 	}
 	var in reflect.Type
 	switch tFun.NumIn() {
@@ -80,17 +69,14 @@ func (crtl *ActorDiscovery) parseFn(aid uint32, fn interface{}) uint32 {
 		if out != nil {
 			in = tFun.In(1)
 		}
-		break
 	case 3: // ctx,session,req
 		if tFun.NumOut() == 1 {
 			xlog.Error("Actor回调参数有误")
 			return 0
 		}
 		in = tFun.In(2)
-		break
 	default:
 		xlog.Error("Actor回调参数有误")
-		break
 	}
 	if out == nil && in == nil {
 		xlog.Error("Actor回调参数有误")
@@ -102,9 +88,9 @@ func (crtl *ActorDiscovery) parseFn(aid uint32, fn interface{}) uint32 {
 		return cmd
 	}
 	if in != nil {
-		crtl.engine.GetNetWork().RegisterRType(cmd, in)
+		crtl.netWork.RegisterRType(cmd, in)
 	}
-	crtl.engine.Event().Bind(cmd, fn)
+	xevent.Bind(cmd, fn)
 	return cmd
 }
 
@@ -119,7 +105,7 @@ func (crtl *ActorDiscovery) Add(actor types.IActorEntity) {
 		xlog.Error("Actor没有注册回调函数")
 		return
 	}
-	reg := &ActorEntity{ActorID: aid, ServiceID: crtl.engine.EID()}
+	reg := &ActorEntity{ActorID: aid, ServiceID: crtl.sid}
 	b, err := json.Marshal(reg)
 	if err != nil {
 		xlog.Error("Actor解析Json错误[%v]", err)
@@ -144,12 +130,10 @@ func (crtl *ActorDiscovery) Del(actor types.IActorEntity) {
 		return
 	}
 	cmdList := actor.GetCmdList()
-	if cmdList != nil {
-		for index := range cmdList {
-			cmd := cmdList[index]
-			crtl.engine.GetNetWork().UnRegisterRType(cmd)
-			crtl.engine.Event().UnBind(cmd)
-		}
+	for index := range cmdList {
+		cmd := cmdList[index]
+		crtl.netWork.UnRegisterRType(cmd)
+		xevent.UnBind(cmd)
 	}
 
 	key := fmt.Sprintf(crtl.actorPrefix+"/%d", aid)
@@ -174,12 +158,12 @@ func (crtl *ActorDiscovery) getSession(actorID uint32) types.ISession {
 	if !ok {
 		return nil
 	}
-	svConf := crtl.engine.Discovery().Service().GetServiceConfByID(conf.ServiceID)
+	svConf := crtl.netWork.ServiceDiscovery().GetServiceConfByID(conf.ServiceID)
 	if svConf == nil {
 		xlog.Error("Actor没有找到服务 ServiceID:[%s]", conf.ServiceID)
 		return nil
 	}
-	session := crtl.engine.GetNetWork().GetSessionByAddr(svConf.GetInteriorAddr())
+	session := crtl.netWork.GetSessionByAddr(svConf.GetInteriorAddr())
 	if session == nil {
 		xlog.Error("Actor没有找到session[%d]", svConf.GetInteriorAddr())
 		return nil
@@ -198,7 +182,7 @@ func (crtl *ActorDiscovery) Send(actorID uint32, msg interface{}) bool {
 func (crtl *ActorDiscovery) Call(actorID uint32, msg interface{}, response interface{}) types.IXRPC {
 	session := crtl.getSession(actorID)
 	if session == nil {
-		dr := rpc.NewDefaultRpc(0, context.TODO(), response)
+		dr := rpc.NewXRpc(0, context.TODO(), response)
 		defer dr.Run(false)
 		return dr
 	}
@@ -252,7 +236,7 @@ func (crtl *ActorDiscovery) onPut(kv *mvccpb.KeyValue) {
 
 	value, ok := crtl.keyToActorConf[key]
 	if !ok {
-		value = actorPool.Get().(ActorEntity)
+		value = ActorEntity{}
 	}
 	if err := json.Unmarshal(kv.Value, &value); err != nil {
 		xlog.Error("put actor err[%v]", err)
@@ -272,8 +256,5 @@ func (crtl *ActorDiscovery) del(kv *mvccpb.KeyValue) {
 	defer crtl.keyLock.Unlock()
 	crtl.keyLock.Lock()
 	key := string(kv.Key)
-	if conf, ok := crtl.keyToActorConf[key]; ok {
-		actorPool.Put(conf)
-		delete(crtl.keyToActorConf, key)
-	}
+	delete(crtl.keyToActorConf, key)
 }

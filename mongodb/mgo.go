@@ -5,8 +5,8 @@ import (
 	"reflect"
 
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/helper/commonhelper"
+	"github.com/xhaoh94/gox/xlog"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

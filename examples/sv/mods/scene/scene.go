@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/network/actor"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/examples/sv/game"
+	"github.com/xhaoh94/gox/network/actor"
+	"github.com/xhaoh94/gox/xlog"
 )
 
 type (

@@ -32,7 +32,7 @@ func init() {
 	}
 }
 
-func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *XRPC {
+func NewXRpc(sid uint32, ctx context.Context, response interface{}) *XRPC {
 	dr := pool.Get().(*XRPC)
 	dr.sid = sid
 	dr.c = make(chan bool)

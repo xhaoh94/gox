@@ -2,18 +2,19 @@ package service
 
 import (
 	"context"
-	"encoding/binary"
 	"io"
 	"time"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/app"
 	"github.com/xhaoh94/gox/consts"
+	"github.com/xhaoh94/gox/xevent"
 
-	"github.com/xhaoh94/gox/engine/rpc"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/helper/cmdhelper"
 	"github.com/xhaoh94/gox/helper/codechelper"
+	"github.com/xhaoh94/gox/network/rpc"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/xlog"
 )
 
 type (
@@ -89,7 +90,7 @@ func (session *Session) Send(cmd uint32, msg interface{}) bool {
 	if !session.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(make([]byte, 0), gox.Endian)
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(C_S_C)
@@ -104,13 +105,13 @@ func (session *Session) Send(cmd uint32, msg interface{}) bool {
 
 // Call 呼叫
 func (session *Session) Call(msg interface{}, response interface{}) types.IXRPC {
-	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
+	dr := rpc.NewXRpc(session.id, session.ctx, response)
 	if !session.isAct() {
 		defer dr.Run(false)
 		return dr
 	}
 	cmd := cmdhelper.ToCmd(msg, response, 0)
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(make([]byte, 0), gox.Endian)
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_S)
@@ -120,14 +121,14 @@ func (session *Session) Call(msg interface{}, response interface{}) types.IXRPC 
 		defer dr.Run(false)
 		return dr
 	}
-	session.Rpc().Put(dr)
+	gox.NetWork.Rpc().Put(dr)
 	session.sendData(pkt.PktData())
 	return dr
 }
 
 func (session *Session) ActorCall(actorID uint32, msg interface{}, response interface{}) types.IXRPC {
 
-	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
+	dr := rpc.NewXRpc(session.id, session.ctx, response)
 	if !session.isAct() {
 		defer dr.Run(false)
 		return dr
@@ -139,7 +140,7 @@ func (session *Session) ActorCall(actorID uint32, msg interface{}, response inte
 	}
 
 	cmd := cmdhelper.ToCmd(msg, response, actorID)
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(make([]byte, 0), gox.Endian)
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_S)
@@ -149,7 +150,7 @@ func (session *Session) ActorCall(actorID uint32, msg interface{}, response inte
 		defer dr.Run(false)
 		return dr
 	}
-	session.Rpc().Put(dr)
+	gox.NetWork.Rpc().Put(dr)
 	session.sendData(pkt.PktData())
 	return dr
 }
@@ -159,7 +160,7 @@ func (session *Session) reply(msg interface{}, rpcid uint32) bool {
 	if !session.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(make([]byte, 0), gox.Endian)
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_R)
@@ -200,7 +201,7 @@ func (session *Session) sendHeartbeat(t byte) {
 	if !session.isAct() {
 		return
 	}
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(make([]byte, 0), gox.Endian)
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(t)
@@ -216,7 +217,7 @@ func (session *Session) parseReader(r io.Reader) bool {
 	if err != nil {
 		return true
 	}
-	msgLen := codechelper.BytesToUint16(header, session.endian())
+	msgLen := codechelper.BytesToUint16(header, gox.Endian)
 	if msgLen == 0 {
 		xlog.Error("读取到网络空包 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
 		return true
@@ -241,7 +242,7 @@ func (session *Session) parseMsg(buf []byte) {
 	if !session.isAct() {
 		return
 	}
-	pkt := NewByteArray(buf, session.endian())
+	pkt := NewByteArray(buf, gox.Endian)
 	defer pkt.Release()
 	pkt.ReadBytes(8) //8位预留的字节
 
@@ -257,7 +258,7 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitMessage(cmd, nil)
 			return
 		}
-		msg := session.network().GetRegProtoMsg(cmd)
+		msg := gox.NetWork.GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
@@ -276,7 +277,7 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitRpc(cmd, rpcID, nil)
 			return
 		}
-		msg := session.network().GetRegProtoMsg(cmd)
+		msg := gox.NetWork.GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
@@ -288,30 +289,32 @@ func (session *Session) parseMsg(buf []byte) {
 		session.emitRpc(cmd, rpcID, msg)
 		return
 	case RPC_R:
-		session.Rpc().ParseMsg(pkt, session.codec())
+		rpcID := pkt.ReadUint32()
+		dr := gox.NetWork.Rpc().Get(rpcID).(*rpc.XRPC)
+		if dr != nil {
+			msgLen := pkt.RemainLength()
+			if msgLen == 0 {
+				dr.Run(false)
+				return
+			}
+			if err := pkt.ReadMessage(dr.GetResponse(), session.codec()); err != nil {
+				xlog.Error("解析网络包体失败 err:[%v]", err)
+				dr.Run(false)
+				return
+			}
+			dr.Run(true)
+		}
 		return
 	}
 }
 
-func (session *Session) Rpc() types.IRPC {
-	return session.network().Rpc()
-}
 func (session *Session) codec() types.ICodec {
 	return session.service.Codec
-}
-func (session *Session) network() types.INetwork {
-	return session.service.Engine.GetNetWork()
-}
-func (session *Session) event() types.IEvent {
-	return session.service.Engine.Event()
-}
-func (session *Session) endian() binary.ByteOrder {
-	return session.service.Engine.GetEndian()
 }
 
 // callEvt 触发
 func (session *Session) callEvt(event uint32, params ...interface{}) (interface{}, error) {
-	values, err := session.event().Call(event, params...)
+	values, err := xevent.Call(event, params...)
 	if err != nil {
 		return nil, err
 	}

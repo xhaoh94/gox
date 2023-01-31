@@ -1,4 +1,4 @@
-package discovery
+package network
 
 import (
 	"context"
@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/etcd"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/etcd"
 	"github.com/xhaoh94/gox/helper/strhelper"
 	"github.com/xhaoh94/gox/types"
+	"github.com/xhaoh94/gox/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
@@ -17,7 +17,6 @@ import (
 
 type (
 	ServiceDiscovery struct {
-		engine       types.IEngine
 		context      context.Context
 		es           *etcd.EtcdService
 		lock         sync.RWMutex
@@ -62,12 +61,12 @@ func (sc ServiceEntity) GetVersion() string {
 	return sc.Version
 }
 
-func newServiceDiscovery(engine types.IEngine, ctx context.Context) *ServiceDiscovery {
+func NewServiceDiscovery(ctx context.Context, serviceEntity ServiceEntity) *ServiceDiscovery {
 	return &ServiceDiscovery{
-		engine:       engine,
 		context:      ctx,
 		keyToService: make(map[string]ServiceEntity),
 		idToService:  make(map[uint]ServiceEntity),
+		curService:   serviceEntity,
 	}
 }
 
@@ -93,14 +92,6 @@ func newServiceConfig(val []byte) (ServiceEntity, error) {
 }
 
 func (reg *ServiceDiscovery) Start() {
-	reg.curService = ServiceEntity{
-		ServiceID:    reg.engine.EID(),
-		ServiceType:  reg.engine.EType(),
-		Version:      reg.engine.Version(),
-		OutsideAddr:  reg.engine.GetNetWork().OutsideAddr(),
-		InteriorAddr: reg.engine.GetNetWork().InteriorAddr(),
-		RPCAddr:      reg.engine.GetNetWork().Rpc().GetAddr(),
-	}
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(reg.context)
 	go reg.checkTimeout(timeoutCtx)
 	var err error

@@ -7,13 +7,14 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/app"
-	"github.com/xhaoh94/gox/engine/network/service/kcp"
-	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/examples/sv/game"
 	"github.com/xhaoh94/gox/examples/sv/mods"
 	"github.com/xhaoh94/gox/helper/codechelper"
 	"github.com/xhaoh94/gox/helper/commonhelper"
 	"github.com/xhaoh94/gox/helper/strhelper"
+	"github.com/xhaoh94/gox/network/service/kcp"
+	"github.com/xhaoh94/gox/network/service/ws"
+	"github.com/xhaoh94/gox/network/xhttp"
 )
 
 func main() {
@@ -29,12 +30,14 @@ func main() {
 	app.LoadAppConfig("gox.ini")
 	engine := gox.NewEngine(sid, sType, "1.0.0")
 	game.Engine = engine
-	engine.SetModule(new(mods.MainModule))
-	// engine.SetCodec()
+	engine.SetMainModule(new(mods.MainModule))
 	engine.SetInteriorService(new(kcp.KService), iAddr, codechelper.Json)
 	engine.SetOutsideService(new(ws.WService), oAddr, codechelper.Json)
 	// engine.SetGrpcAddr(rAddr)
 	engine.Start()
+
+	httpS := xhttp.NewServer("")
+	httpS.Start()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)
 	<-sigChan
