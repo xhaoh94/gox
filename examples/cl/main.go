@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/app"
+	"github.com/xhaoh94/gox/engine/app"
+	"github.com/xhaoh94/gox/engine/helper/codechelper"
+	"github.com/xhaoh94/gox/engine/helper/commonhelper"
+	"github.com/xhaoh94/gox/engine/helper/strhelper"
+	"github.com/xhaoh94/gox/engine/network/service/ws"
+	"github.com/xhaoh94/gox/engine/types"
+	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
-	"github.com/xhaoh94/gox/helper/codechelper"
-	"github.com/xhaoh94/gox/helper/commonhelper"
-	"github.com/xhaoh94/gox/helper/strhelper"
-	"github.com/xhaoh94/gox/network/service/ws"
-	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/xlog"
 )
 
 type (
@@ -71,7 +71,7 @@ func main() {
 	flag.Parse()
 	app.LoadAppConfig("gox.ini")
 	engine := gox.NewEngine(sid, sType, "1.0.0")
-	engine.SetMainModule(new(MainModule))
+	engine.SetModule(new(MainModule))
 	engine.SetInteriorService(new(ws.WService), addr, codechelper.Json)
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)

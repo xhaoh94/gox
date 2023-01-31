@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/helper/commonhelper"
+	"github.com/xhaoh94/gox/engine/helper/strhelper"
+	"github.com/xhaoh94/gox/engine/types"
+	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
-	"github.com/xhaoh94/gox/helper/commonhelper"
-	"github.com/xhaoh94/gox/helper/strhelper"
-	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/xlog"
 )
 
 type (

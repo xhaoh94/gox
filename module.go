@@ -4,28 +4,29 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/xhaoh94/gox/helper/strhelper"
-	"github.com/xhaoh94/gox/types"
-	"github.com/xhaoh94/gox/xevent"
-	"github.com/xhaoh94/gox/xlog"
+	"github.com/xhaoh94/gox/engine/helper/strhelper"
+	"github.com/xhaoh94/gox/engine/types"
+	"github.com/xhaoh94/gox/engine/xlog"
 	"google.golang.org/grpc"
 )
 
 type (
 	//Module 模块
 	Module struct {
+		engine       types.IEngine
 		childModules []types.IModule
 		lock         sync.Mutex
 	}
 )
 
 // Init 初始化模块
-func (m *Module) Init(self types.IModule, fn func()) {
+func (m *Module) Init(self types.IModule, engine types.IEngine, fn func()) {
+	m.engine = engine
 	self.OnInit()
 	if m.childModules != nil {
 		for i := range m.childModules {
 			v := m.childModules[i]
-			v.Init(v, nil)
+			v.Init(v, engine, nil)
 		}
 	}
 	if fn != nil {
@@ -63,27 +64,30 @@ func (mm *Module) OnDestroy() {
 
 }
 
+func (m *Module) GetEngine() types.IEngine {
+	return m.engine
+}
 func (m *Module) GetActorCtrl() types.IActorDiscovery {
-	return NetWork.ActorDiscovery()
+	return m.engine.NetWork().ActorDiscovery()
 }
 
 func (m *Module) GetSessionById(sid uint32) types.ISession {
-	return NetWork.GetSessionById(sid)
+	return m.engine.NetWork().GetSessionById(sid)
 }
 func (m *Module) GetSessionByAddr(addr string) types.ISession {
-	return NetWork.GetSessionByAddr(addr)
+	return m.engine.NetWork().GetSessionByAddr(addr)
 }
 func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
-	return NetWork.Rpc().GetConnByAddr(addr)
+	return m.engine.NetWork().Rpc().GetConnByAddr(addr)
 }
 func (m *Module) GetGrpcServer() *grpc.Server {
-	return NetWork.Rpc().GetServer()
+	return m.engine.NetWork().Rpc().GetServer()
 }
 func (m *Module) GetServiceConfListByType(sType string) []types.IServiceEntity {
-	return NetWork.ServiceDiscovery().GetServiceConfListByType(sType)
+	return m.engine.NetWork().ServiceDiscovery().GetServiceConfListByType(sType)
 }
 func (m *Module) GetServiceConfByID(id uint) types.IServiceEntity {
-	return NetWork.ServiceDiscovery().GetServiceConfByID(id)
+	return m.engine.NetWork().ServiceDiscovery().GetServiceConfByID(id)
 }
 
 // Register 注册协议对应消息体和回调函数
@@ -104,13 +108,13 @@ func (m *Module) Register(cmd uint32, fn interface{}) {
 			xlog.Error("协议回调函数参数需要是指针类型 cmd[%d]", cmd)
 			return
 		}
-		NetWork.RegisterRType(cmd, in)
-		return
+		m.engine.NetWork().RegisterRType(cmd, in)
+		break
 	default:
 		xlog.Error("协议回调函数参数有误")
 		return
 	}
-	xevent.Bind(cmd, fn)
+	m.engine.Event().Bind(cmd, fn)
 }
 
 // RegisterRPC 注册RPC
@@ -121,9 +125,11 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 	switch l {
 	case 1:
 		fn = args[0]
+		break
 	case 2:
 		cmd = uint32(args[0].(int))
 		fn = args[1]
+		break
 	default:
 		xlog.Error("RPC回调函数参数有误")
 		return
@@ -157,7 +163,8 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 			key = in.Elem().Name() + key
 			cmd = strhelper.StringToHash(key)
 		}
-		NetWork.RegisterRType(cmd, in)
+		m.engine.NetWork().RegisterRType(cmd, in)
+		break
 	default:
 		xlog.Error("RPC回调函数参数有误")
 		return
@@ -166,5 +173,5 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 	if cmd == 0 {
 		cmd = strhelper.StringToHash(key)
 	}
-	xevent.Bind(cmd, fn)
+	m.engine.Event().Bind(cmd, fn)
 }

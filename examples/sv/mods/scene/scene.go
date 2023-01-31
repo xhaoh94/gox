@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/network/actor"
+	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/examples/sv/game"
-	"github.com/xhaoh94/gox/network/actor"
-	"github.com/xhaoh94/gox/xlog"
 )
 
 type (
@@ -40,7 +40,7 @@ func (m *SceneModule) OnStart() {
 func newScene(id uint) *Scene {
 	scene := &Scene{Id: id, units: make(map[uint]*Unit)}
 	scene.OnInit()
-	game.Engine.Discovery().Actor().Add(scene) //把场景添加进Actor
+	game.Engine.NetWork().ActorDiscovery().Add(scene) //把场景添加进Actor
 	return scene
 }
 

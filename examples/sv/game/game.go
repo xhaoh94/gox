@@ -1,6 +1,6 @@
 package game
 
-import "github.com/xhaoh94/gox/types"
+import "github.com/xhaoh94/gox/engine/types"
 
 const (
 	//Gate 网关服务

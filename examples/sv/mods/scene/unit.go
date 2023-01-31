@@ -3,10 +3,10 @@ package scene
 import (
 	"context"
 
+	"github.com/xhaoh94/gox/engine/network/actor"
+	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/examples/sv/game"
-	"github.com/xhaoh94/gox/network/actor"
-	"github.com/xhaoh94/gox/xlog"
 )
 
 type (
@@ -19,7 +19,7 @@ type (
 func newUnit(id uint) *Unit {
 	unit := &Unit{Id: id}
 	unit.OnInit()
-	game.Engine.Discovery().Actor().Add(unit) //添加到Actor
+	game.Engine.NetWork().ActorDiscovery().Add(unit) //添加到Actor
 	return unit
 }
 
