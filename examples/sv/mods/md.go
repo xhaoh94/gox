@@ -16,21 +16,17 @@ type (
 )
 
 func (m *MainModule) OnInit() {
-	switch m.GetEngine().EType() {
+	switch m.Engine.AppConf().EType {
 	case game.Gate:
 		m.Put(&gate.GateModule{})
-		break
 	case game.Login:
 		m.Put(&login.LoginModule{})
-		break
 	case game.Scene:
 		m.Put(&scene.SceneModule{})
-		break
 	default:
 		m.Put(&gate.GateModule{})
 		m.Put(&login.LoginModule{})
 		m.Put(&scene.SceneModule{})
-		break
 	}
 }
 

@@ -94,17 +94,17 @@ func newServiceConfig(val []byte) (ServiceEntity, error) {
 
 func (reg *ServiceDiscovery) Start() {
 	reg.curService = ServiceEntity{
-		ServiceID:    reg.engine.EID(),
-		ServiceType:  reg.engine.EType(),
-		Version:      reg.engine.Version(),
-		OutsideAddr:  reg.engine.NetWork().OutsideAddr(),
-		InteriorAddr: reg.engine.NetWork().InteriorAddr(),
-		RPCAddr:      reg.engine.NetWork().Rpc().GetAddr(),
+		ServiceID:    reg.engine.AppConf().Eid,
+		ServiceType:  reg.engine.AppConf().EType,
+		Version:      reg.engine.AppConf().Version,
+		OutsideAddr:  reg.engine.AppConf().OutsideAddr,
+		InteriorAddr: reg.engine.AppConf().InteriorAddr,
+		RPCAddr:      reg.engine.AppConf().RpcAddr,
 	}
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(reg.context)
 	go reg.checkTimeout(timeoutCtx)
 	var err error
-	reg.es, err = etcd.NewEtcdService(reg.get, reg.put, reg.del)
+	reg.es, err = etcd.NewEtcdService(reg.engine.AppConf().Etcd, reg.get, reg.put, reg.del)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("服务注册失败 [%v]", err)

@@ -104,7 +104,7 @@ func (crtl *ActorDiscovery) Add(actor types.IActorEntity) {
 		xlog.Error("Actor没有注册回调函数")
 		return
 	}
-	reg := &ActorEntity{ActorID: aid, ServiceID: crtl.engine.EID()}
+	reg := &ActorEntity{ActorID: aid, ServiceID: crtl.engine.AppConf().Eid}
 	b, err := json.Marshal(reg)
 	if err != nil {
 		xlog.Error("Actor解析Json错误[%v]", err)
@@ -193,7 +193,7 @@ func (crtl *ActorDiscovery) Start() {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(crtl.context)
 	go crtl.checkTimeout(timeoutCtx)
 	var err error
-	crtl.es, err = etcd.NewEtcdService(crtl.get, crtl.put, crtl.del)
+	crtl.es, err = etcd.NewEtcdService(crtl.engine.AppConf().Etcd, crtl.get, crtl.put, crtl.del)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("actor启动失败 [%v]", err)

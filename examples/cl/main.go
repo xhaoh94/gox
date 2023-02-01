@@ -3,15 +3,13 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
-	"github.com/xhaoh94/gox/engine/helper/commonhelper"
-	"github.com/xhaoh94/gox/engine/helper/strhelper"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -65,14 +63,14 @@ func (m *MainModule) RspEnter(ctx context.Context, session types.ISession, rsp *
 
 // 模拟客户端发数据
 func main() {
-	sid := *flag.Uint("sid", uint(strhelper.StringToHash(commonhelper.GetUUID())), "uuid")
-	sType := *flag.String("type", "client", "服务类型")
-	addr := *flag.String("addr", "127.0.0.1:9999", "服务地址")
+	appConfPath := *flag.String("appConfPath", "", "grpc服务地址")
 	flag.Parse()
-	app.LoadAppConfig("gox.ini")
-	engine := gox.NewEngine(sid, sType, "1.0.0")
+	if appConfPath == "" {
+		log.Fatalf("需要启动配置文件路径")
+	}
+	engine := gox.NewEngine(appConfPath)
 	engine.SetModule(new(MainModule))
-	engine.SetInteriorService(new(ws.WService), addr, codechelper.Json)
+	engine.SetInteriorService(new(ws.WService), codechelper.Json)
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)

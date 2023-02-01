@@ -14,27 +14,22 @@ import (
 
 type (
 	Engine struct {
-		eid     uint
-		etype   string
-		version string
-
-		context   context.Context
-		contextFn context.CancelFunc
-		mol       types.IModule
-		event     types.IEvent
-		nw        *network.NetWork
-		endian    binary.ByteOrder
+		context    context.Context
+		contextFn  context.CancelFunc
+		appConf    app.AppConf
+		mainModule types.IModule
+		event      types.IEvent
+		network    *network.NetWork
+		endian     binary.ByteOrder
 	}
 )
 
-func NewEngine(sid uint, sType string, version string) *Engine {
+func NewEngine(appConfPath string) *Engine {
 	e := new(Engine)
-	e.eid = sid
-	e.etype = sType
-	e.version = version
+	e.appConf = app.LoadAppConfig(appConfPath)
 	e.event = xevent.New()
 	e.context, e.contextFn = context.WithCancel(context.Background())
-	e.nw = network.New(e, e.context)
+	e.network = network.New(e, e.context)
 	e.endian = binary.LittleEndian
 	return e
 }
@@ -48,61 +43,47 @@ func (engine *Engine) Event() types.IEvent {
 }
 
 func (engine *Engine) NetWork() types.INetwork {
-	return engine.nw
+	return engine.network
 }
 
-func (engine *Engine) EID() uint {
-	return engine.eid
-}
-func (engine *Engine) EType() string {
-	return engine.etype
-}
-func (engine *Engine) Version() string {
-	return engine.version
+func (engine *Engine) AppConf() app.AppConf {
+	return engine.appConf
 }
 
 // Start 启动
 func (engine *Engine) Start() {
-	if engine.mol == nil {
+	if engine.mainModule == nil {
 		log.Fatalf("没有设置主模块")
 		return
 	}
-	if !app.IsLoadAppCfg() {
-		xlog.Warn("没有传入ini配置,使用默认配置")
-	}
-	xlog.Init(engine.eid)
-	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", engine.eid, engine.etype, engine.version)
+	xlog.Init(engine.AppConf().Log)
+	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", engine.AppConf().Eid, engine.AppConf().EType, engine.AppConf().Version)
 	xlog.Info("[ByteOrder:%s]", engine.endian.String())
-	engine.nw.Init()
-	engine.mol.Init(engine.mol, engine, func() {
-		engine.nw.Serve()
+	engine.network.Init()
+	engine.mainModule.Init(engine.mainModule, engine, func() {
+		engine.network.Serve()
 	})
 }
 
 // Shutdown 关闭
 func (engine *Engine) Shutdown() {
 	engine.contextFn()
-	engine.mol.Destroy(engine.mol)
-	engine.nw.Destroy()
-	xlog.Info("服务退出[sid:%d]", engine.eid)
+	engine.mainModule.Destroy(engine.mainModule)
+	engine.network.Destroy()
+	xlog.Info("服务退出[sid:%d]", engine.AppConf().Eid)
 	xlog.Destroy()
 }
 
 ////////////////////////////////////////////////////////////////
 
 // SetOutsideService 设置外部服务类型
-func (engine *Engine) SetOutsideService(ser types.IService, addr string, c types.ICodec) {
-	engine.nw.SetOutsideService(ser, addr, c)
+func (engine *Engine) SetOutsideService(ser types.IService, codec types.ICodec) {
+	engine.network.SetOutsideService(ser, engine.appConf.OutsideAddr, codec)
 }
 
 // SetInteriorService 设置内部服务类型
-func (engine *Engine) SetInteriorService(ser types.IService, addr string, c types.ICodec) {
-	engine.nw.SetInteriorService(ser, addr, c)
-}
-
-// SetGrpcAddr 设置grpc服务
-func (engine *Engine) SetGrpcAddr(addr string) {
-	engine.nw.SetGrpcAddr(addr)
+func (engine *Engine) SetInteriorService(ser types.IService, codec types.ICodec) {
+	engine.network.SetInteriorService(ser, engine.appConf.InteriorAddr, codec)
 }
 
 // SetEndian 设置大小端
@@ -112,7 +93,7 @@ func (engine *Engine) SetEndian(bo binary.ByteOrder) {
 
 // SetModule 设置初始模块
 func (engine *Engine) SetModule(m types.IModule) {
-	engine.mol = m
+	engine.mainModule = m
 }
 
 ////////////////////////////////////////////////////////////

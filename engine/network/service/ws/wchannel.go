@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/xlog"
 
@@ -46,7 +45,7 @@ func (w *WChannel) Start() {
 }
 func (w *WChannel) recvAsync() {
 	defer w.Wg.Done()
-	readTimeout := app.GetAppCfg().Network.ReadTimeout
+	readTimeout := w.Session.AppConf().Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := w.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
 			xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)
@@ -73,7 +72,7 @@ func (w *WChannel) recvAsync() {
 }
 
 func (w *WChannel) write(buf []byte) {
-	err := w.Conn().WriteMessage(app.GetAppCfg().WebSocket.WebSocketMessageType, buf)
+	err := w.Conn().WriteMessage(w.Session.AppConf().WebSocket.WebSocketMessageType, buf)
 	if err != nil {
 		xlog.Error("websocket addr[%s]信道写入失败err:[%v]", w.RemoteAddr(), err)
 	}

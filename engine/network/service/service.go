@@ -30,7 +30,10 @@ type (
 	}
 )
 
-var sessionPool *sync.Pool = &sync.Pool{New: func() interface{} { return &Session{} }}
+var sessionPool *sync.Pool = &sync.Pool{
+	New: func() interface{} {
+		return &Session{}
+	}}
 
 // Init 服务初始化
 func (ser *Service) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {

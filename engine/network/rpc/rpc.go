@@ -17,8 +17,8 @@ type (
 		rpcMap sync.Map //内部自带的rpc存储器
 	}
 	gRPC struct {
-		rpcAddr   string
 		addr2Conn map[string]*grpc.ClientConn
+		rpcAddr   string
 		addrMutex sync.Mutex
 		server    *grpc.Server
 		listen    net.Listener
@@ -26,15 +26,15 @@ type (
 )
 
 // Put 添加rpc
-func (g *RPC) Put(dr types.IXRPC) {
-	dr.(*XRPC).del = g.del
+func (g *RPC) Put(dr *Rpcx) {
+	dr.del = g.del
 	g.rpcMap.Store(dr.RID(), dr)
 }
 
 // Get 获取RPC
-func (g *RPC) Get(id uint32) types.IXRPC {
+func (g *RPC) Get(id uint32) *Rpcx {
 	if dr, ok := g.rpcMap.Load(id); ok {
-		return dr.(*XRPC)
+		return dr.(*Rpcx)
 	}
 	return nil
 }
@@ -42,19 +42,12 @@ func (g *RPC) Get(id uint32) types.IXRPC {
 // Del 删除rpc
 func (g *RPC) del(id uint32) {
 	if dr, ok := g.rpcMap.LoadAndDelete(id); ok {
-		dr.(*XRPC).release()
+		dr.(*Rpcx).release()
 	}
-}
-
-func (g *RPC) GetAddr() string {
-	if g.grpc != nil {
-		return g.grpc.rpcAddr
-	}
-	return ""
 }
 
 func (g *RPC) SetAddr(addr string) {
-	g.grpc = &gRPC{rpcAddr: addr}
+
 }
 
 func (g *RPC) Serve() {
@@ -65,7 +58,9 @@ func (g *RPC) Serve() {
 
 // Init 开启服务
 func (g *RPC) Start() {
-	if g.grpc != nil {
+	rpcAddr := g.engine.AppConf().RpcAddr
+	if rpcAddr != "" {
+		g.grpc = &gRPC{rpcAddr: rpcAddr}
 		g.grpc.start()
 	}
 }

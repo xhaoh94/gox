@@ -1,9 +1,7 @@
 package xlog
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,16 +35,13 @@ func parseLevel(lvl string) zapcore.Level {
 }
 
 // 创建分割日志的writer
-func newHook(id uint, str string) *lumberjack.Logger {
-	logCfg := app.GetAppCfg().Log
-	path := logCfg.LogPath
-	if err := os.MkdirAll(path, 0766); err != nil {
+func newHook(logCfg app.LogConf) *lumberjack.Logger {
+	if err := os.MkdirAll(logCfg.Filename, 0766); err != nil {
 		panic(err)
 	}
-	logName := fmt.Sprintf("server_%d_%s.log", id, str)
 
 	return &lumberjack.Logger{
-		Filename:   filepath.Join(path, logName),
+		Filename:   logCfg.Filename,
 		MaxSize:    logCfg.LogMaxSize,
 		MaxAge:     logCfg.LogMaxAge,
 		MaxBackups: logCfg.MaxBackups,
@@ -54,14 +49,13 @@ func newHook(id uint, str string) *lumberjack.Logger {
 		Compress: false,
 	}
 }
-func new(id uint) *ZapLog {
-	logger := newZapLogger(id)
+func new(conf app.LogConf) *ZapLog {
+	logger := newZapLogger(conf)
 	zap.RedirectStdLog(logger)
 	// logger = logger.With(zap.Uint("sid", id)) //额外需要加的数据
 	return &ZapLog{logger: logger}
 }
-func newZapLogger(id uint) *zap.Logger {
-	logCfg := app.GetAppCfg().Log
+func newZapLogger(logCfg app.LogConf) *zap.Logger {
 	encCfg := zapcore.EncoderConfig{
 		TimeKey:        "time",
 		LevelKey:       "lev",
@@ -98,7 +92,7 @@ func newZapLogger(id uint) *zap.Logger {
 
 	levWriters := []zapcore.WriteSyncer{zapcore.AddSync(os.Stdout)}
 	if logCfg.IsWriteLog {
-		levWriters = append(levWriters, zapcore.AddSync(newHook(id, logCfg.LogLevel)))
+		levWriters = append(levWriters, zapcore.AddSync(newHook(logCfg)))
 	}
 	levWriteSyncer := zapcore.NewMultiWriteSyncer(levWriters...)
 	levPriority := zap.LevelEnablerFunc(func(lev zapcore.Level) bool {
@@ -113,7 +107,7 @@ func newZapLogger(id uint) *zap.Logger {
 	if split {
 		errWriters := []zapcore.WriteSyncer{zapcore.AddSync(os.Stdout)}
 		if logCfg.IsWriteLog {
-			errWriters = append(errWriters, zapcore.AddSync(newHook(id, "error")))
+			errWriters = append(errWriters, zapcore.AddSync(newHook(logCfg)))
 		}
 		errWriteSyncer := zapcore.NewMultiWriteSyncer(errWriters...)
 		errPriority := zap.LevelEnablerFunc(func(lev zapcore.Level) bool {

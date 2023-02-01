@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -72,18 +71,18 @@ func (ts *TService) addChannel(conn *net.Conn) *TChannel {
 func (ts *TService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
-		conn, err := net.DialTimeout("tcp", addr, app.GetAppCfg().Network.ConnectTimeout)
+		conn, err := net.DialTimeout("tcp", addr, ts.Engine.AppConf().Network.ConnectTimeout)
 		if err == nil {
 			return ts.addChannel(&conn)
 		}
-		if connCount > app.GetAppCfg().Network.ReConnectMax {
+		if connCount > ts.Engine.AppConf().Network.ReConnectMax {
 			xlog.Info("tcp 创建通信信道 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		if !ts.IsRun || app.GetAppCfg().Network.ReConnectInterval == 0 {
+		if !ts.IsRun || ts.Engine.AppConf().Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
+		time.Sleep(ts.Engine.AppConf().Network.ReConnectInterval)
 		connCount++
 		continue
 	}

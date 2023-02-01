@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xtaci/kcp-go/v5"
@@ -45,7 +44,7 @@ func (k *KChannel) Start() {
 }
 func (k *KChannel) recvAsync() {
 	defer k.Wg.Done()
-	readTimeout := app.GetAppCfg().Network.ReadTimeout
+	readTimeout := k.Session.AppConf().Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := k.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
 			xlog.Info("kpc addr[%s] 接受数据超时err:[%v]", k.RemoteAddr(), err)

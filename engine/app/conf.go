@@ -9,15 +9,21 @@ import (
 )
 
 type (
-	appConf struct {
-		Log       logConf       `yaml:"log"`
-		MongoDb   mongoDbConf   `yaml:"mongodb"`
-		Network   networkConf   `yaml:"network"`
-		WebSocket webSocketConf `yaml:"webSocket"`
-		Etcd      etcdConf      `yaml:"etcd"`
+	AppConf struct {
+		Eid          uint          `yaml:"eid"`
+		EType        string        `yaml:"etype"`
+		Version      string        `yaml:"version"`
+		InteriorAddr string        `yaml:"interioraddr"`
+		OutsideAddr  string        `yaml:"outsideaddr"`
+		RpcAddr      string        `yaml:"rpcaddr"`
+		Log          LogConf       `yaml:"log"`
+		Db           DbConf        `yaml:"db"`
+		Network      NetworkConf   `yaml:"network"`
+		WebSocket    WebSocketConf `yaml:"webSocket"`
+		Etcd         EtcdConf      `yaml:"etcd"`
 	}
-	logConf struct {
-		LogPath     string `yaml:"log_path"`
+	LogConf struct {
+		Filename    string `yaml:"log_file_name"`
 		IsWriteLog  bool   `yaml:"log_write_open"`
 		Stacktrace  string `yaml:"log_stacktrace"`
 		LogLevel    string `yaml:"log_level"`
@@ -29,13 +35,13 @@ type (
 		Skip        int    `yaml:"log_callerskip"`
 		Split       bool   `yaml:"log_split_level"`
 	}
-	mongoDbConf struct {
+	DbConf struct {
 		Url      string `yaml:"url"`
 		User     string `yaml:"user"`
 		Password string `yaml:"password"`
 		Database string `yaml:"database"`
 	}
-	networkConf struct {
+	NetworkConf struct {
 		//SendMsgMaxLen 发送最大长度(websocket的话不能超过126) 默认0 不分片
 		SendMsgMaxLen int `yaml:"send_msg_max_len"`
 		//ReadMsgMaxLen 包体最大长度
@@ -51,7 +57,7 @@ type (
 		//ReadTimeout 读超时
 		ReadTimeout time.Duration `yaml:"read_timeout"`
 	}
-	webSocketConf struct {
+	WebSocketConf struct {
 		WebSocketMessageType int    `yaml:"ws_message_type"`
 		WebSocketPattern     string `yaml:"ws_pattern"`
 		WebSocketPath        string `yaml:"ws_path"`
@@ -59,75 +65,76 @@ type (
 		CertFile             string `yaml:"ws_certfile"`
 		KeyFile              string `yaml:"ws_keyfile"`
 	}
-	etcdConf struct {
+	EtcdConf struct {
 		EtcdList      []string      `yaml:"etcd_list"`
 		EtcdTimeout   time.Duration `yaml:"etcd_timeout"`
 		EtcdLeaseTime int64         `yaml:"etcd_lease_time"`
 	}
 )
 
-var appCfg *appConf
+var AppCfg AppConf
 
-func initCfg() {
-	appCfg = &appConf{
-		Log: logConf{
-			LogPath:     "./log/",
-			IsWriteLog:  false,
-			Stacktrace:  "error",
-			LogLevel:    "debug",
-			LogMaxSize:  128,
-			MaxBackups:  30,
-			LogMaxAge:   7,
-			Development: true,
-			Console:     "console",
-			Skip:        2,
-			Split:       false,
-		},
-		MongoDb: mongoDbConf{
-			Url:      "127.0.0.1:27017",
-			User:     "",
-			Password: "",
-			Database: "gox",
-		},
-		Network: networkConf{
-			SendMsgMaxLen:     0,
-			ReadMsgMaxLen:     2048,
-			ReConnectInterval: 3 * time.Second,
-			Heartbeat:         30 * time.Second,
-			ConnectTimeout:    3 * time.Second,
-			ReadTimeout:       35 * time.Second,
-		},
-		WebSocket: webSocketConf{
-			WebSocketMessageType: 2,
-			WebSocketPattern:     "ws",
-			WebSocketPath:        "/ws",
-			WebSocketScheme:      "/ws",
-			CertFile:             "",
-			KeyFile:              "",
-		},
-		Etcd: etcdConf{
-			EtcdList:      []string{"127.0.0.1:2379"},
-			EtcdTimeout:   5 * time.Second,
-			EtcdLeaseTime: 5,
-		},
-	}
-}
+// func initCfg() {
+// 	AppCfg = &AppConf{
+// 		Log: LogConf{
+// 			LogPath:     "./log/",
+// 			IsWriteLog:  false,
+// 			Stacktrace:  "error",
+// 			LogLevel:    "debug",
+// 			LogMaxSize:  128,
+// 			MaxBackups:  30,
+// 			LogMaxAge:   7,
+// 			Development: true,
+// 			Console:     "console",
+// 			Skip:        2,
+// 			Split:       false,
+// 		},
+// 		MongoDb: MongoDbConf{
+// 			Url:      "127.0.0.1:27017",
+// 			User:     "",
+// 			Password: "",
+// 			Database: "gox",
+// 		},
+// 		Network: NetworkConf{
+// 			SendMsgMaxLen:     0,
+// 			ReadMsgMaxLen:     2048,
+// 			ReConnectInterval: 3 * time.Second,
+// 			Heartbeat:         30 * time.Second,
+// 			ConnectTimeout:    3 * time.Second,
+// 			ReadTimeout:       35 * time.Second,
+// 		},
+// 		WebSocket: WebSocketConf{
+// 			WebSocketMessageType: 2,
+// 			WebSocketPattern:     "ws",
+// 			WebSocketPath:        "/ws",
+// 			WebSocketScheme:      "/ws",
+// 			CertFile:             "",
+// 			KeyFile:              "",
+// 		},
+// 		Etcd: EtcdConf{
+// 			EtcdList:      []string{"127.0.0.1:2379"},
+// 			EtcdTimeout:   5 * time.Second,
+// 			EtcdLeaseTime: 5,
+// 		},
+// 	}
+// }
 
-func LoadAppConfig(appConfPath string) {
-	appCfg = new(appConf)
+func LoadAppConfig(appConfPath string) AppConf {
+	AppCfg = AppConf{}
 	bytes, err := ioutil.ReadFile(appConfPath)
 	if err != nil {
-		log.Printf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
-		return
+		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
+		return AppCfg
 	}
-	err = yaml.Unmarshal(bytes, &appCfg)
+	err = yaml.Unmarshal(bytes, &AppCfg)
 	if err != nil {
-		log.Printf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
-		return
+		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
+		return AppCfg
 	}
-	appCfg.Network.ReConnectInterval *= time.Second
-	appCfg.Network.Heartbeat *= time.Second
-	appCfg.Network.ConnectTimeout *= time.Second
-	appCfg.Network.ReadTimeout *= time.Second
-	appCfg.Etcd.EtcdTimeout *= time.Second
+	AppCfg.Network.ReConnectInterval *= time.Second
+	AppCfg.Network.Heartbeat *= time.Second
+	AppCfg.Network.ConnectTimeout *= time.Second
+	AppCfg.Network.ReadTimeout *= time.Second
+	AppCfg.Etcd.EtcdTimeout *= time.Second
+	return AppCfg
 }

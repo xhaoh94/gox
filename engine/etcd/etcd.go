@@ -19,6 +19,7 @@ type (
 // EtcdService etcd
 type EtcdService struct {
 	isRun         bool
+	conf          app.EtcdConf
 	client        *clientv3.Client
 	kv            clientv3.KV
 	lease         clientv3.Lease
@@ -30,23 +31,24 @@ type EtcdService struct {
 	delFn         delFn
 }
 
-func GetEtcdConf() clientv3.Config {
-	return clientv3.Config{Endpoints: app.GetAppCfg().Etcd.EtcdList, DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout}
-}
+// func GetEtcdConf() clientv3.Config {
+// 	return clientv3.Config{Endpoints: app.GetAppCfg().Etcd.EtcdList, DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout}
+// }
 
 // NewEtcdService 创建etcd
-func NewEtcdService(get getFn, put putFn, del delFn) (*EtcdService, error) {
-	conf := clientv3.Config{
-		Endpoints:   app.GetAppCfg().Etcd.EtcdList,
-		DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout,
+func NewEtcdService(conf app.EtcdConf, get getFn, put putFn, del delFn) (*EtcdService, error) {
+	clientConf := clientv3.Config{
+		Endpoints:   conf.EtcdList,
+		DialTimeout: conf.EtcdTimeout,
 	}
-	client, err := clientv3.New(conf)
+	client, err := clientv3.New(clientConf)
 	if err != nil {
 		return nil, err
 	}
 	kv := clientv3.NewKV(client)
 	es := &EtcdService{
 		isRun:  true,
+		conf:   conf,
 		client: client,
 		kv:     kv,
 		putFn:  put,
@@ -63,7 +65,7 @@ func NewEtcdService(get getFn, put putFn, del delFn) (*EtcdService, error) {
 func (es *EtcdService) setLease() error {
 	lease := clientv3.NewLease(es.client)
 	//设置租约时间
-	leaseResp, err := lease.Grant(es.client.Ctx(), app.GetAppCfg().Etcd.EtcdLeaseTime)
+	leaseResp, err := lease.Grant(es.client.Ctx(), es.conf.EtcdLeaseTime)
 	if err != nil {
 		return err
 	}

@@ -28,133 +28,114 @@ type (
 )
 
 func New(engine types.IEngine, ctx context.Context) *NetWork {
-	nw := new(NetWork)
-	nw.engine = engine
-	nw.cmdType = make(map[uint32]reflect.Type)
-	nw.context, nw.contextFn = context.WithCancel(ctx)
-	nw.rpc = rpc.New(engine)
-	nw.actorDiscovery = newActorDiscovery(engine, nw.context)
-	nw.serviceDiscovery = newServiceDiscovery(engine, nw.context)
-	return nw
+	network := new(NetWork)
+	network.engine = engine
+	network.cmdType = make(map[uint32]reflect.Type)
+	network.context, network.contextFn = context.WithCancel(ctx)
+	network.rpc = rpc.New(engine)
+	network.actorDiscovery = newActorDiscovery(engine, network.context)
+	network.serviceDiscovery = newServiceDiscovery(engine, network.context)
+	return network
 }
 
-func (nw *NetWork) Engine() types.IEngine {
-	return nw.engine
+func (network *NetWork) Engine() types.IEngine {
+	return network.engine
 }
 
 // GetSession 通过id获取Session
-func (nw *NetWork) GetSessionById(sid uint32) types.ISession {
-	session := nw.interior.GetSessionById(sid)
-	if session == nil && nw.outside != nil {
-		session = nw.outside.GetSessionById(sid)
+func (network *NetWork) GetSessionById(sid uint32) types.ISession {
+	session := network.interior.GetSessionById(sid)
+	if session == nil && network.outside != nil {
+		session = network.outside.GetSessionById(sid)
 	}
 	return session
 }
 
 // GetSessionByAddr 通过地址获取Session
-func (nw *NetWork) GetSessionByAddr(addr string) types.ISession {
-	return nw.interior.GetSessionByAddr(addr)
+func (network *NetWork) GetSessionByAddr(addr string) types.ISession {
+	return network.interior.GetSessionByAddr(addr)
 }
-func (nw *NetWork) Rpc() types.IRPC {
-	return nw.rpc
+func (network *NetWork) Rpc() types.IRPC {
+	return network.rpc
 }
-func (nw *NetWork) ServiceDiscovery() types.IServiceDiscovery {
-	return nw.serviceDiscovery
+func (network *NetWork) ServiceDiscovery() types.IServiceDiscovery {
+	return network.serviceDiscovery
 }
-func (nw *NetWork) ActorDiscovery() types.IActorDiscovery {
-	return nw.actorDiscovery
-}
-func (nw *NetWork) OutsideAddr() string {
-	if nw.outside != nil {
-		return nw.outside.GetAddr()
-	}
-	return ""
-}
-func (nw *NetWork) InteriorAddr() string {
-	if nw.interior != nil {
-		return nw.interior.GetAddr()
-	}
-	return ""
+func (network *NetWork) ActorDiscovery() types.IActorDiscovery {
+	return network.actorDiscovery
 }
 
 // RegisterRType 注册协议消息体类型
-func (nw *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
-	defer nw.cmdLock.Unlock()
-	nw.cmdLock.Lock()
-	if _, ok := nw.cmdType[cmd]; ok {
+func (network *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
+	defer network.cmdLock.Unlock()
+	network.cmdLock.Lock()
+	if _, ok := network.cmdType[cmd]; ok {
 		xlog.Error("重复注册协议 cmd[%s]", cmd)
 		return
 	}
-	nw.cmdType[cmd] = protoType
+	network.cmdType[cmd] = protoType
 }
 
 // RegisterRType 注册协议消息体类型
-func (nw *NetWork) UnRegisterRType(cmd uint32) {
-	defer nw.cmdLock.Unlock()
-	nw.cmdLock.Lock()
-	if _, ok := nw.cmdType[cmd]; ok {
-		delete(nw.cmdType, cmd)
-	}
+func (network *NetWork) UnRegisterRType(cmd uint32) {
+	defer network.cmdLock.Unlock()
+	network.cmdLock.Lock()
+	delete(network.cmdType, cmd)
 }
 
 // GetRegProtoMsg 获取协议消息体
-func (nw *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
-	nw.cmdLock.RLock()
-	rType, ok := nw.cmdType[cmd]
-	nw.cmdLock.RUnlock()
+func (network *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
+	network.cmdLock.RLock()
+	rType, ok := network.cmdType[cmd]
+	network.cmdLock.RUnlock()
 	if !ok {
 		return nil
 	}
 	return commonhelper.RTypeToInterface(rType)
 }
 
-func (nw *NetWork) Init() {
+func (network *NetWork) Init() {
 
-	if nw.interior == nil {
+	if network.interior == nil {
 		xlog.Fatal("没有初始化内部网络通信")
 		return
 	}
-	nw.interior.Start()
-	if nw.outside != nil {
-		nw.outside.Start()
+	network.interior.Start()
+	if network.outside != nil {
+		network.outside.Start()
 	}
-	nw.rpc.(*rpc.RPC).Start()
-	nw.serviceDiscovery.(*ServiceDiscovery).Start()
-	nw.actorDiscovery.(*ActorDiscovery).Start()
+	network.rpc.(*rpc.RPC).Start()
+	network.serviceDiscovery.(*ServiceDiscovery).Start()
+	network.actorDiscovery.(*ActorDiscovery).Start()
 }
-func (nw *NetWork) Destroy() {
-	nw.contextFn()
-	if nw.outside != nil {
-		nw.outside.Stop()
+func (network *NetWork) Destroy() {
+	network.contextFn()
+	if network.outside != nil {
+		network.outside.Stop()
 	}
-	nw.interior.Stop()
-	nw.rpc.(*rpc.RPC).Stop()
-	nw.serviceDiscovery.(*ServiceDiscovery).Stop()
-	nw.actorDiscovery.(*ActorDiscovery).Stop()
+	network.interior.Stop()
+	network.rpc.(*rpc.RPC).Stop()
+	network.serviceDiscovery.(*ServiceDiscovery).Stop()
+	network.actorDiscovery.(*ActorDiscovery).Stop()
 }
-func (nw *NetWork) Serve() {
-	nw.rpc.(*rpc.RPC).Serve()
+func (network *NetWork) Serve() {
+	network.rpc.(*rpc.RPC).Serve()
 }
 
 // SetOutsideService 设置外部服务类型
-func (nw *NetWork) SetOutsideService(ser types.IService, addr string, codec types.ICodec) {
+func (network *NetWork) SetOutsideService(ser types.IService, addr string, codec types.ICodec) {
 	if addr == "" {
 		return
 	}
-	nw.outside = ser
-	nw.outside.Init(addr, codec, nw.engine, nw.context)
+	network.outside = ser
+	network.outside.Init(addr, codec, network.engine, network.context)
 }
 
 // SetInteriorService 设置内部服务类型
-func (nw *NetWork) SetInteriorService(ser types.IService, addr string, codec types.ICodec) {
+func (network *NetWork) SetInteriorService(ser types.IService, addr string, codec types.ICodec) {
 	if addr == "" {
 		return
 	}
-	nw.interior = ser
-	nw.interior.Init(addr, codec, nw.engine, nw.context)
-}
-
-// SetGrpcAddr 设置grpc服务
-func (nw *NetWork) SetGrpcAddr(addr string) {
-	nw.rpc.(*rpc.RPC).SetAddr(addr)
+	network.interior = ser
+	network.interior.Init(addr, codec, network.engine, network.context)
 }

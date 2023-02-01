@@ -3,8 +3,6 @@ package types
 type (
 	//IServiceDiscovery 服务发现接口
 	IServiceDiscovery interface {
-		Start()
-		Stop()
 		GetServiceConfByID(uint) IServiceEntity
 		GetServiceConfListByType(string) []IServiceEntity
 	}

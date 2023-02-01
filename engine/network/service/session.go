@@ -120,7 +120,7 @@ func (session *Session) Call(msg interface{}, response interface{}) types.IXRPC 
 		defer dr.Run(false)
 		return dr
 	}
-	session.Rpc().Put(dr)
+	session.rpc().Put(dr)
 	session.sendData(pkt.PktData())
 	return dr
 }
@@ -149,7 +149,7 @@ func (session *Session) ActorCall(actorID uint32, msg interface{}, response inte
 		defer dr.Run(false)
 		return dr
 	}
-	session.Rpc().Put(dr)
+	session.rpc().Put(dr)
 	session.sendData(pkt.PktData())
 	return dr
 }
@@ -190,7 +190,7 @@ func (session *Session) onHeartbeat() {
 		select {
 		case <-session.ctx.Done():
 			goto end
-		case <-time.After(app.GetAppCfg().Network.Heartbeat):
+		case <-time.After(session.AppConf().Network.Heartbeat):
 			session.sendHeartbeat(H_B_S) //发送空的心跳包
 		}
 	}
@@ -222,7 +222,7 @@ func (session *Session) parseReader(r io.Reader) bool {
 		return true
 	}
 
-	if int(msgLen) > app.GetAppCfg().Network.ReadMsgMaxLen {
+	if int(msgLen) > session.AppConf().Network.ReadMsgMaxLen {
 		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
 		return true
 	}
@@ -289,7 +289,7 @@ func (session *Session) parseMsg(buf []byte) {
 		return
 	case RPC_R:
 		rpcID := pkt.ReadUint32()
-		dr := session.Rpc().Get(rpcID).(*rpc.XRPC)
+		dr := session.rpc().Get(rpcID)
 		if dr != nil {
 			msgLen := pkt.RemainLength()
 			if msgLen == 0 {
@@ -306,9 +306,11 @@ func (session *Session) parseMsg(buf []byte) {
 		return
 	}
 }
-
-func (session *Session) Rpc() types.IRPC {
-	return session.network().Rpc()
+func (session *Session) AppConf() app.AppConf {
+	return session.service.Engine.AppConf()
+}
+func (session *Session) rpc() *rpc.RPC {
+	return session.network().Rpc().(*rpc.RPC)
 }
 func (session *Session) codec() types.ICodec {
 	return session.service.Codec
@@ -324,7 +326,7 @@ func (session *Session) endian() binary.ByteOrder {
 }
 
 // callEvt 触发
-func (session *Session) callEvt(event uint32, params ...interface{}) (interface{}, error) {
+func (session *Session) callEvt(event uint32, params ...any) (any, error) {
 	values, err := session.event().Call(event, params...)
 	if err != nil {
 		return nil, err
@@ -361,7 +363,6 @@ func (session *Session) release() {
 	xlog.Info("session 断开 id:[%d] remote:[%s] local:[%s] tag:[%s]", session.id, session.RemoteAddr(), session.LocalAddr(), session.GetTagName())
 	session.ctxCancelFunc()
 	session.service.delSession(session)
-	// rpc.DelRPCBySessionID(s.id) 现在通过ctx 关闭
 	session.ctx = nil
 	session.ctxCancelFunc = nil
 	session.tag = 0

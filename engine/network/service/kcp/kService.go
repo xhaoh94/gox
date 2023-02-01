@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -77,14 +76,14 @@ func (ks *KService) connectChannel(addr string) types.IChannel {
 		if err == nil {
 			return ks.addChannel(conn)
 		}
-		if connCount > app.GetAppCfg().Network.ReConnectMax {
+		if connCount > ks.Engine.AppConf().Network.ReConnectMax {
 			xlog.Info("kcp 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		if !ks.IsRun || app.GetAppCfg().Network.ReConnectInterval == 0 {
+		if !ks.IsRun || ks.Engine.AppConf().Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
+		time.Sleep(ks.Engine.AppConf().Network.ReConnectInterval)
 		connCount++
 		continue
 	}

@@ -4,14 +4,13 @@ import (
 	"io"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/types"
 )
 
 type (
 	//Channel 通信信道
 	Channel struct {
-		session *Session
+		Session *Session
 		// rfn        func([]byte)
 		// cfn        func()
 		wfn        func([]byte)
@@ -42,7 +41,7 @@ func (c *Channel) Send(data []byte) {
 	if !c.IsRun {
 		return
 	}
-	sendMax := app.GetAppCfg().Network.SendMsgMaxLen
+	sendMax := c.Session.AppConf().Network.SendMsgMaxLen
 	if sendMax > 0 { //分片发送
 		DLen := len(data)
 		pos := 0
@@ -62,9 +61,9 @@ func (c *Channel) Send(data []byte) {
 
 // OnStop 停止信道
 func (c *Channel) OnStop() {
-	if c.session != nil {
-		c.session.release()
-		c.session = nil
+	if c.Session != nil {
+		c.Session.release()
+		c.Session = nil
 	}
 	c.localAddr = ""
 	c.remoteAddr = ""
@@ -72,7 +71,7 @@ func (c *Channel) OnStop() {
 }
 
 func (c *Channel) SetSession(session types.ISession) {
-	c.session = session.(*Session)
+	c.Session = session.(*Session)
 }
 
 // Init 初始化
@@ -110,8 +109,8 @@ func (c *Channel) Read(r io.Reader) bool {
 	// 	return
 	// }
 	// c.session.OnRead(buf)
-	if c.session != nil {
-		return c.session.parseReader(r)
+	if c.Session != nil {
+		return c.Session.parseReader(r)
 	}
 	return true
 }

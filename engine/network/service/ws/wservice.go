@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/types"
 
 	"github.com/xhaoh94/gox/engine/network/service"
@@ -33,9 +32,9 @@ func (ws *WService) Init(addr string, codec types.ICodec, engine types.IEngine, 
 
 // Start 启动
 func (ws *WService) Start() {
-	ws.patten = app.GetAppCfg().WebSocket.WebSocketPattern
-	ws.scheme = app.GetAppCfg().WebSocket.WebSocketScheme
-	ws.path = app.GetAppCfg().WebSocket.WebSocketPath
+	ws.patten = ws.Engine.AppConf().WebSocket.WebSocketPattern
+	ws.scheme = ws.Engine.AppConf().WebSocket.WebSocketScheme
+	ws.path = ws.Engine.AppConf().WebSocket.WebSocketPath
 	xlog.Debug("patten[%s] scheme[%s] path[%s]", ws.patten, ws.scheme, ws.path)
 	mux := http.NewServeMux()
 	mux.HandleFunc(ws.patten, ws.wsPage)
@@ -55,8 +54,8 @@ func (ws *WService) accept() {
 	if ln, err := net.Listen("tcp", ws.GetAddr()); err != nil {
 		xlog.Fatal("websocket 启动失败: [%s]", err.Error())
 	} else {
-		cf := app.GetAppCfg().WebSocket.CertFile
-		kf := app.GetAppCfg().WebSocket.KeyFile
+		cf := ws.Engine.AppConf().WebSocket.CertFile
+		kf := ws.Engine.AppConf().WebSocket.KeyFile
 		if cf != "" && kf != "" {
 			err = ws.sv.ServeTLS(ln, cf, kf)
 		} else {
@@ -115,14 +114,14 @@ func (ws *WService) connectChannel(addr string) types.IChannel {
 		if err == nil {
 			return ws.addChannel(conn)
 		}
-		if connCount > app.GetAppCfg().Network.ReConnectMax {
+		if connCount > ws.Engine.AppConf().Network.ReConnectMax {
 			xlog.Info("websocket 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		if !ws.IsRun || app.GetAppCfg().Network.ReConnectInterval == 0 {
+		if !ws.IsRun || ws.Engine.AppConf().Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(app.GetAppCfg().Network.ReConnectInterval)
+		time.Sleep(ws.Engine.AppConf().Network.ReConnectInterval)
 		connCount++
 		continue
 	}

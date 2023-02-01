@@ -13,7 +13,7 @@ import (
 type (
 	//Module 模块
 	Module struct {
-		engine       types.IEngine
+		Engine       types.IEngine
 		childModules []types.IModule
 		lock         sync.Mutex
 	}
@@ -21,7 +21,7 @@ type (
 
 // Init 初始化模块
 func (m *Module) Init(self types.IModule, engine types.IEngine, fn func()) {
-	m.engine = engine
+	m.Engine = engine
 	self.OnInit()
 	if m.childModules != nil {
 		for i := range m.childModules {
@@ -65,29 +65,29 @@ func (mm *Module) OnDestroy() {
 }
 
 func (m *Module) GetEngine() types.IEngine {
-	return m.engine
+	return m.Engine
 }
 func (m *Module) GetActorCtrl() types.IActorDiscovery {
-	return m.engine.NetWork().ActorDiscovery()
+	return m.Engine.NetWork().ActorDiscovery()
 }
 
 func (m *Module) GetSessionById(sid uint32) types.ISession {
-	return m.engine.NetWork().GetSessionById(sid)
+	return m.Engine.NetWork().GetSessionById(sid)
 }
 func (m *Module) GetSessionByAddr(addr string) types.ISession {
-	return m.engine.NetWork().GetSessionByAddr(addr)
+	return m.Engine.NetWork().GetSessionByAddr(addr)
 }
 func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
-	return m.engine.NetWork().Rpc().GetConnByAddr(addr)
+	return m.Engine.NetWork().Rpc().GetConnByAddr(addr)
 }
 func (m *Module) GetGrpcServer() *grpc.Server {
-	return m.engine.NetWork().Rpc().GetServer()
+	return m.Engine.NetWork().Rpc().GetServer()
 }
 func (m *Module) GetServiceConfListByType(sType string) []types.IServiceEntity {
-	return m.engine.NetWork().ServiceDiscovery().GetServiceConfListByType(sType)
+	return m.Engine.NetWork().ServiceDiscovery().GetServiceConfListByType(sType)
 }
 func (m *Module) GetServiceConfByID(id uint) types.IServiceEntity {
-	return m.engine.NetWork().ServiceDiscovery().GetServiceConfByID(id)
+	return m.Engine.NetWork().ServiceDiscovery().GetServiceConfByID(id)
 }
 
 // Register 注册协议对应消息体和回调函数
@@ -108,13 +108,13 @@ func (m *Module) Register(cmd uint32, fn interface{}) {
 			xlog.Error("协议回调函数参数需要是指针类型 cmd[%d]", cmd)
 			return
 		}
-		m.engine.NetWork().RegisterRType(cmd, in)
+		m.Engine.NetWork().RegisterRType(cmd, in)
 		break
 	default:
 		xlog.Error("协议回调函数参数有误")
 		return
 	}
-	m.engine.Event().Bind(cmd, fn)
+	m.Engine.Event().Bind(cmd, fn)
 }
 
 // RegisterRPC 注册RPC
@@ -163,7 +163,7 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 			key = in.Elem().Name() + key
 			cmd = strhelper.StringToHash(key)
 		}
-		m.engine.NetWork().RegisterRType(cmd, in)
+		m.Engine.NetWork().RegisterRType(cmd, in)
 		break
 	default:
 		xlog.Error("RPC回调函数参数有误")
@@ -173,5 +173,5 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 	if cmd == 0 {
 		cmd = strhelper.StringToHash(key)
 	}
-	m.engine.Event().Bind(cmd, fn)
+	m.Engine.Event().Bind(cmd, fn)
 }

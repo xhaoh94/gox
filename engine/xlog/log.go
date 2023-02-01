@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/xhaoh94/gox/engine/app"
 	"go.uber.org/zap"
 )
 
 var zlog *ZapLog
 
-func Init(id uint) {
+func Init(conf app.LogConf) {
 	if zlog != nil {
 		return
 	}
-	zlog = new(id)
+	zlog = new(conf)
 }
 func Destroy() {
 	if zlog != nil {
