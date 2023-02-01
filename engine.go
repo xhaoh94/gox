@@ -6,7 +6,6 @@ import (
 	"log"
 
 	"github.com/xhaoh94/gox/engine/app"
-	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xevent"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -14,12 +13,12 @@ import (
 
 type (
 	Engine struct {
-		context    context.Context
+		Context    context.Context
 		contextFn  context.CancelFunc
 		appConf    app.AppConf
 		mainModule types.IModule
 		event      types.IEvent
-		network    *network.NetWork
+		network    types.INetwork
 		endian     binary.ByteOrder
 	}
 )
@@ -28,8 +27,7 @@ func NewEngine(appConfPath string) *Engine {
 	e := new(Engine)
 	e.appConf = app.LoadAppConfig(appConfPath)
 	e.event = xevent.New()
-	e.context, e.contextFn = context.WithCancel(context.Background())
-	e.network = network.New(e, e.context)
+	e.Context, e.contextFn = context.WithCancel(context.Background())
 	e.endian = binary.LittleEndian
 	return e
 }
@@ -76,14 +74,19 @@ func (engine *Engine) Shutdown() {
 
 ////////////////////////////////////////////////////////////////
 
-// SetOutsideService 设置外部服务类型
-func (engine *Engine) SetOutsideService(ser types.IService, codec types.ICodec) {
-	engine.network.SetOutsideService(ser, engine.appConf.OutsideAddr, codec)
-}
+// // SetOutsideService 设置外部服务类型
+// func (engine *Engine) SetOutsideService(ser types.IService, codec types.ICodec) {
+// 	engine.network.SetOutsideService(ser, engine.appConf.OutsideAddr, codec)
+// }
 
-// SetInteriorService 设置内部服务类型
-func (engine *Engine) SetInteriorService(ser types.IService, codec types.ICodec) {
-	engine.network.SetInteriorService(ser, engine.appConf.InteriorAddr, codec)
+// // SetInteriorService 设置内部服务类型
+// func (engine *Engine) SetInteriorService(ser types.IService, codec types.ICodec) {
+// 	engine.network.SetInteriorService(ser, engine.appConf.InteriorAddr, codec)
+// }
+
+// SetModule 设置初始模块
+func (engine *Engine) SetNtetWork(m types.INetwork) {
+	engine.network = m
 }
 
 // SetEndian 设置大小端

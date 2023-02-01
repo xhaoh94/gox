@@ -9,6 +9,7 @@ import (
 	"github.com/xhaoh94/gox"
 
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
+	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/network/service/kcp"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/examples/sv/game"
@@ -28,11 +29,15 @@ func main() {
 	if appConfPath == "" {
 		log.Fatalf("需要启动配置文件路径")
 	}
+
 	engine := gox.NewEngine(appConfPath)
-	game.Engine = engine
+	network := network.New(engine, engine.Context)
+	network.SetInteriorService(new(kcp.KService), codechelper.Json)
+	network.SetOutsideService(new(ws.WService), codechelper.Json)
+
+	engine.SetNtetWork(network)
 	engine.SetModule(new(mods.MainModule))
-	engine.SetInteriorService(new(kcp.KService), codechelper.Json)
-	engine.SetOutsideService(new(ws.WService), codechelper.Json)
+	game.Engine = engine
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)

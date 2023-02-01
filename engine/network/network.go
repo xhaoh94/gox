@@ -123,19 +123,21 @@ func (network *NetWork) Serve() {
 }
 
 // SetOutsideService 设置外部服务类型
-func (network *NetWork) SetOutsideService(ser types.IService, addr string, codec types.ICodec) {
+func (network *NetWork) SetOutsideService(ser types.IService, codec types.ICodec) {
+	addr := network.engine.AppConf().OutsideAddr
 	if addr == "" {
 		return
 	}
+	ser.Init(addr, codec, network.engine, network.context)
 	network.outside = ser
-	network.outside.Init(addr, codec, network.engine, network.context)
 }
 
 // SetInteriorService 设置内部服务类型
-func (network *NetWork) SetInteriorService(ser types.IService, addr string, codec types.ICodec) {
+func (network *NetWork) SetInteriorService(ser types.IService, codec types.ICodec) {
+	addr := network.engine.AppConf().InteriorAddr
 	if addr == "" {
 		return
 	}
+	ser.Init(addr, codec, network.engine, network.context)
 	network.interior = ser
-	network.interior.Init(addr, codec, network.engine, network.context)
 }
