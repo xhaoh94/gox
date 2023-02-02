@@ -68,7 +68,7 @@ func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req 
 }
 
 func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) *netpack.L2G_Login {
-	token := commonhelper.GetUUID() //创建user对应的token
+	token := commonhelper.NewUUID() //创建user对应的token
 	xlog.Debug("创建user[%s]对应的token[%s]", req.User, token)
 	m.mux.Lock()
 	m.user2Token[req.User] = UserToken{user: req.User, token: token, time: time.Now()} //将user、token保存

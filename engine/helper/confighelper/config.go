@@ -2,11 +2,11 @@ package confighelper
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 )
 
 func LoadJson(filename string, out interface{}) error {
-	fileByte, fileErr := ioutil.ReadFile(filename)
+	fileByte, fileErr := os.ReadFile(filename)
 	if fileErr != nil {
 		return fileErr
 	}

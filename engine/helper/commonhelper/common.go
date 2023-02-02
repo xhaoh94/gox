@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// GetUUID 获取唯一id
-func GetUUID() string {
+// NewUUID 获取唯一id
+func NewUUID() string {
 	id := uuid.New()
 	return id.String()
 }

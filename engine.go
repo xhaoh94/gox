@@ -3,8 +3,8 @@ package gox
 import (
 	"context"
 	"encoding/binary"
-	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/xhaoh94/gox/engine/app"
@@ -41,7 +41,7 @@ func NewEngine(appConfPath string) *Engine {
 
 func loadConf(appConfPath string) app.AppConf {
 	AppCfg := app.AppConf{}
-	bytes, err := ioutil.ReadFile(appConfPath)
+	bytes, err := os.ReadFile(appConfPath)
 	if err != nil {
 		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
 		return AppCfg

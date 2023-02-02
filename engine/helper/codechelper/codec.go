@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
-	"io/ioutil"
+	"io"
 )
 
 // BytesToUint16 转uint16
@@ -123,5 +123,5 @@ func DecompressBytes(data []byte) ([]byte, error) {
 
 	defer reader.Close()
 
-	return ioutil.ReadAll(reader)
+	return io.ReadAll(reader)
 }
