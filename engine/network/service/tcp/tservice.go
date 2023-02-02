@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"context"
 	"net"
 	"time"
 
@@ -16,33 +15,33 @@ type TService struct {
 	listen net.Listener
 }
 
-func (ts *TService) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {
-	ts.Service.Init(addr, codec, engine, ctx)
-	ts.Service.ConnectChannelFunc = ts.connectChannel
+func (service *TService) Init(addr string, codec types.ICodec, engine types.IEngine) {
+	service.Service.Init(addr, codec, engine)
+	service.Service.ConnectChannelFunc = service.connectChannel
 }
 
 // Start 启动
-func (ts *TService) Start() {
+func (service *TService) Start() {
 	//初始化socket
-	if ts.listen == nil {
+	if service.listen == nil {
 		var err error
-		ts.listen, err = net.Listen("tcp", ts.GetAddr())
+		service.listen, err = net.Listen("tcp", service.GetAddr())
 		if err != nil {
-			xlog.Fatal("tcp 启动失败 addr:[%s] err:[%v]", ts.GetAddr(), err.Error())
-			ts.Stop()
+			xlog.Fatal("tcp 启动失败 addr:[%s] err:[%v]", service.GetAddr(), err.Error())
+			service.Stop()
 			return
 		}
 	}
-	xlog.Info("tcp[%s] 等待客户端连接...", ts.GetAddr())
-	go ts.accept()
+	xlog.Info("tcp[%s] 等待客户端连接...", service.GetAddr())
+	go service.accept()
 }
-func (ts *TService) accept() {
-	defer ts.AcceptWg.Done()
-	ts.IsRun = true
-	ts.AcceptWg.Add(1)
+func (service *TService) accept() {
+	defer service.AcceptWg.Done()
+	service.IsRun = true
+	service.AcceptWg.Add(1)
 	for {
-		conn, err := ts.listen.Accept()
-		if !ts.IsRun {
+		conn, err := service.listen.Accept()
+		if !service.IsRun {
 			break
 		}
 		if err != nil {
@@ -54,49 +53,49 @@ func (ts *TService) accept() {
 			break
 		}
 		xlog.Info("tcp 连接成功[%s]", conn.RemoteAddr().String())
-		go ts.connection(&conn)
+		go service.connection(&conn)
 	}
 }
-func (ts *TService) connection(conn *net.Conn) {
-	tchannel := ts.addChannel(conn)
-	ts.OnAccept(tchannel)
+func (service *TService) connection(conn *net.Conn) {
+	tchannel := service.addChannel(conn)
+	service.OnAccept(tchannel)
 }
-func (ts *TService) addChannel(conn *net.Conn) *TChannel {
+func (service *TService) addChannel(conn *net.Conn) *TChannel {
 	tChannel := channelPool.Get().(*TChannel)
 	tChannel.init(conn)
 	return tChannel
 }
 
 // connectChannel 链接新信道
-func (ts *TService) connectChannel(addr string) types.IChannel {
+func (service *TService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
-		conn, err := net.DialTimeout("tcp", addr, ts.Engine.AppConf().Network.ConnectTimeout)
+		conn, err := net.DialTimeout("tcp", addr, service.Engine.AppConf().Network.ConnectTimeout)
 		if err == nil {
-			return ts.addChannel(&conn)
+			return service.addChannel(&conn)
 		}
-		if connCount > ts.Engine.AppConf().Network.ReConnectMax {
+		if connCount > service.Engine.AppConf().Network.ReConnectMax {
 			xlog.Info("tcp 创建通信信道 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		if !ts.IsRun || ts.Engine.AppConf().Network.ReConnectInterval == 0 {
+		if !service.IsRun || service.Engine.AppConf().Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(ts.Engine.AppConf().Network.ReConnectInterval)
+		time.Sleep(service.Engine.AppConf().Network.ReConnectInterval)
 		connCount++
 		continue
 	}
 }
 
 // Stop 停止服务
-func (ts *TService) Stop() {
-	if !ts.IsRun {
+func (service *TService) Stop() {
+	if !service.IsRun {
 		return
 	}
-	ts.Service.Stop()
-	ts.IsRun = false
-	ts.CtxCancelFunc()
-	ts.listen.Close()
+	service.Service.Stop()
+	service.IsRun = false
+	service.CtxCancelFunc()
+	service.listen.Close()
 	// 等待线程结束
-	ts.AcceptWg.Wait()
+	service.AcceptWg.Wait()
 }

@@ -17,9 +17,9 @@ import (
 // rpc    rpc请求或响应时附带的rpcid
 // msg    最终包体数据
 // |-------------------------------------------------|
-// [ 必填  ][ 必填  ][ 必填 ][ 必填  ][ 选填 ][  选填  ]
-// [msglen][  key  ][ type ][ cmd  ][  rpc ][  msg  ]
-// [uint16][[8]byte][ byte ][uint32][uint32][[n]byte]
+// [ 必填 ] [ 必填  ]  [ 必填 ]  [ 必填  ] [ 选填 ] [  选填  ]
+// [msglen] [  key  ] [ type ]  [ cmd  ]  [  rpc ] [  msg  ]
+// [uint16] [[8]byte] [[1]byte] [uint32]  [uint32] [[n]byte]
 // |------------------------------------------------|
 
 var bytePool sync.Pool = sync.Pool{New: func() interface{} { return &ByteArray{} }}
@@ -32,51 +32,51 @@ type ByteArray struct {
 }
 
 func NewByteArray(data []byte, endian binary.ByteOrder) *ByteArray {
-	b := bytePool.Get().(*ByteArray)
-	b.data = data
-	b.position = 0
-	b.endian = endian
-	return b
+	bytearray := bytePool.Get().(*ByteArray)
+	bytearray.data = data
+	bytearray.position = 0
+	bytearray.endian = endian
+	return bytearray
 }
-func (b *ByteArray) AppendByte(v byte) {
-	b.data = append(b.data, v)
+func (bytearray *ByteArray) AppendByte(v byte) {
+	bytearray.data = append(bytearray.data, v)
 }
-func (b *ByteArray) AppendBytes(v []byte) {
-	b.data = append(b.data, v...)
+func (bytearray *ByteArray) AppendBytes(v []byte) {
+	bytearray.data = append(bytearray.data, v...)
 }
-func (b *ByteArray) AppendUint16(v uint16) {
-	bytes := codechelper.Uint16ToBytes(v, b.endian)
-	b.data = append(b.data, bytes...)
+func (bytearray *ByteArray) AppendUint16(v uint16) {
+	bytes := codechelper.Uint16ToBytes(v, bytearray.endian)
+	bytearray.data = append(bytearray.data, bytes...)
 }
-func (b *ByteArray) AppendInt16(v int16) {
-	bytes := codechelper.Int16ToBytes(v, b.endian)
-	b.data = append(b.data, bytes...)
+func (bytearray *ByteArray) AppendInt16(v int16) {
+	bytes := codechelper.Int16ToBytes(v, bytearray.endian)
+	bytearray.data = append(bytearray.data, bytes...)
 }
-func (b *ByteArray) AppendUint32(v uint32) {
-	bytes := codechelper.Uint32ToBytes(v, b.endian)
-	b.data = append(b.data, bytes...)
+func (bytearray *ByteArray) AppendUint32(v uint32) {
+	bytes := codechelper.Uint32ToBytes(v, bytearray.endian)
+	bytearray.data = append(bytearray.data, bytes...)
 }
-func (b *ByteArray) AppendInt32(v int32) {
-	bytes := codechelper.Int32ToBytes(v, b.endian)
-	b.data = append(b.data, bytes...)
+func (bytearray *ByteArray) AppendInt32(v int32) {
+	bytes := codechelper.Int32ToBytes(v, bytearray.endian)
+	bytearray.data = append(bytearray.data, bytes...)
 }
-func (b *ByteArray) AppendUint64(v uint64) {
-	bytes := codechelper.Uint64ToBytes(v, b.endian)
-	b.data = append(b.data, bytes...)
+func (bytearray *ByteArray) AppendUint64(v uint64) {
+	bytes := codechelper.Uint64ToBytes(v, bytearray.endian)
+	bytearray.data = append(bytearray.data, bytes...)
 }
-func (b *ByteArray) AppendInt64(v int64) {
-	bytes := codechelper.Int64ToBytes(v, b.endian)
-	b.data = append(b.data, bytes...)
+func (bytearray *ByteArray) AppendInt64(v int64) {
+	bytes := codechelper.Int64ToBytes(v, bytearray.endian)
+	bytearray.data = append(bytearray.data, bytes...)
 }
-func (b *ByteArray) AppendString(v string) {
+func (bytearray *ByteArray) AppendString(v string) {
 	l := len(v)
 	if l <= 0 {
 		return
 	}
-	b.AppendUint16(uint16(l))
-	b.data = append(b.data, []byte(v)...)
+	bytearray.AppendUint16(uint16(l))
+	bytearray.data = append(bytearray.data, []byte(v)...)
 }
-func (b *ByteArray) AppendMessage(msg interface{}, cdc types.ICodec) error {
+func (bytearray *ByteArray) AppendMessage(msg interface{}, cdc types.ICodec) error {
 	if msg == nil {
 		return consts.CodecError
 	}
@@ -84,93 +84,93 @@ func (b *ByteArray) AppendMessage(msg interface{}, cdc types.ICodec) error {
 	if err != nil {
 		return err
 	}
-	b.AppendBytes(msgData)
+	bytearray.AppendBytes(msgData)
 	return nil
 }
-func (b *ByteArray) ReadOneByte() byte {
-	bytes := b.data[b.position]
-	b.position++
+func (bytearray *ByteArray) ReadOneByte() byte {
+	bytes := bytearray.data[bytearray.position]
+	bytearray.position++
 	return bytes
 }
-func (b *ByteArray) ReadBytes(size uint32) []byte {
-	bytes := b.data[b.position : b.position+size]
-	b.position += size
+func (bytearray *ByteArray) ReadBytes(size uint32) []byte {
+	bytes := bytearray.data[bytearray.position : bytearray.position+size]
+	bytearray.position += size
 	return bytes
 }
 
-func (b *ByteArray) ReadUint16() uint16 {
-	r := codechelper.BytesToUint16(b.data[b.position:b.position+2], b.endian)
-	b.position += 2
+func (bytearray *ByteArray) ReadUint16() uint16 {
+	r := codechelper.BytesToUint16(bytearray.data[bytearray.position:bytearray.position+2], bytearray.endian)
+	bytearray.position += 2
 	return r
 }
 
-func (b *ByteArray) ReadInt16() int16 {
-	r := codechelper.BytesToint16(b.data[b.position:b.position+2], b.endian)
-	b.position += 2
+func (bytearray *ByteArray) ReadInt16() int16 {
+	r := codechelper.BytesToint16(bytearray.data[bytearray.position:bytearray.position+2], bytearray.endian)
+	bytearray.position += 2
 	return r
 }
 
-func (b *ByteArray) ReadUint32() uint32 {
-	r := codechelper.BytesToUint32(b.data[b.position:b.position+4], b.endian)
-	b.position += 4
+func (bytearray *ByteArray) ReadUint32() uint32 {
+	r := codechelper.BytesToUint32(bytearray.data[bytearray.position:bytearray.position+4], bytearray.endian)
+	bytearray.position += 4
 	return r
 }
 
-func (b *ByteArray) ReadInt32() int32 {
-	r := codechelper.BytesToint32(b.data[b.position:b.position+4], b.endian)
-	b.position += 4
+func (bytearray *ByteArray) ReadInt32() int32 {
+	r := codechelper.BytesToint32(bytearray.data[bytearray.position:bytearray.position+4], bytearray.endian)
+	bytearray.position += 4
 	return r
 }
 
-func (b *ByteArray) ReadUint64() uint64 {
-	r := codechelper.BytesToUint64(b.data[b.position:b.position+8], b.endian)
-	b.position += 8
+func (bytearray *ByteArray) ReadUint64() uint64 {
+	r := codechelper.BytesToUint64(bytearray.data[bytearray.position:bytearray.position+8], bytearray.endian)
+	bytearray.position += 8
 	return r
 }
 
-func (b *ByteArray) ReadInt64() int64 {
-	r := codechelper.BytesToint64(b.data[b.position:b.position+8], b.endian)
-	b.position += 8
+func (bytearray *ByteArray) ReadInt64() int64 {
+	r := codechelper.BytesToint64(bytearray.data[bytearray.position:bytearray.position+8], bytearray.endian)
+	bytearray.position += 8
 	return r
 }
-func (b *ByteArray) ReadString() string {
-	l := b.ReadUint16()
-	bytes := b.ReadBytes(uint32(l))
+func (bytearray *ByteArray) ReadString() string {
+	l := bytearray.ReadUint16()
+	bytes := bytearray.ReadBytes(uint32(l))
 	return string(bytes)
 }
 
-func (b *ByteArray) ReadMessage(msg interface{}, cdc types.ICodec) error {
-	msgLen := b.Length() - b.Position()
-	msgData := b.ReadBytes(msgLen)
+func (bytearray *ByteArray) ReadMessage(msg interface{}, cdc types.ICodec) error {
+	msgLen := bytearray.Length() - bytearray.Position()
+	msgData := bytearray.ReadBytes(msgLen)
 	if err := cdc.Decode(msgData, msg); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b *ByteArray) Position() uint32 {
-	return b.position
+func (bytearray *ByteArray) Position() uint32 {
+	return bytearray.position
 }
 
-func (b *ByteArray) Length() uint32 {
-	return uint32(len(b.data))
+func (bytearray *ByteArray) Length() uint32 {
+	return uint32(len(bytearray.data))
 }
-func (b *ByteArray) RemainLength() uint32 {
-	return b.Length() - b.Position()
+func (bytearray *ByteArray) RemainLength() uint32 {
+	return bytearray.Length() - bytearray.Position()
 }
 
-func (b *ByteArray) Data() []byte {
-	return b.data
+func (bytearray *ByteArray) Data() []byte {
+	return bytearray.data
 }
-func (b *ByteArray) PktData() []byte {
-	bytes := codechelper.Uint16ToBytes(uint16(b.Length()), b.endian)
-	bytes = append(bytes, b.data...)
+func (bytearray *ByteArray) PktData() []byte {
+	bytes := codechelper.Uint16ToBytes(uint16(bytearray.Length()), bytearray.endian)
+	bytes = append(bytes, bytearray.data...)
 	return bytes
 }
 
-func (b *ByteArray) Release() {
-	b.data = nil
-	b.position = 0
-	b.endian = nil
-	bytePool.Put(b)
+func (bytearray *ByteArray) Release() {
+	bytearray.data = nil
+	bytearray.position = 0
+	bytearray.endian = nil
+	bytePool.Put(bytearray)
 }

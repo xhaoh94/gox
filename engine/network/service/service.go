@@ -36,39 +36,39 @@ var sessionPool *sync.Pool = &sync.Pool{
 	}}
 
 // Init 服务初始化
-func (ser *Service) Init(addr string, codec types.ICodec, engine types.IEngine, ctx context.Context) {
-	ser.Engine = engine
-	ser.Codec = codec
-	ser.Ctx, ser.CtxCancelFunc = context.WithCancel(ctx)
-	ser.addr = addr
-	ser.idToSession = make(map[uint32]*Session)
-	ser.addrToSession = make(map[string]*Session)
+func (service *Service) Init(addr string, codec types.ICodec, engine types.IEngine) {
+	service.Engine = engine
+	service.Codec = codec
+	service.Ctx, service.CtxCancelFunc = context.WithCancel(engine.Context())
+	service.addr = addr
+	service.idToSession = make(map[uint32]*Session)
+	service.addrToSession = make(map[string]*Session)
 }
 
 // GetAddr 获取地址
-func (ser *Service) GetAddr() string {
-	return ser.addr
+func (service *Service) GetAddr() string {
+	return service.addr
 }
 
 // OnAccept 新链接回调
-func (ser *Service) OnAccept(channel types.IChannel) {
-	session := ser.createSession(channel, TagAccept)
+func (service *Service) OnAccept(channel types.IChannel) {
+	session := service.createSession(channel, TagAccept)
 	if session != nil {
-		ser.idMutex.Lock()
-		ser.idToSession[session.ID()] = session
-		ser.idMutex.Unlock()
-		ser.addrMutex.Lock()
-		ser.addrToSession[session.RemoteAddr()] = session
-		ser.addrMutex.Unlock()
+		service.idMutex.Lock()
+		service.idToSession[session.ID()] = session
+		service.idMutex.Unlock()
+		service.addrMutex.Lock()
+		service.addrToSession[session.RemoteAddr()] = session
+		service.addrMutex.Unlock()
 		session.start()
 	}
 }
 
 // GetSessionById 通过id获取Session
-func (ser *Service) GetSessionById(sid uint32) types.ISession {
-	defer ser.idMutex.Unlock()
-	ser.idMutex.Lock()
-	session, ok := ser.idToSession[sid]
+func (service *Service) GetSessionById(sid uint32) types.ISession {
+	defer service.idMutex.Unlock()
+	service.idMutex.Lock()
+	session, ok := service.idToSession[sid]
 	if ok {
 		return session
 	}
@@ -76,82 +76,82 @@ func (ser *Service) GetSessionById(sid uint32) types.ISession {
 }
 
 // GetSessionByAddr 通过addr地址获取Session
-func (ser *Service) GetSessionByAddr(addr string) types.ISession {
-	defer ser.addrMutex.Unlock()
-	ser.addrMutex.Lock()
-	if s, ok := ser.addrToSession[addr]; ok {
+func (service *Service) GetSessionByAddr(addr string) types.ISession {
+	defer service.addrMutex.Unlock()
+	service.addrMutex.Lock()
+	if s, ok := service.addrToSession[addr]; ok {
 		return s
 	}
-	session := ser.onConnect(addr)
+	session := service.onConnect(addr)
 	if session == nil {
 		xlog.Error("创建session失败 addr:[%s]", addr)
 		return nil
 	}
-	ser.idMutex.Lock()
-	ser.idToSession[session.ID()] = session
-	ser.idMutex.Unlock()
-	ser.addrToSession[addr] = session
+	service.idMutex.Lock()
+	service.idToSession[session.ID()] = session
+	service.idMutex.Unlock()
+	service.addrToSession[addr] = session
 	session.start()
 	return session
 }
 
 // Stop 停止服务
-func (ser *Service) Stop() {
-	ser.idMutex.Lock()
-	for k := range ser.idToSession {
-		ser.idToSession[k].stop()
+func (service *Service) Stop() {
+	service.idMutex.Lock()
+	for k := range service.idToSession {
+		service.idToSession[k].stop()
 	}
-	ser.idMutex.Unlock()
+	service.idMutex.Unlock()
 
-	// ser.addrMutex.Lock()
-	// for k := range ser.addrToSession {
-	// 	ser.addrToSession[k].stop()
+	// service.addrMutex.Lock()
+	// for k := range service.addrToSession {
+	// 	service.addrToSession[k].stop()
 	// }
-	// ser.addrMutex.Unlock()
+	// service.addrMutex.Unlock()
 
-	ser.sessionWg.Wait()
+	service.sessionWg.Wait()
 }
 
-func (ser *Service) delSession(session types.ISession) {
-	if ser.delSessionByID(session.ID()) && ser.delSessionByAddr(session.RemoteAddr()) {
-		ser.sessionWg.Done()
+func (service *Service) delSession(session types.ISession) {
+	if service.delSessionByID(session.ID()) && service.delSessionByAddr(session.RemoteAddr()) {
+		service.sessionWg.Done()
 	}
 }
 
-func (ser *Service) delSessionByID(id uint32) bool {
-	defer ser.idMutex.Unlock()
-	ser.idMutex.Lock()
-	if _, ok := ser.idToSession[id]; ok {
-		delete(ser.idToSession, id)
+func (service *Service) delSessionByID(id uint32) bool {
+	defer service.idMutex.Unlock()
+	service.idMutex.Lock()
+	if _, ok := service.idToSession[id]; ok {
+		delete(service.idToSession, id)
 		return true
 	}
 	return false
 }
 
-func (ser *Service) delSessionByAddr(addr string) bool {
-	defer ser.addrMutex.Unlock()
-	ser.addrMutex.Lock()
-	if _, ok := ser.addrToSession[addr]; ok {
-		delete(ser.addrToSession, addr)
+func (service *Service) delSessionByAddr(addr string) bool {
+	defer service.addrMutex.Unlock()
+	service.addrMutex.Lock()
+	if _, ok := service.addrToSession[addr]; ok {
+		delete(service.addrToSession, addr)
 		return true
 	}
 	return false
 }
 
-func (ser *Service) onConnect(addr string) *Session {
-	channel := ser.ConnectChannelFunc(addr)
+func (service *Service) onConnect(addr string) *Session {
+	channel := service.ConnectChannelFunc(addr)
 	if channel != nil {
-		return ser.createSession(channel, TagConnector)
+		return service.createSession(channel, TagConnector)
 	}
 	return nil
 }
 
-func (ser *Service) createSession(channel types.IChannel, tag Tag) *Session {
-	sid := atomic.AddUint32(&ser.sessionOps, 1)
+func (service *Service) createSession(channel types.IChannel, tag Tag) *Session {
+	sid := atomic.AddUint32(&service.sessionOps, 1)
 	session := sessionPool.Get().(*Session)
-	session.init(sid, ser, channel, tag)
+	session.init(sid, service, channel, tag)
 	if session != nil {
-		ser.sessionWg.Add(1)
+		service.sessionWg.Add(1)
 	}
 	return session
 }

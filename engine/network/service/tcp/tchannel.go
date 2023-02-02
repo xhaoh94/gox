@@ -20,69 +20,69 @@ type (
 	}
 )
 
-func (t *TChannel) init(conn *net.Conn) {
-	t.conn = conn
-	t.Init(t.write, t.Conn().RemoteAddr().String(), t.Conn().LocalAddr().String())
+func (channel *TChannel) init(conn *net.Conn) {
+	channel.conn = conn
+	channel.Init(channel.write, channel.Conn().RemoteAddr().String(), channel.Conn().LocalAddr().String())
 }
 
 // Conn 获取通信体
-func (t *TChannel) Conn() net.Conn {
-	t.connGuard.RLock()
-	defer t.connGuard.RUnlock()
-	return *t.conn
+func (channel *TChannel) Conn() net.Conn {
+	channel.connGuard.RLock()
+	defer channel.connGuard.RUnlock()
+	return *channel.conn
 }
 
 // Start 开启异步接收数据
-func (t *TChannel) Start() {
-	t.Wg.Add(1)
+func (channel *TChannel) Start() {
+	channel.Wg.Add(1)
 	go func() {
-		defer t.OnStop()
-		t.Wg.Wait()
+		defer channel.OnStop()
+		channel.Wg.Wait()
 	}()
-	t.IsRun = true
-	go t.recvAsync()
+	channel.IsRun = true
+	go channel.recvAsync()
 }
-func (t *TChannel) recvAsync() {
-	defer t.Wg.Done()
-	readTimeout := t.Session.AppConf().Network.ReadTimeout
+func (channel *TChannel) recvAsync() {
+	defer channel.Wg.Done()
+	readTimeout := channel.Session.AppConf().Network.ReadTimeout
 	if readTimeout > 0 {
-		if err := t.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", t.RemoteAddr(), err)
-			t.Stop()
+		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
+			xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", channel.RemoteAddr(), err)
+			channel.Stop()
 		}
 	}
-	for t.Conn() != nil && t.IsRun {
-		if t.Read(t.Conn()) {
-			t.Stop()
+	for channel.Conn() != nil && channel.IsRun {
+		if channel.Read(channel.Conn()) {
+			channel.Stop()
 		}
-		if t.IsRun && readTimeout > 0 {
-			if err := t.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", t.RemoteAddr(), err)
-				t.Stop()
+		if channel.IsRun && readTimeout > 0 {
+			if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
+				xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", channel.RemoteAddr(), err)
+				channel.Stop()
 			}
 		}
 	}
 }
 
-func (t *TChannel) write(buf []byte) {
-	_, err := t.Conn().Write(buf)
+func (channel *TChannel) write(buf []byte) {
+	_, err := channel.Conn().Write(buf)
 	if err != nil {
-		xlog.Error("tcp addr[%s]信道写入失败err:[%v]", t.RemoteAddr(), err)
+		xlog.Error("tcp addr[%s]信道写入失败err:[%v]", channel.RemoteAddr(), err)
 	}
 }
 
 // Stop 停止信道
-func (t *TChannel) Stop() {
-	if !t.IsRun {
+func (channel *TChannel) Stop() {
+	if !channel.IsRun {
 		return
 	}
-	t.Conn().Close()
-	t.IsRun = false
+	channel.Conn().Close()
+	channel.IsRun = false
 }
 
 // OnStop 关闭
-func (t *TChannel) OnStop() {
-	t.Channel.OnStop()
-	t.conn = nil
-	channelPool.Put(t)
+func (channel *TChannel) OnStop() {
+	channel.Channel.OnStop()
+	channel.conn = nil
+	channelPool.Put(channel)
 }

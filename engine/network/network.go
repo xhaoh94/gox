@@ -1,7 +1,6 @@
 package network
 
 import (
-	"context"
 	"reflect"
 	"sync"
 
@@ -13,9 +12,6 @@ import (
 
 type (
 	NetWork struct {
-		context   context.Context
-		contextFn context.CancelFunc
-
 		engine           types.IEngine
 		outside          types.IService
 		interior         types.IService
@@ -27,14 +23,13 @@ type (
 	}
 )
 
-func New(engine types.IEngine, ctx context.Context) *NetWork {
+func New(engine types.IEngine) *NetWork {
 	network := new(NetWork)
 	network.engine = engine
 	network.cmdType = make(map[uint32]reflect.Type)
-	network.context, network.contextFn = context.WithCancel(ctx)
 	network.rpc = rpc.New(engine)
-	network.actorDiscovery = newActorDiscovery(engine, network.context)
-	network.serviceDiscovery = newServiceDiscovery(engine, network.context)
+	network.actorDiscovery = newActorDiscovery(engine, engine.Context())
+	network.serviceDiscovery = newServiceDiscovery(engine, engine.Context())
 	return network
 }
 
@@ -95,7 +90,6 @@ func (network *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
 }
 
 func (network *NetWork) Init() {
-
 	if network.interior == nil {
 		xlog.Fatal("没有初始化内部网络通信")
 		return
@@ -109,7 +103,6 @@ func (network *NetWork) Init() {
 	network.actorDiscovery.(*ActorDiscovery).Start()
 }
 func (network *NetWork) Destroy() {
-	network.contextFn()
 	if network.outside != nil {
 		network.outside.Stop()
 	}
@@ -128,7 +121,7 @@ func (network *NetWork) SetOutsideService(ser types.IService, codec types.ICodec
 	if addr == "" {
 		return
 	}
-	ser.Init(addr, codec, network.engine, network.context)
+	ser.Init(addr, codec, network.engine)
 	network.outside = ser
 }
 
@@ -138,6 +131,6 @@ func (network *NetWork) SetInteriorService(ser types.IService, codec types.ICode
 	if addr == "" {
 		return
 	}
-	ser.Init(addr, codec, network.engine, network.context)
+	ser.Init(addr, codec, network.engine)
 	network.interior = ser
 }

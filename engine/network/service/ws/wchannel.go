@@ -21,75 +21,75 @@ type (
 	}
 )
 
-func (w *WChannel) init(conn *websocket.Conn) {
-	w.conn = conn
-	w.Init(w.write, w.Conn().RemoteAddr().String(), w.Conn().LocalAddr().String())
+func (channe *WChannel) init(conn *websocket.Conn) {
+	channe.conn = conn
+	channe.Init(channe.write, channe.Conn().RemoteAddr().String(), channe.Conn().LocalAddr().String())
 }
 
 // Conn 获取通信体
-func (w *WChannel) Conn() *websocket.Conn {
-	w.connGuard.RLock()
-	defer w.connGuard.RUnlock()
-	return w.conn
+func (channe *WChannel) Conn() *websocket.Conn {
+	channe.connGuard.RLock()
+	defer channe.connGuard.RUnlock()
+	return channe.conn
 }
 
 // Start 开启异步接收数据
-func (w *WChannel) Start() {
-	w.Wg.Add(1)
+func (channe *WChannel) Start() {
+	channe.Wg.Add(1)
 	go func() {
-		defer w.OnStop()
-		w.Wg.Wait()
+		defer channe.OnStop()
+		channe.Wg.Wait()
 	}()
-	w.IsRun = true
-	go w.recvAsync()
+	channe.IsRun = true
+	go channe.recvAsync()
 }
-func (w *WChannel) recvAsync() {
-	defer w.Wg.Done()
-	readTimeout := w.Session.AppConf().Network.ReadTimeout
+func (channe *WChannel) recvAsync() {
+	defer channe.Wg.Done()
+	readTimeout := channe.Session.AppConf().Network.ReadTimeout
 	if readTimeout > 0 {
-		if err := w.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
-			xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)
-			w.Stop() //超时断开链接
+		if err := channe.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
+			xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", channe.RemoteAddr(), err)
+			channe.Stop() //超时断开链接
 		}
 	}
-	for w.Conn() != nil && w.IsRun {
-		_, r, err := w.Conn().NextReader()
+	for channe.Conn() != nil && channe.IsRun {
+		_, r, err := channe.Conn().NextReader()
 		if err != nil {
-			xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)
-			w.Stop() //超时断开链接
+			xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", channe.RemoteAddr(), err)
+			channe.Stop() //超时断开链接
 			break
 		}
-		if w.Read(r) {
-			w.Stop()
+		if channe.Read(r) {
+			channe.Stop()
 		}
-		if w.IsRun && readTimeout > 0 {
-			if err = w.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
-				xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", w.RemoteAddr(), err)
-				w.Stop() //超时断开链接
+		if channe.IsRun && readTimeout > 0 {
+			if err = channe.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
+				xlog.Info("websocket addr[%s] 接受数据超时err:[%v]", channe.RemoteAddr(), err)
+				channe.Stop() //超时断开链接
 			}
 		}
 	}
 }
 
-func (w *WChannel) write(buf []byte) {
-	err := w.Conn().WriteMessage(w.Session.AppConf().WebSocket.WebSocketMessageType, buf)
+func (channe *WChannel) write(buf []byte) {
+	err := channe.Conn().WriteMessage(channe.Session.AppConf().WebSocket.WebSocketMessageType, buf)
 	if err != nil {
-		xlog.Error("websocket addr[%s]信道写入失败err:[%v]", w.RemoteAddr(), err)
+		xlog.Error("websocket addr[%s]信道写入失败err:[%v]", channe.RemoteAddr(), err)
 	}
 }
 
 // Stop 停止信道
-func (w *WChannel) Stop() {
-	if !w.IsRun {
+func (channe *WChannel) Stop() {
+	if !channe.IsRun {
 		return
 	}
-	w.Conn().Close()
-	w.IsRun = false
+	channe.Conn().Close()
+	channe.IsRun = false
 }
 
 // OnStop 关闭
-func (w *WChannel) OnStop() {
-	w.Channel.OnStop()
-	w.conn = nil
-	channelPool.Put(w)
+func (channe *WChannel) OnStop() {
+	channe.Channel.OnStop()
+	channe.conn = nil
+	channelPool.Put(channe)
 }

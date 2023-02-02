@@ -33,12 +33,12 @@ func init() {
 }
 
 func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *Rpcx {
-	dr := pool.Get().(*Rpcx)
-	dr.sid = sid
-	dr.c = make(chan bool)
-	dr.ctx = ctx
-	dr.response = response
-	return dr
+	rpcx := pool.Get().(*Rpcx)
+	rpcx.sid = sid
+	rpcx.c = make(chan bool)
+	rpcx.ctx = ctx
+	rpcx.response = response
+	return rpcx
 }
 
 // Run 调用
@@ -61,33 +61,33 @@ func (nr *Rpcx) Await() bool {
 	}
 }
 
-func (dr *Rpcx) close() {
-	close(dr.c)
-	if dr.rid != 0 && dr.del != nil {
-		dr.del(dr.rid)
+func (rpcx *Rpcx) close() {
+	close(rpcx.c)
+	if rpcx.rid != 0 && rpcx.del != nil {
+		rpcx.del(rpcx.rid)
 	}
 }
 
-func (dr *Rpcx) release() {
-	dr.sid = 0
-	dr.rid = 0
-	dr.c = nil
-	dr.ctx = nil
-	dr.response = nil
-	dr.del = nil
-	pool.Put(dr)
+func (rpcx *Rpcx) release() {
+	rpcx.sid = 0
+	rpcx.rid = 0
+	rpcx.c = nil
+	rpcx.ctx = nil
+	rpcx.response = nil
+	rpcx.del = nil
+	pool.Put(rpcx)
 }
 
-func (dr *Rpcx) GetResponse() interface{} {
-	return dr.response
+func (rpcx *Rpcx) GetResponse() interface{} {
+	return rpcx.response
 }
 
 // RID 获取RPCID
-func (dr *Rpcx) RID() uint32 {
-	if dr.rid == 0 {
-		dr.rid = AssignID()
+func (rpcx *Rpcx) RID() uint32 {
+	if rpcx.rid == 0 {
+		rpcx.rid = AssignID()
 	}
-	return dr.rid
+	return rpcx.rid
 }
 
 func AssignID() uint32 {

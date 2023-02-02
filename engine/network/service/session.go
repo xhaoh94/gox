@@ -103,7 +103,7 @@ func (session *Session) Send(cmd uint32, msg interface{}) bool {
 }
 
 // Call 呼叫
-func (session *Session) Call(msg interface{}, response interface{}) types.IXRPC {
+func (session *Session) Call(msg interface{}, response interface{}) types.IRpcx {
 	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
 	if !session.isAct() {
 		defer dr.Run(false)
@@ -125,7 +125,7 @@ func (session *Session) Call(msg interface{}, response interface{}) types.IXRPC 
 	return dr
 }
 
-func (session *Session) ActorCall(actorID uint32, msg interface{}, response interface{}) types.IXRPC {
+func (session *Session) ActorCall(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
 
 	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
 	if !session.isAct() {

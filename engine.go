@@ -3,33 +3,64 @@ package gox
 import (
 	"context"
 	"encoding/binary"
+	"io/ioutil"
 	"log"
+	"time"
 
 	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xevent"
 	"github.com/xhaoh94/gox/engine/xlog"
+	yaml "gopkg.in/yaml.v3"
+)
+
+var (
+// Engine types.IEngine
 )
 
 type (
 	Engine struct {
-		Context    context.Context
-		contextFn  context.CancelFunc
-		appConf    app.AppConf
-		mainModule types.IModule
-		event      types.IEvent
-		network    types.INetwork
-		endian     binary.ByteOrder
+		ctx         context.Context
+		ctxCancelFn context.CancelFunc
+		appConf     app.AppConf
+		mainModule  types.IModule
+		event       types.IEvent
+		network     types.INetwork
+		endian      binary.ByteOrder
 	}
 )
 
 func NewEngine(appConfPath string) *Engine {
 	e := new(Engine)
-	e.appConf = app.LoadAppConfig(appConfPath)
+	e.appConf = loadConf(appConfPath)
+	e.ctx, e.ctxCancelFn = context.WithCancel(context.Background())
 	e.event = xevent.New()
-	e.Context, e.contextFn = context.WithCancel(context.Background())
 	e.endian = binary.LittleEndian
 	return e
+}
+
+func loadConf(appConfPath string) app.AppConf {
+	AppCfg := app.AppConf{}
+	bytes, err := ioutil.ReadFile(appConfPath)
+	if err != nil {
+		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
+		return AppCfg
+	}
+	err = yaml.Unmarshal(bytes, &AppCfg)
+	if err != nil {
+		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
+		return AppCfg
+	}
+	AppCfg.Network.ReConnectInterval *= time.Second
+	AppCfg.Network.Heartbeat *= time.Second
+	AppCfg.Network.ConnectTimeout *= time.Second
+	AppCfg.Network.ReadTimeout *= time.Second
+	AppCfg.Etcd.EtcdTimeout *= time.Second
+	return AppCfg
+}
+
+func (engine *Engine) Context() context.Context {
+	return engine.ctx
 }
 
 func (engine *Engine) Endian() binary.ByteOrder {
@@ -54,21 +85,22 @@ func (engine *Engine) Start() {
 		log.Fatalf("没有设置主模块")
 		return
 	}
-	xlog.Init(engine.AppConf().Log)
-	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", engine.AppConf().Eid, engine.AppConf().EType, engine.AppConf().Version)
+	appConf := engine.appConf
+	xlog.Init(appConf.Log)
+	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", appConf.Eid, appConf.EType, appConf.Version)
 	xlog.Info("[ByteOrder:%s]", engine.endian.String())
 	engine.network.Init()
 	engine.mainModule.Init(engine.mainModule, engine, func() {
-		engine.network.Serve()
+		engine.network.Rpc().Serve()
 	})
 }
 
 // Shutdown 关闭
 func (engine *Engine) Shutdown() {
-	engine.contextFn()
+	engine.ctxCancelFn()
 	engine.mainModule.Destroy(engine.mainModule)
 	engine.network.Destroy()
-	xlog.Info("服务退出[sid:%d]", engine.AppConf().Eid)
+	xlog.Info("服务退出[sid:%d]", engine.appConf.Eid)
 	xlog.Destroy()
 }
 
@@ -84,19 +116,19 @@ func (engine *Engine) Shutdown() {
 // 	engine.network.SetInteriorService(ser, engine.appConf.InteriorAddr, codec)
 // }
 
-// SetModule 设置初始模块
-func (engine *Engine) SetNtetWork(m types.INetwork) {
-	engine.network = m
+// SetModule 设置网络模块
+func (engine *Engine) SetNetWork(network types.INetwork) {
+	engine.network = network
 }
 
 // SetEndian 设置大小端
-func (engine *Engine) SetEndian(bo binary.ByteOrder) {
-	engine.endian = bo
+func (engine *Engine) SetEndian(endian binary.ByteOrder) {
+	engine.endian = endian
 }
 
 // SetModule 设置初始模块
-func (engine *Engine) SetModule(m types.IModule) {
-	engine.mainModule = m
+func (engine *Engine) SetModule(module types.IModule) {
+	engine.mainModule = module
 }
 
 ////////////////////////////////////////////////////////////

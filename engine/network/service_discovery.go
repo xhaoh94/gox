@@ -28,38 +28,38 @@ type (
 
 	//ServiceEntity 服务组配置
 	ServiceEntity struct {
-		//RPCAddr grpc服务地址
-		RPCAddr string
+		//EID 标记
+		EID uint
+		//EType 服务类型
+		EType string
+		//版本
+		Version string
+		//RpcAddr rpc服务地址
+		RpcAddr string
 		//AddrHost 外部服务地址
 		OutsideAddr string
 		//InteriorAddr 内部服务地址
 		InteriorAddr string
-		//ServiceID 标记
-		ServiceID uint
-		//ServiceType 服务类型
-		ServiceType string
-		//版本
-		Version string
 	}
 )
 
-func (sc ServiceEntity) GetRpcAddr() string {
-	return sc.RPCAddr
+func (entity ServiceEntity) GetRpcAddr() string {
+	return entity.RpcAddr
 }
-func (sc ServiceEntity) GetOutsideAddr() string {
-	return sc.OutsideAddr
+func (entity ServiceEntity) GetOutsideAddr() string {
+	return entity.OutsideAddr
 }
-func (sc ServiceEntity) GetInteriorAddr() string {
-	return sc.InteriorAddr
+func (entity ServiceEntity) GetInteriorAddr() string {
+	return entity.InteriorAddr
 }
-func (sc ServiceEntity) GetServiceID() uint {
-	return sc.ServiceID
+func (entity ServiceEntity) GetID() uint {
+	return entity.EID
 }
-func (sc ServiceEntity) GetServiceType() string {
-	return sc.ServiceType
+func (entity ServiceEntity) GetType() string {
+	return entity.EType
 }
-func (sc ServiceEntity) GetVersion() string {
-	return sc.Version
+func (entity ServiceEntity) GetVersion() string {
+	return entity.Version
 }
 
 func newServiceDiscovery(engine types.IEngine, ctx context.Context) *ServiceDiscovery {
@@ -71,13 +71,13 @@ func newServiceDiscovery(engine types.IEngine, ctx context.Context) *ServiceDisc
 	}
 }
 
-func convertKey(sc ServiceEntity) string {
-	key := "services/" + sc.ServiceType + "/" + strhelper.ValToString(sc.ServiceID)
+func convertKey(entity ServiceEntity) string {
+	key := "services/" + entity.EType + "/" + strhelper.ValToString(entity.EID)
 	return key
 }
 
-func convertValue(sc ServiceEntity) string {
-	data, err := json.Marshal(sc)
+func convertValue(entity ServiceEntity) string {
+	data, err := json.Marshal(entity)
 	if err != nil {
 		return ""
 	}
@@ -92,39 +92,40 @@ func newServiceConfig(val []byte) (ServiceEntity, error) {
 	return service, nil
 }
 
-func (reg *ServiceDiscovery) Start() {
-	reg.curService = ServiceEntity{
-		ServiceID:    reg.engine.AppConf().Eid,
-		ServiceType:  reg.engine.AppConf().EType,
-		Version:      reg.engine.AppConf().Version,
-		OutsideAddr:  reg.engine.AppConf().OutsideAddr,
-		InteriorAddr: reg.engine.AppConf().InteriorAddr,
-		RPCAddr:      reg.engine.AppConf().RpcAddr,
+func (discovery *ServiceDiscovery) Start() {
+	appConf := discovery.engine.AppConf()
+	discovery.curService = ServiceEntity{
+		EID:          appConf.Eid,
+		EType:        appConf.EType,
+		Version:      appConf.Version,
+		OutsideAddr:  appConf.OutsideAddr,
+		InteriorAddr: appConf.InteriorAddr,
+		RpcAddr:      appConf.RpcAddr,
 	}
-	timeoutCtx, timeoutCancelFunc := context.WithCancel(reg.context)
-	go reg.checkTimeout(timeoutCtx)
+	timeoutCtx, timeoutCancelFunc := context.WithCancel(discovery.context)
+	go discovery.checkTimeout(timeoutCtx)
 	var err error
-	reg.es, err = etcd.NewEtcdService(reg.engine.AppConf().Etcd, reg.get, reg.put, reg.del)
+	discovery.es, err = etcd.NewEtcdService(discovery.engine.AppConf().Etcd, discovery.get, discovery.put, discovery.del)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("服务注册失败 [%v]", err)
 		return
 	}
-	key := convertKey(reg.curService)
-	value := convertValue(reg.curService)
-	reg.es.Put(key, value)
-	reg.es.Get("services/", true)
+	key := convertKey(discovery.curService)
+	value := convertValue(discovery.curService)
+	discovery.es.Put(key, value)
+	discovery.es.Get("services/", true)
 }
-func (reg *ServiceDiscovery) Stop() {
-	// if reg.curService != nil {
-	// 	key := convertKey(reg.curService)
-	// 	reg.es.Del(key)
+func (discovery *ServiceDiscovery) Stop() {
+	// if discovery.curService != nil {
+	// 	key := convertKey(discovery.curService)
+	// 	discovery.es.Del(key)
 	// }
-	if reg.es != nil {
-		reg.es.Close()
+	if discovery.es != nil {
+		discovery.es.Close()
 	}
 }
-func (reg *ServiceDiscovery) checkTimeout(ctx context.Context) {
+func (discovery *ServiceDiscovery) checkTimeout(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		// 被取消，直接返回
@@ -134,41 +135,41 @@ func (reg *ServiceDiscovery) checkTimeout(ctx context.Context) {
 	}
 }
 
-// GetServiceConfByID 通过id获取服务配置
-func (reg *ServiceDiscovery) GetServiceConfByID(id uint) types.IServiceEntity {
-	defer reg.lock.RUnlock()
-	reg.lock.RLock()
-	if conf, ok := reg.idToService[id]; ok {
+// GetServiceEntityByID 通过id获取服务配置
+func (discovery *ServiceDiscovery) GetServiceEntityByID(id uint) types.IServiceEntity {
+	defer discovery.lock.RUnlock()
+	discovery.lock.RLock()
+	if conf, ok := discovery.idToService[id]; ok {
 		return conf
 	}
 	return nil
 }
 
-// GetServiceConfListByType 获取对应类型的所有服务配置
-func (reg *ServiceDiscovery) GetServiceConfListByType(serviceType string) []types.IServiceEntity {
-	defer reg.lock.RUnlock()
-	reg.lock.RLock()
+// GetServiceEntitysByType 获取对应类型的所有服务配置
+func (discovery *ServiceDiscovery) GetServiceEntitysByType(serviceType string) []types.IServiceEntity {
+	defer discovery.lock.RUnlock()
+	discovery.lock.RLock()
 	list := make([]types.IServiceEntity, 0)
-	for k := range reg.idToService {
-		v := reg.idToService[k]
-		if v.ServiceType == serviceType {
+	for k := range discovery.idToService {
+		v := discovery.idToService[k]
+		if v.EType == serviceType {
 			list = append(list, v)
 		}
 	}
 	return list
 }
 
-func (reg *ServiceDiscovery) get(resp *clientv3.GetResponse) {
+func (discovery *ServiceDiscovery) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
-	defer reg.lock.Unlock()
-	reg.lock.Lock()
+	defer discovery.lock.Unlock()
+	discovery.lock.Lock()
 	for i := range resp.Kvs {
-		reg.onPut(resp.Kvs[i])
+		discovery.onPut(resp.Kvs[i])
 	}
 }
-func (reg *ServiceDiscovery) onPut(kv *mvccpb.KeyValue) {
+func (discovery *ServiceDiscovery) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
@@ -178,23 +179,23 @@ func (reg *ServiceDiscovery) onPut(kv *mvccpb.KeyValue) {
 		xlog.Error("解析服务注册配置错误[%v]", err)
 		return
 	}
-	reg.idToService[service.ServiceID] = service
-	reg.keyToService[key] = service
-	xlog.Info("服务注册发现 sid:[%d] type:[%s] version:[%s]", service.ServiceID, service.ServiceType, service.Version)
+	discovery.idToService[service.EID] = service
+	discovery.keyToService[key] = service
+	xlog.Info("服务注册发现 sid:[%d] type:[%s] version:[%s]", service.EID, service.EType, service.Version)
 }
-func (reg *ServiceDiscovery) put(kv *mvccpb.KeyValue) {
-	defer reg.lock.Unlock()
-	reg.lock.Lock()
-	reg.onPut(kv)
+func (discovery *ServiceDiscovery) put(kv *mvccpb.KeyValue) {
+	defer discovery.lock.Unlock()
+	discovery.lock.Lock()
+	discovery.onPut(kv)
 }
 
-func (reg *ServiceDiscovery) del(kv *mvccpb.KeyValue) {
-	reg.lock.Lock()
-	defer reg.lock.Unlock()
+func (discovery *ServiceDiscovery) del(kv *mvccpb.KeyValue) {
+	discovery.lock.Lock()
+	defer discovery.lock.Unlock()
 	key := string(kv.Key)
-	if service, ok := reg.keyToService[key]; ok {
-		delete(reg.keyToService, key)
-		delete(reg.idToService, service.ServiceID)
-		xlog.Info("服务注销 sid:[%d] type:[%s]", service.ServiceID, service.ServiceType)
+	if service, ok := discovery.keyToService[key]; ok {
+		delete(discovery.keyToService, key)
+		delete(discovery.idToService, service.EID)
+		xlog.Info("服务注销 sid:[%d] type:[%s]", service.EID, service.EType)
 	}
 }

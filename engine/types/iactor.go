@@ -6,7 +6,7 @@ type (
 		Add(IActorEntity)
 		Del(IActorEntity)
 		Send(uint32, interface{}) bool
-		Call(uint32, interface{}, interface{}) IXRPC
+		Call(uint32, interface{}, interface{}) IRpcx
 	}
 	IActorEntity interface {
 		ActorID() uint32

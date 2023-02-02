@@ -78,16 +78,16 @@ func (m *Module) GetSessionByAddr(addr string) types.ISession {
 	return m.Engine.NetWork().GetSessionByAddr(addr)
 }
 func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
-	return m.Engine.NetWork().Rpc().GetConnByAddr(addr)
+	return m.Engine.NetWork().Rpc().GetClientConnByAddr(addr)
 }
 func (m *Module) GetGrpcServer() *grpc.Server {
 	return m.Engine.NetWork().Rpc().GetServer()
 }
 func (m *Module) GetServiceConfListByType(sType string) []types.IServiceEntity {
-	return m.Engine.NetWork().ServiceDiscovery().GetServiceConfListByType(sType)
+	return m.Engine.NetWork().ServiceDiscovery().GetServiceEntitysByType(sType)
 }
 func (m *Module) GetServiceConfByID(id uint) types.IServiceEntity {
-	return m.Engine.NetWork().ServiceDiscovery().GetServiceConfByID(id)
+	return m.Engine.NetWork().ServiceDiscovery().GetServiceEntityByID(id)
 }
 
 // Register 注册协议对应消息体和回调函数

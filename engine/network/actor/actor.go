@@ -14,13 +14,13 @@ type (
 )
 
 // AddActorFn 添加Actor回调
-func (art *Actor) AddActorFn(fn interface{}) {
-	defer art.fnLock.Unlock()
-	art.fnLock.Lock()
-	if art.fnList == nil {
-		art.fnList = make([]interface{}, 0)
+func (actor *Actor) AddActorFn(fn interface{}) {
+	defer actor.fnLock.Unlock()
+	actor.fnLock.Lock()
+	if actor.fnList == nil {
+		actor.fnList = make([]interface{}, 0)
 	}
-	art.fnList = append(art.fnList, fn)
+	actor.fnList = append(actor.fnList, fn)
 }
 
 func (art *Actor) Destroy() {

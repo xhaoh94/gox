@@ -1,11 +1,7 @@
 package app
 
 import (
-	"io/ioutil"
-	"log"
 	"time"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 type (
@@ -72,8 +68,6 @@ type (
 	}
 )
 
-var AppCfg AppConf
-
 // func initCfg() {
 // 	AppCfg = &AppConf{
 // 		Log: LogConf{
@@ -118,23 +112,3 @@ var AppCfg AppConf
 // 		},
 // 	}
 // }
-
-func LoadAppConfig(appConfPath string) AppConf {
-	AppCfg = AppConf{}
-	bytes, err := ioutil.ReadFile(appConfPath)
-	if err != nil {
-		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
-		return AppCfg
-	}
-	err = yaml.Unmarshal(bytes, &AppCfg)
-	if err != nil {
-		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
-		return AppCfg
-	}
-	AppCfg.Network.ReConnectInterval *= time.Second
-	AppCfg.Network.Heartbeat *= time.Second
-	AppCfg.Network.ConnectTimeout *= time.Second
-	AppCfg.Network.ReadTimeout *= time.Second
-	AppCfg.Etcd.EtcdTimeout *= time.Second
-	return AppCfg
-}

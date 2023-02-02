@@ -10,6 +10,7 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
+	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -63,14 +64,16 @@ func (m *MainModule) RspEnter(ctx context.Context, session types.ISession, rsp *
 
 // 模拟客户端发数据
 func main() {
-	appConfPath := *flag.String("appConfPath", "", "grpc服务地址")
+	appConfPath := *flag.String("appConf", "", "grpc服务地址")
 	flag.Parse()
 	if appConfPath == "" {
 		log.Fatalf("需要启动配置文件路径")
 	}
 	engine := gox.NewEngine(appConfPath)
+	network := network.New(engine)
+	network.SetInteriorService(new(ws.WService), codechelper.Json)
+	engine.SetNetWork(network)
 	engine.SetModule(new(MainModule))
-	engine.SetInteriorService(new(ws.WService), codechelper.Json)
 	engine.Start()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)

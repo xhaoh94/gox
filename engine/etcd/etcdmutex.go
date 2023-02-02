@@ -9,13 +9,13 @@ import (
 )
 
 type EtcdMutex struct {
-	Ttl     int64              //租约时间
-	Conf    clientv3.Config    //etcd集群配置
-	Key     string             //etcd的key
-	cancel  context.CancelFunc //关闭续租的func
-	lease   clientv3.Lease
-	leaseID clientv3.LeaseID
-	txn     clientv3.Txn
+	Ttl         int64              //租约时间
+	Conf        clientv3.Config    //etcd集群配置
+	Key         string             //etcd的key
+	ctxCancelFn context.CancelFunc //关闭续租的func
+	lease       clientv3.Lease
+	leaseID     clientv3.LeaseID
+	txn         clientv3.Txn
 }
 
 func NewEtcdMutex(key string, tl int64, conf clientv3.Config) *EtcdMutex {
@@ -38,11 +38,11 @@ func (em *EtcdMutex) init() error {
 	if err != nil {
 		return err
 	}
-	ctx, em.cancel = context.WithCancel(context.TODO())
+	ctx, em.ctxCancelFn = context.WithCancel(context.TODO())
 	em.leaseID = leaseResp.ID
 	_, err = em.lease.KeepAlive(ctx, em.leaseID)
 	if err != nil {
-		em.cancel()
+		em.ctxCancelFn()
 	}
 	return err
 }
@@ -65,6 +65,6 @@ func (em *EtcdMutex) Lock() error {
 	return nil
 }
 func (em *EtcdMutex) UnLock() {
-	em.cancel()
+	em.ctxCancelFn()
 	em.lease.Revoke(context.TODO(), em.leaseID)
 }

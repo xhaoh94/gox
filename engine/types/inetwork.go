@@ -1,7 +1,6 @@
 package types
 
 import (
-	"context"
 	"reflect"
 
 	"google.golang.org/grpc"
@@ -16,8 +15,11 @@ type (
 		GetSessionById(uint32) ISession
 		//GetSessionByAddr 通过地址获取通信Session
 		GetSessionByAddr(string) ISession
+		//Rpc
 		Rpc() IRPC
+		//服务发现
 		ServiceDiscovery() IServiceDiscovery
+		//Actor注册
 		ActorDiscovery() IActorDiscovery
 		RegisterRType(uint32, reflect.Type)
 		UnRegisterRType(uint32)
@@ -25,7 +27,7 @@ type (
 	}
 	//IService 服务器接口
 	IService interface {
-		Init(string, ICodec, IEngine, context.Context)
+		Init(string, ICodec, IEngine)
 		Start()
 		Stop()
 		GetAddr() string
@@ -40,9 +42,9 @@ type (
 		//Send 发送数据
 		Send(uint32, interface{}) bool
 		//Call RPC请求
-		Call(interface{}, interface{}) IXRPC
+		Call(interface{}, interface{}) IRpcx
 		//ActorCall
-		ActorCall(uint32, interface{}, interface{}) IXRPC
+		ActorCall(uint32, interface{}, interface{}) IRpcx
 		Close()
 	}
 	//IChannel 信道接口
@@ -60,11 +62,11 @@ type (
 		Serve()
 		//GetServer 获取GRpc服务
 		GetServer() *grpc.Server
-		//GetConnByAddr 通过地址获取GRPC客户端
-		GetConnByAddr(string) *grpc.ClientConn
+		//GetClientConnByAddr 通过地址获取GRPC客户端
+		GetClientConnByAddr(string) *grpc.ClientConn
 	}
-	//IXRPC 内部rpc
-	IXRPC interface {
+	//IRpcx 内部rpc
+	IRpcx interface {
 		Await() bool
 	}
 )
