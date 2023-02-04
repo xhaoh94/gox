@@ -1,8 +1,8 @@
 package types
 
 type (
-	//IActorDiscovery actor发现接口
-	IActorDiscovery interface {
+	//IActorSystem actor发现接口
+	IActorSystem interface {
 		Add(IActorEntity)
 		Del(IActorEntity)
 		Send(uint32, interface{}) bool

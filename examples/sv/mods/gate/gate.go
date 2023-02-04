@@ -35,9 +35,9 @@ func (m *GateModule) Test(ctx context.Context, session types.ISession, msg *pb.A
 func (m *GateModule) RspLogin(ctx context.Context, session types.ISession, msg *netpack.C2G_Login) {
 
 	//TODO 验证账号密码是否正确
-	cfgs := m.GetServiceConfListByType(game.Login) //获取login服务器配置
+	cfgs := gox.ServiceSystem.GetServiceEntitysByType(game.Login) //获取login服务器配置
 	loginCfg := cfgs[0]
-	loginSession := m.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
+	loginSession := gox.NetWork.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
 	Rsp_L2G_Login := &netpack.L2G_Login{}
 	b := loginSession.Call(&netpack.G2L_Login{User: msg.User}, Rsp_L2G_Login).Await() //向login服务器请求token
 

@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -15,8 +16,8 @@ type TService struct {
 	listen net.Listener
 }
 
-func (service *TService) Init(addr string, codec types.ICodec, engine types.IEngine) {
-	service.Service.Init(addr, codec, engine)
+func (service *TService) Init(addr string, codec types.ICodec) {
+	service.Service.Init(addr, codec)
 	service.Service.ConnectChannelFunc = service.connectChannel
 }
 
@@ -70,18 +71,18 @@ func (service *TService) addChannel(conn *net.Conn) *TChannel {
 func (service *TService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
-		conn, err := net.DialTimeout("tcp", addr, service.Engine.AppConf().Network.ConnectTimeout)
+		conn, err := net.DialTimeout("tcp", addr, gox.AppConf.Network.ConnectTimeout)
 		if err == nil {
 			return service.addChannel(&conn)
 		}
-		if connCount > service.Engine.AppConf().Network.ReConnectMax {
+		if connCount > gox.AppConf.Network.ReConnectMax {
 			xlog.Info("tcp 创建通信信道 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		if !service.IsRun || service.Engine.AppConf().Network.ReConnectInterval == 0 {
+		if !service.IsRun || gox.AppConf.Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(service.Engine.AppConf().Network.ReConnectInterval)
+		time.Sleep(gox.AppConf.Network.ReConnectInterval)
 		connCount++
 		continue
 	}
@@ -94,7 +95,6 @@ func (service *TService) Stop() {
 	}
 	service.Service.Stop()
 	service.IsRun = false
-	service.CtxCancelFunc()
 	service.listen.Close()
 	// 等待线程结束
 	service.AcceptWg.Wait()

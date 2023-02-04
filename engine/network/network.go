@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
@@ -12,29 +13,24 @@ import (
 
 type (
 	NetWork struct {
-		engine           types.IEngine
-		outside          types.IService
-		interior         types.IService
-		rpc              types.IRPC
-		serviceDiscovery types.IServiceDiscovery
-		actorDiscovery   types.IActorDiscovery
-		cmdType          map[uint32]reflect.Type
-		cmdLock          sync.RWMutex
+		__init        bool
+		outside       types.IService
+		interior      types.IService
+		rpc           types.IRPC
+		serviceSystem types.IServiceSystem
+		actorSystem   types.IActorSystem
+		cmdType       map[uint32]reflect.Type
+		cmdLock       sync.RWMutex
 	}
 )
 
-func New(engine types.IEngine) *NetWork {
+func New() *NetWork {
 	network := new(NetWork)
-	network.engine = engine
 	network.cmdType = make(map[uint32]reflect.Type)
-	network.rpc = rpc.New(engine)
-	network.actorDiscovery = newActorDiscovery(engine, engine.Context())
-	network.serviceDiscovery = newServiceDiscovery(engine, engine.Context())
+	network.rpc = rpc.New()
+	network.actorSystem = newActorSystem(gox.Ctx)
+	network.serviceSystem = newServiceSystem(gox.Ctx)
 	return network
-}
-
-func (network *NetWork) Engine() types.IEngine {
-	return network.engine
 }
 
 // GetSession 通过id获取Session
@@ -53,11 +49,11 @@ func (network *NetWork) GetSessionByAddr(addr string) types.ISession {
 func (network *NetWork) Rpc() types.IRPC {
 	return network.rpc
 }
-func (network *NetWork) ServiceDiscovery() types.IServiceDiscovery {
-	return network.serviceDiscovery
+func (network *NetWork) ServiceSystem() types.IServiceSystem {
+	return network.serviceSystem
 }
-func (network *NetWork) ActorDiscovery() types.IActorDiscovery {
-	return network.actorDiscovery
+func (network *NetWork) ActorSystem() types.IActorSystem {
+	return network.actorSystem
 }
 
 // RegisterRType 注册协议消息体类型
@@ -91,25 +87,35 @@ func (network *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
 
 func (network *NetWork) Init() {
 	if network.interior == nil {
-		xlog.Fatal("没有初始化内部网络通信")
+		xlog.Fatal("网络系统: 需要设置InteriorService")
 		return
 	}
+	if network.__init {
+		xlog.Error("网络系统: 重复初始化")
+		return
+	}
+	network.__init = true
 	network.interior.Start()
 	if network.outside != nil {
 		network.outside.Start()
 	}
 	network.rpc.(*rpc.RPC).Start()
-	network.serviceDiscovery.(*ServiceDiscovery).Start()
-	network.actorDiscovery.(*ActorDiscovery).Start()
+	network.serviceSystem.(*ServiceSystem).Start()
+	network.actorSystem.(*ActorSystem).Start()
 }
 func (network *NetWork) Destroy() {
+	if !network.__init {
+		return
+	}
+	network.__init = false
+
 	if network.outside != nil {
 		network.outside.Stop()
 	}
 	network.interior.Stop()
 	network.rpc.(*rpc.RPC).Stop()
-	network.serviceDiscovery.(*ServiceDiscovery).Stop()
-	network.actorDiscovery.(*ActorDiscovery).Stop()
+	network.serviceSystem.(*ServiceSystem).Stop()
+	network.actorSystem.(*ActorSystem).Stop()
 }
 func (network *NetWork) Serve() {
 	network.rpc.(*rpc.RPC).Serve()
@@ -117,20 +123,20 @@ func (network *NetWork) Serve() {
 
 // SetOutsideService 设置外部服务类型
 func (network *NetWork) SetOutsideService(ser types.IService, codec types.ICodec) {
-	addr := network.engine.AppConf().OutsideAddr
+	addr := gox.AppConf.OutsideAddr
 	if addr == "" {
 		return
 	}
-	ser.Init(addr, codec, network.engine)
+	ser.Init(addr, codec)
 	network.outside = ser
 }
 
 // SetInteriorService 设置内部服务类型
 func (network *NetWork) SetInteriorService(ser types.IService, codec types.ICodec) {
-	addr := network.engine.AppConf().InteriorAddr
+	addr := gox.AppConf.InteriorAddr
 	if addr == "" {
 		return
 	}
-	ser.Init(addr, codec, network.engine)
+	ser.Init(addr, codec)
 	network.interior = ser
 }

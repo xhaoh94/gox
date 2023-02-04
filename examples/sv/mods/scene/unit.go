@@ -3,15 +3,15 @@ package scene
 import (
 	"context"
 
-	"github.com/xhaoh94/gox/engine/network/actor"
+	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
-	"github.com/xhaoh94/gox/examples/sv/game"
 )
 
 type (
 	Unit struct {
-		actor.Actor
+		network.Actor
 		Id uint
 	}
 )
@@ -19,7 +19,7 @@ type (
 func newUnit(id uint) *Unit {
 	unit := &Unit{Id: id}
 	unit.OnInit()
-	game.Engine.NetWork().ActorDiscovery().Add(unit) //添加到Actor
+	gox.ActorSystem.Add(unit) //添加到Actor
 	return unit
 }
 

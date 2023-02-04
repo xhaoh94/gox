@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/xhaoh94/gox"
 
@@ -12,7 +10,6 @@ import (
 	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/network/service/kcp"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
-	"github.com/xhaoh94/gox/examples/sv/game"
 	"github.com/xhaoh94/gox/examples/sv/mods"
 )
 
@@ -29,19 +26,13 @@ func main() {
 	if appConfPath == "" {
 		log.Fatalf("需要启动配置文件路径")
 	}
-
-	engine := gox.NewEngine(appConfPath)
-	network := network.New(engine)
+	gox.Init(appConfPath)
+	network := network.New()
 	network.SetInteriorService(new(kcp.KService), codechelper.Json)
 	network.SetOutsideService(new(ws.WService), codechelper.Json)
 
-	engine.SetNetWork(network)
-	engine.SetModule(new(mods.MainModule))
-	game.Engine = engine
-	engine.Start()
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
-	<-sigChan
-	engine.Shutdown()
-	os.Exit(1)
+	gox.SetNetWork(network)
+	gox.SetModule(new(mods.MainModule))
+	gox.Run()
+
 }

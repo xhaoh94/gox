@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/xhaoh94/gox/engine/app"
@@ -15,28 +17,32 @@ import (
 )
 
 var (
-// Engine types.IEngine
+	__init      bool
+	__start     bool
+	Ctx         context.Context
+	ctxCancelFn context.CancelFunc
+	AppConf     app.AppConf
+	Endian      binary.ByteOrder
+	Event       types.IEvent
+
+	NetWork       types.INetwork
+	ActorSystem   types.IActorSystem
+	ServiceSystem types.IServiceSystem
+
+	mainModule types.IModule
 )
 
-type (
-	Engine struct {
-		ctx         context.Context
-		ctxCancelFn context.CancelFunc
-		appConf     app.AppConf
-		mainModule  types.IModule
-		event       types.IEvent
-		network     types.INetwork
-		endian      binary.ByteOrder
+func Init(appConfPath string) {
+	if __init {
+		log.Printf("gox: 重复初始化")
+		return
 	}
-)
-
-func NewEngine(appConfPath string) *Engine {
-	e := new(Engine)
-	e.appConf = loadConf(appConfPath)
-	e.ctx, e.ctxCancelFn = context.WithCancel(context.Background())
-	e.event = xevent.New()
-	e.endian = binary.LittleEndian
-	return e
+	__init = true
+	Ctx, ctxCancelFn = context.WithCancel(context.Background())
+	Event = xevent.New()
+	AppConf = loadConf(appConfPath)
+	Endian = binary.LittleEndian
+	xlog.Init(AppConf.Log)
 }
 
 func loadConf(appConfPath string) app.AppConf {
@@ -56,79 +62,61 @@ func loadConf(appConfPath string) app.AppConf {
 	AppCfg.Network.ConnectTimeout *= time.Second
 	AppCfg.Network.ReadTimeout *= time.Second
 	AppCfg.Etcd.EtcdTimeout *= time.Second
+
 	return AppCfg
 }
 
-func (engine *Engine) Context() context.Context {
-	return engine.ctx
-}
-
-func (engine *Engine) Endian() binary.ByteOrder {
-	return engine.endian
-}
-
-func (engine *Engine) Event() types.IEvent {
-	return engine.event
-}
-
-func (engine *Engine) NetWork() types.INetwork {
-	return engine.network
-}
-
-func (engine *Engine) AppConf() app.AppConf {
-	return engine.appConf
-}
-
-// Start 启动
-func (engine *Engine) Start() {
-	if engine.mainModule == nil {
-		log.Fatalf("没有设置主模块")
+// Run 启动
+func Run() {
+	if __start {
 		return
 	}
-	appConf := engine.appConf
-	xlog.Init(appConf.Log)
-	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", appConf.Eid, appConf.EType, appConf.Version)
-	xlog.Info("[ByteOrder:%s]", engine.endian.String())
-	engine.network.Init()
-	engine.mainModule.Init(engine.mainModule, engine, func() {
-		engine.network.Rpc().Serve()
-	})
+	__start = true
+	if mainModule == nil {
+		xlog.Fatal("gox: 没有设置主模块")
+		return
+	}
+	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", AppConf.Eid, AppConf.EType, AppConf.Version)
+	xlog.Info("[ByteOrder:%s]", Endian.String())
+	NetWork.Init()
+	mainModule.Init(mainModule)
+	NetWork.Rpc().Serve()
+	mainModule.Start(mainModule)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+	shutdown()
+	os.Exit(1)
 }
 
 // Shutdown 关闭
-func (engine *Engine) Shutdown() {
-	engine.ctxCancelFn()
-	engine.mainModule.Destroy(engine.mainModule)
-	engine.network.Destroy()
-	xlog.Info("服务退出[sid:%d]", engine.appConf.Eid)
+func shutdown() {
+	__start = false
+	ctxCancelFn()
+	mainModule.Destroy(mainModule)
+	NetWork.Destroy()
+	xlog.Info("服务退出[sid:%d]", AppConf.Eid)
 	xlog.Destroy()
 }
 
 ////////////////////////////////////////////////////////////////
 
-// // SetOutsideService 设置外部服务类型
-// func (engine *Engine) SetOutsideService(ser types.IService, codec types.ICodec) {
-// 	engine.network.SetOutsideService(ser, engine.appConf.OutsideAddr, codec)
-// }
-
-// // SetInteriorService 设置内部服务类型
-// func (engine *Engine) SetInteriorService(ser types.IService, codec types.ICodec) {
-// 	engine.network.SetInteriorService(ser, engine.appConf.InteriorAddr, codec)
-// }
-
 // SetModule 设置网络模块
-func (engine *Engine) SetNetWork(network types.INetwork) {
-	engine.network = network
+func SetNetWork(network types.INetwork) {
+	NetWork = network
+	ActorSystem = network.ActorSystem()
+	ServiceSystem = network.ServiceSystem()
 }
 
 // SetEndian 设置大小端
-func (engine *Engine) SetEndian(endian binary.ByteOrder) {
-	engine.endian = endian
+func SetEndian(endian binary.ByteOrder) {
+	Endian = endian
 }
 
 // SetModule 设置初始模块
-func (engine *Engine) SetModule(module types.IModule) {
-	engine.mainModule = module
+func SetModule(module types.IModule) {
+	mainModule = module
 }
 
 ////////////////////////////////////////////////////////////

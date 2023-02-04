@@ -1,8 +1,8 @@
 package types
 
 type (
-	//IServiceDiscovery 服务发现接口
-	IServiceDiscovery interface {
+	//IServiceSystem 服务发现接口
+	IServiceSystem interface {
 		// GetServiceEntityByID 通过id获取服务配置
 		GetServiceEntityByID(uint) IServiceEntity
 		// GetServiceEntitysByType 获取对应类型的所有服务配置

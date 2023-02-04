@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/consts"
 
@@ -59,7 +60,7 @@ func (session *Session) init(id uint32, service *Service, channel types.IChannel
 	session.channel = channel
 	session.tag = t
 	session.service = service
-	session.ctx, session.ctxCancelFunc = context.WithCancel(service.Ctx)
+	session.ctx, session.ctxCancelFunc = context.WithCancel(gox.Ctx)
 	session.channel.SetSession(session)
 }
 
@@ -307,22 +308,22 @@ func (session *Session) parseMsg(buf []byte) {
 	}
 }
 func (session *Session) AppConf() app.AppConf {
-	return session.service.Engine.AppConf()
+	return gox.AppConf
 }
 func (session *Session) rpc() *rpc.RPC {
-	return session.network().Rpc().(*rpc.RPC)
+	return gox.NetWork.Rpc().(*rpc.RPC)
 }
 func (session *Session) codec() types.ICodec {
 	return session.service.Codec
 }
 func (session *Session) network() types.INetwork {
-	return session.service.Engine.NetWork()
+	return gox.NetWork
 }
 func (session *Session) event() types.IEvent {
-	return session.service.Engine.Event()
+	return gox.Event
 }
 func (session *Session) endian() binary.ByteOrder {
-	return session.service.Engine.Endian()
+	return gox.Endian
 }
 
 // callEvt 触发

@@ -1,7 +1,5 @@
 package game
 
-import "github.com/xhaoh94/gox/engine/types"
-
 const (
 	//Gate 网关服务
 	Gate string = "gate"
@@ -10,5 +8,3 @@ const (
 	//Scene 场景服务
 	Scene string = "scene"
 )
-
-var Engine types.IEngine

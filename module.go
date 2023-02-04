@@ -7,47 +7,45 @@ import (
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
-	"google.golang.org/grpc"
 )
 
 type (
 	//Module 模块
 	Module struct {
-		Engine       types.IEngine
 		childModules []types.IModule
 		lock         sync.Mutex
 	}
 )
 
 // Init 初始化模块
-func (m *Module) Init(self types.IModule, engine types.IEngine, fn func()) {
-	m.Engine = engine
+func (m *Module) Init(self types.IModule) {
 	self.OnInit()
 	if m.childModules != nil {
 		for i := range m.childModules {
 			v := m.childModules[i]
-			v.Init(v, engine, nil)
-		}
-	}
-	if fn != nil {
-		fn()
-		if m.childModules != nil {
-			for i := range m.childModules {
-				v := m.childModules[i]
-				v.OnStart()
-			}
+			v.Init(v)
 		}
 	}
 }
 
-// Put 添加模块
-func (m *Module) Put(mod types.IModule) {
-	defer m.lock.Unlock()
-	m.lock.Lock()
-	if m.childModules == nil {
-		m.childModules = make([]types.IModule, 0)
+// OnInit 初始模块
+func (mm *Module) OnInit() {
+
+}
+
+func (m *Module) Start(self types.IModule) {
+	self.OnStart()
+	if m.childModules != nil {
+		for i := range m.childModules {
+			v := m.childModules[i]
+			v.Start(self)
+		}
 	}
-	m.childModules = append(m.childModules, mod)
+}
+
+// OnStart 模块启动
+func (mm *Module) OnStart() {
+
 }
 
 // Destroy 销毁模块
@@ -59,35 +57,19 @@ func (m *Module) Destroy(self types.IModule) {
 	self.OnDestroy()
 }
 
-// OnStop 模块关闭
+// OnDestroy 模块销毁
 func (mm *Module) OnDestroy() {
 
 }
 
-func (m *Module) GetEngine() types.IEngine {
-	return m.Engine
-}
-func (m *Module) GetActorCtrl() types.IActorDiscovery {
-	return m.Engine.NetWork().ActorDiscovery()
-}
-
-func (m *Module) GetSessionById(sid uint32) types.ISession {
-	return m.Engine.NetWork().GetSessionById(sid)
-}
-func (m *Module) GetSessionByAddr(addr string) types.ISession {
-	return m.Engine.NetWork().GetSessionByAddr(addr)
-}
-func (m *Module) GetGrpcConnByAddr(addr string) *grpc.ClientConn {
-	return m.Engine.NetWork().Rpc().GetClientConnByAddr(addr)
-}
-func (m *Module) GetGrpcServer() *grpc.Server {
-	return m.Engine.NetWork().Rpc().GetServer()
-}
-func (m *Module) GetServiceConfListByType(sType string) []types.IServiceEntity {
-	return m.Engine.NetWork().ServiceDiscovery().GetServiceEntitysByType(sType)
-}
-func (m *Module) GetServiceConfByID(id uint) types.IServiceEntity {
-	return m.Engine.NetWork().ServiceDiscovery().GetServiceEntityByID(id)
+// Put 添加模块
+func (m *Module) Put(mod types.IModule) {
+	defer m.lock.Unlock()
+	m.lock.Lock()
+	if m.childModules == nil {
+		m.childModules = make([]types.IModule, 0)
+	}
+	m.childModules = append(m.childModules, mod)
 }
 
 // Register 注册协议对应消息体和回调函数
@@ -108,17 +90,17 @@ func (m *Module) Register(cmd uint32, fn interface{}) {
 			xlog.Error("协议回调函数参数需要是指针类型 cmd[%d]", cmd)
 			return
 		}
-		m.Engine.NetWork().RegisterRType(cmd, in)
+		NetWork.RegisterRType(cmd, in)
 		break
 	default:
 		xlog.Error("协议回调函数参数有误")
 		return
 	}
-	m.Engine.Event().Bind(cmd, fn)
+	Event.Bind(cmd, fn)
 }
 
-// RegisterRPC 注册RPC
-func (m *Module) RegisterRPC(args ...interface{}) {
+// RegisterRpc 注册RPC
+func (m *Module) RegisterRpc(args ...interface{}) {
 	l := len(args)
 	var cmd uint32
 	var fn interface{}
@@ -163,7 +145,7 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 			key = in.Elem().Name() + key
 			cmd = strhelper.StringToHash(key)
 		}
-		m.Engine.NetWork().RegisterRType(cmd, in)
+		NetWork.RegisterRType(cmd, in)
 		break
 	default:
 		xlog.Error("RPC回调函数参数有误")
@@ -173,5 +155,5 @@ func (m *Module) RegisterRPC(args ...interface{}) {
 	if cmd == 0 {
 		cmd = strhelper.StringToHash(key)
 	}
-	m.Engine.Event().Bind(cmd, fn)
+	Event.Bind(cmd, fn)
 }

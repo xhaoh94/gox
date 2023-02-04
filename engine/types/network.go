@@ -18,16 +18,16 @@ type (
 		//Rpc
 		Rpc() IRPC
 		//服务发现
-		ServiceDiscovery() IServiceDiscovery
+		ServiceSystem() IServiceSystem
 		//Actor注册
-		ActorDiscovery() IActorDiscovery
+		ActorSystem() IActorSystem
 		RegisterRType(uint32, reflect.Type)
 		UnRegisterRType(uint32)
 		GetRegProtoMsg(uint32) interface{}
 	}
 	//IService 服务器接口
 	IService interface {
-		Init(string, ICodec, IEngine)
+		Init(string, ICodec)
 		Start()
 		Stop()
 		GetAddr() string

@@ -30,10 +30,9 @@ type (
 // OnInit 初始化
 func (m *LoginModule) OnInit() {
 	m.user2Token = make(map[string]UserToken)
-	m.RegisterRPC(m.RspToken)
+	m.RegisterRpc(m.RspToken)
 	m.Register(netpack.CMD_C2L_Login, m.RspLogin)
 	m.Register(netpack.CMD_C2L_Enter, m.RspEnter)
-
 }
 
 func (m *LoginModule) OnStart() {
@@ -79,12 +78,12 @@ func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) *net
 func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req *netpack.C2L_Enter) {
 	sId := req.SceneId
 	backRsp := &netpack.S2L_Enter{}
-	b := m.GetActorCtrl().Call(uint32(sId), &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() //Actor玩家进入场景
+	b := gox.ActorSystem.Call(uint32(sId), &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() //Actor玩家进入场景
 
 	enterRsp := &netpack.L2C_Enter{}
 	if b { //玩家进入场景成功
 		rsp := &netpack.S2L_SayHello{}
-		b = m.GetActorCtrl().Call(uint32(req.UnitId), &netpack.L2S_SayHello{Txt: "你好啊，我是机器人:" + strhelper.ValToString(req.UnitId)}, rsp).Await() //Actor 玩家发言
+		b = gox.ActorSystem.Call(uint32(req.UnitId), &netpack.L2S_SayHello{Txt: "你好啊，我是机器人:" + strhelper.ValToString(req.UnitId)}, rsp).Await() //Actor 玩家发言
 		if b {
 			xlog.Debug("发言返回:%s", rsp.BackTxt)
 			enterRsp.Code = 0

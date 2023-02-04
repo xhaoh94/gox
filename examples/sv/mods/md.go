@@ -16,7 +16,7 @@ type (
 )
 
 func (m *MainModule) OnInit() {
-	switch m.Engine.AppConf().EType {
+	switch gox.AppConf.EType {
 	case game.Gate:
 		m.Put(&gate.GateModule{})
 	case game.Login:
@@ -28,9 +28,4 @@ func (m *MainModule) OnInit() {
 		m.Put(&login.LoginModule{})
 		m.Put(&scene.SceneModule{})
 	}
-}
-
-// OnStart 初始化
-func (m *MainModule) OnStart() {
-
 }

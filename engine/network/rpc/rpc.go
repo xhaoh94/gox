@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 
@@ -12,7 +13,6 @@ import (
 
 type (
 	RPC struct {
-		engine types.IEngine
 		grpc   *GRPC    //谷歌的grpc框架
 		rpcMap sync.Map //内部自带的rpc存储器
 	}
@@ -58,7 +58,7 @@ func (rpc *RPC) Serve() {
 
 // Init 开启服务
 func (rpc *RPC) Start() {
-	rpcAddr := rpc.engine.AppConf().RpcAddr
+	rpcAddr := gox.AppConf.RpcAddr
 	if rpcAddr != "" {
 		rpc.grpc = &GRPC{rpcAddr: rpcAddr}
 		rpc.grpc.start()
@@ -86,8 +86,8 @@ func (rpc *RPC) GetClientConnByAddr(addr string) *grpc.ClientConn {
 }
 
 // NewGrpcServer 初始化
-func New(engine types.IEngine) types.IRPC {
-	return &RPC{engine: engine}
+func New() types.IRPC {
+	return &RPC{}
 }
 
 // start 开启服务

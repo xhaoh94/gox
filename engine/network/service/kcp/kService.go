@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -15,8 +16,8 @@ type KService struct {
 	listen *kcp.Listener
 }
 
-func (service *KService) Init(addr string, codec types.ICodec, engine types.IEngine) {
-	service.Service.Init(addr, codec, engine)
+func (service *KService) Init(addr string, codec types.ICodec) {
+	service.Service.Init(addr, codec)
 	service.Service.ConnectChannelFunc = service.connectChannel
 }
 
@@ -75,14 +76,14 @@ func (service *KService) connectChannel(addr string) types.IChannel {
 		if err == nil {
 			return service.addChannel(conn)
 		}
-		if connCount > service.Engine.AppConf().Network.ReConnectMax {
+		if connCount > gox.AppConf.Network.ReConnectMax {
 			xlog.Info("kcp 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		if !service.IsRun || service.Engine.AppConf().Network.ReConnectInterval == 0 {
+		if !service.IsRun || gox.AppConf.Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(service.Engine.AppConf().Network.ReConnectInterval)
+		time.Sleep(gox.AppConf.Network.ReConnectInterval)
 		connCount++
 		continue
 	}
@@ -95,7 +96,6 @@ func (service *KService) Stop() {
 	}
 	service.Service.Stop()
 	service.IsRun = false
-	service.CtxCancelFunc()
 	service.listen.Close()
 	// 等待线程结束
 	service.AcceptWg.Wait()

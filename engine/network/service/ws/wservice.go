@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/types"
 
 	"github.com/xhaoh94/gox/engine/network/service"
@@ -24,16 +25,16 @@ type WService struct {
 	path     string
 }
 
-func (service *WService) Init(addr string, codec types.ICodec, engine types.IEngine) {
-	service.Service.Init(addr, codec, engine)
+func (service *WService) Init(addr string, codec types.ICodec) {
+	service.Service.Init(addr, codec)
 	service.Service.ConnectChannelFunc = service.connectChannel
 }
 
 // Start 启动
 func (service *WService) Start() {
-	service.patten = service.Engine.AppConf().WebSocket.WebSocketPattern
-	service.scheme = service.Engine.AppConf().WebSocket.WebSocketScheme
-	service.path = service.Engine.AppConf().WebSocket.WebSocketPath
+	service.patten = gox.AppConf.WebSocket.WebSocketPattern
+	service.scheme = gox.AppConf.WebSocket.WebSocketScheme
+	service.path = gox.AppConf.WebSocket.WebSocketPath
 	xlog.Debug("patten[%s] scheme[%s] path[%s]", service.patten, service.scheme, service.path)
 	mux := http.NewServeMux()
 	mux.HandleFunc(service.patten, service.wsPage)
@@ -53,8 +54,8 @@ func (service *WService) accept() {
 	if ln, err := net.Listen("tcp", service.GetAddr()); err != nil {
 		xlog.Fatal("websocket 启动失败: [%s]", err.Error())
 	} else {
-		cf := service.Engine.AppConf().WebSocket.CertFile
-		kf := service.Engine.AppConf().WebSocket.KeyFile
+		cf := gox.AppConf.WebSocket.CertFile
+		kf := gox.AppConf.WebSocket.KeyFile
 		if cf != "" && kf != "" {
 			err = service.sv.ServeTLS(ln, cf, kf)
 		} else {
@@ -113,14 +114,14 @@ func (service *WService) connectChannel(addr string) types.IChannel {
 		if err == nil {
 			return service.addChannel(conn)
 		}
-		if connCount > service.Engine.AppConf().Network.ReConnectMax {
+		if connCount > gox.AppConf.Network.ReConnectMax {
 			xlog.Info("websocket 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
 			return nil
 		}
-		if !service.IsRun || service.Engine.AppConf().Network.ReConnectInterval == 0 {
+		if !service.IsRun || gox.AppConf.Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(service.Engine.AppConf().Network.ReConnectInterval)
+		time.Sleep(gox.AppConf.Network.ReConnectInterval)
 		connCount++
 		continue
 	}
@@ -134,8 +135,7 @@ func (service *WService) Stop() {
 	}
 	service.Service.Stop()
 	service.IsRun = false
-	service.sv.Shutdown(service.Ctx)
-	service.CtxCancelFunc()
+	service.sv.Shutdown(gox.Ctx)
 	// 等待线程结束
 	service.AcceptWg.Wait()
 

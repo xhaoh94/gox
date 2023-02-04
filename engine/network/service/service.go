@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 
@@ -12,13 +11,10 @@ import (
 type (
 	//Service 服务器
 	Service struct {
-		Engine             types.IEngine
 		Codec              types.ICodec
 		ConnectChannelFunc func(addr string) types.IChannel
 		AcceptWg           sync.WaitGroup
 		IsRun              bool
-		Ctx                context.Context
-		CtxCancelFunc      context.CancelFunc
 
 		addr          string
 		idToSession   map[uint32]*Session //Accept Map
@@ -36,10 +32,8 @@ var sessionPool *sync.Pool = &sync.Pool{
 	}}
 
 // Init 服务初始化
-func (service *Service) Init(addr string, codec types.ICodec, engine types.IEngine) {
-	service.Engine = engine
+func (service *Service) Init(addr string, codec types.ICodec) {
 	service.Codec = codec
-	service.Ctx, service.CtxCancelFunc = context.WithCancel(engine.Context())
 	service.addr = addr
 	service.idToSession = make(map[uint32]*Session)
 	service.addrToSession = make(map[string]*Session)

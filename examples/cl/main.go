@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"log"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/xhaoh94/gox"
@@ -36,7 +34,7 @@ func (m *MainModule) OnInit() {
 func (m *MainModule) OnStart() {
 	xlog.Debug("test")
 	time.Sleep(1 * time.Second)
-	session := m.GetSessionByAddr("127.0.0.1:10002") //向gate服务器请求token
+	session := gox.NetWork.GetSessionByAddr("127.0.0.1:10002") //向gate服务器请求token
 	session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
 	m.session = session
 }
@@ -46,7 +44,7 @@ func (m *MainModule) RspToken(ctx context.Context, session types.ISession, rsp *
 		return
 	}
 	defer session.Close()                                                                           //老的session已经没用了，可以关闭掉
-	loginSession := m.GetSessionByAddr(rsp.Addr)                                                    //创建session连接login服务器
+	loginSession := gox.NetWork.GetSessionByAddr(rsp.Addr)                                          //创建session连接login服务器
 	loginSession.Send(netpack.CMD_C2L_Login, &netpack.C2L_Login{User: "xhaoh94", Token: rsp.Token}) //向login服务器请求登录
 	m.session = loginSession                                                                        //保存新的session
 }
@@ -69,15 +67,10 @@ func main() {
 	if appConfPath == "" {
 		log.Fatalf("需要启动配置文件路径")
 	}
-	engine := gox.NewEngine(appConfPath)
-	network := network.New(engine)
+	gox.Init(appConfPath)
+	network := network.New()
 	network.SetInteriorService(new(ws.WService), codechelper.Json)
-	engine.SetNetWork(network)
-	engine.SetModule(new(MainModule))
-	engine.Start()
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
-	<-sigChan
-	engine.Shutdown()
-	os.Exit(1)
+	gox.SetNetWork(network)
+	gox.SetModule(new(MainModule))
+	gox.Run()
 }

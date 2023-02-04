@@ -1,4 +1,4 @@
-package actor
+package network
 
 import (
 	"sync"

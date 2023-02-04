@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/etcd"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/network/rpc"
@@ -18,11 +19,8 @@ import (
 	"go.etcd.io/etcd/clientv3"
 )
 
-var ()
-
 type (
-	ActorDiscovery struct {
-		engine         types.IEngine
+	ActorSystem struct {
 		context        context.Context
 		actorPrefix    string
 		es             *etcd.EtcdService
@@ -35,16 +33,15 @@ type (
 	}
 )
 
-func newActorDiscovery(engine types.IEngine, ctx context.Context) *ActorDiscovery {
-	return &ActorDiscovery{
+func newActorSystem(ctx context.Context) *ActorSystem {
+	return &ActorSystem{
 		context:        ctx,
-		engine:         engine,
 		actorPrefix:    "location/actor",
 		keyToActorConf: make(map[string]ActorEntity),
 	}
 }
 
-func (discovery *ActorDiscovery) parseFn(aid uint32, fn interface{}) uint32 {
+func (discovery *ActorSystem) parseFn(aid uint32, fn interface{}) uint32 {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	if tFun.Kind() != reflect.Func {
@@ -87,13 +84,13 @@ func (discovery *ActorDiscovery) parseFn(aid uint32, fn interface{}) uint32 {
 		return cmd
 	}
 	if in != nil {
-		discovery.engine.NetWork().RegisterRType(cmd, in)
+		gox.NetWork.RegisterRType(cmd, in)
 	}
-	discovery.engine.Event().Bind(cmd, fn)
+	gox.Event.Bind(cmd, fn)
 	return cmd
 }
 
-func (discovery *ActorDiscovery) Add(actor types.IActorEntity) {
+func (discovery *ActorSystem) Add(actor types.IActorEntity) {
 	aid := actor.ActorID()
 	if aid == 0 {
 		xlog.Error("Actor没有初始化ID")
@@ -104,7 +101,7 @@ func (discovery *ActorDiscovery) Add(actor types.IActorEntity) {
 		xlog.Error("Actor没有注册回调函数")
 		return
 	}
-	reg := &ActorEntity{ActorID: aid, EID: discovery.engine.AppConf().Eid}
+	reg := &ActorEntity{ActorID: aid, EID: gox.AppConf.Eid}
 	b, err := json.Marshal(reg)
 	if err != nil {
 		xlog.Error("Actor解析Json错误[%v]", err)
@@ -120,7 +117,7 @@ func (discovery *ActorDiscovery) Add(actor types.IActorEntity) {
 	key := fmt.Sprintf(discovery.actorPrefix+"/%d", aid)
 	discovery.es.Put(key, string(b))
 }
-func (discovery *ActorDiscovery) Del(actor types.IActorEntity) {
+func (discovery *ActorSystem) Del(actor types.IActorEntity) {
 	defer discovery.keyLock.Unlock()
 	discovery.keyLock.Lock()
 	aid := actor.ActorID()
@@ -131,8 +128,8 @@ func (discovery *ActorDiscovery) Del(actor types.IActorEntity) {
 	cmdList := actor.GetCmdList()
 	for index := range cmdList {
 		cmd := cmdList[index]
-		discovery.engine.NetWork().UnRegisterRType(cmd)
-		discovery.engine.Event().UnBind(cmd)
+		gox.NetWork.UnRegisterRType(cmd)
+		gox.Event.UnBind(cmd)
 	}
 
 	key := fmt.Sprintf(discovery.actorPrefix+"/%d", aid)
@@ -141,7 +138,7 @@ func (discovery *ActorDiscovery) Del(actor types.IActorEntity) {
 	}
 	actor.Destroy()
 }
-func (discovery *ActorDiscovery) Get(actorID uint32) (ActorEntity, bool) {
+func (discovery *ActorSystem) Get(actorID uint32) (ActorEntity, bool) {
 	defer discovery.keyLock.RUnlock()
 	discovery.keyLock.RLock()
 	key := fmt.Sprintf(discovery.actorPrefix+"/%d", actorID)
@@ -152,17 +149,17 @@ func (discovery *ActorDiscovery) Get(actorID uint32) (ActorEntity, bool) {
 	}
 	return actor, true
 }
-func (discovery *ActorDiscovery) getSession(actorID uint32) types.ISession {
+func (discovery *ActorSystem) getSession(actorID uint32) types.ISession {
 	conf, ok := discovery.Get(actorID)
 	if !ok {
 		return nil
 	}
-	svConf := discovery.engine.NetWork().ServiceDiscovery().GetServiceEntityByID(conf.EID)
+	svConf := gox.ServiceSystem.GetServiceEntityByID(conf.EID)
 	if svConf == nil {
 		xlog.Error("Actor没有找到服务 ServiceID:[%s]", conf.EID)
 		return nil
 	}
-	session := discovery.engine.NetWork().GetSessionByAddr(svConf.GetInteriorAddr())
+	session := gox.NetWork.GetSessionByAddr(svConf.GetInteriorAddr())
 	if session == nil {
 		xlog.Error("Actor没有找到session[%d]", svConf.GetInteriorAddr())
 		return nil
@@ -170,7 +167,7 @@ func (discovery *ActorDiscovery) getSession(actorID uint32) types.ISession {
 	return session
 }
 
-func (discovery *ActorDiscovery) Send(actorID uint32, msg interface{}) bool {
+func (discovery *ActorSystem) Send(actorID uint32, msg interface{}) bool {
 	session := discovery.getSession(actorID)
 	if session == nil {
 		return false
@@ -178,7 +175,7 @@ func (discovery *ActorDiscovery) Send(actorID uint32, msg interface{}) bool {
 	cmd := cmdhelper.ToCmd(msg, nil, actorID)
 	return session.Send(cmd, msg)
 }
-func (discovery *ActorDiscovery) Call(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
+func (discovery *ActorSystem) Call(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
 	session := discovery.getSession(actorID)
 	if session == nil {
 		dr := rpc.NewDefaultRpc(0, context.TODO(), response)
@@ -188,12 +185,12 @@ func (discovery *ActorDiscovery) Call(actorID uint32, msg interface{}, response 
 	return session.ActorCall(actorID, msg, response)
 }
 
-func (discovery *ActorDiscovery) Start() {
+func (discovery *ActorSystem) Start() {
 
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(discovery.context)
 	go discovery.checkTimeout(timeoutCtx)
 	var err error
-	discovery.es, err = etcd.NewEtcdService(discovery.engine.AppConf().Etcd, discovery.get, discovery.put, discovery.del)
+	discovery.es, err = etcd.NewEtcdService(gox.AppConf.Etcd, discovery.get, discovery.put, discovery.del)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("actor启动失败 [%v]", err)
@@ -201,12 +198,12 @@ func (discovery *ActorDiscovery) Start() {
 	}
 	discovery.es.Get(discovery.actorPrefix, true)
 }
-func (discovery *ActorDiscovery) Stop() {
+func (discovery *ActorSystem) Stop() {
 	if discovery.es != nil {
 		discovery.es.Close()
 	}
 }
-func (discovery *ActorDiscovery) checkTimeout(ctx context.Context) {
+func (discovery *ActorSystem) checkTimeout(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		// 被取消，直接返回
@@ -216,7 +213,7 @@ func (discovery *ActorDiscovery) checkTimeout(ctx context.Context) {
 	}
 }
 
-func (discovery *ActorDiscovery) get(resp *clientv3.GetResponse) {
+func (discovery *ActorSystem) get(resp *clientv3.GetResponse) {
 	if resp == nil || resp.Kvs == nil {
 		return
 	}
@@ -227,7 +224,7 @@ func (discovery *ActorDiscovery) get(resp *clientv3.GetResponse) {
 		discovery.onPut(resp.Kvs[i])
 	}
 }
-func (discovery *ActorDiscovery) onPut(kv *mvccpb.KeyValue) {
+func (discovery *ActorSystem) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
@@ -246,12 +243,12 @@ func (discovery *ActorDiscovery) onPut(kv *mvccpb.KeyValue) {
 	}
 	xlog.Debug("actor注册 %v", string(kv.Value))
 }
-func (discovery *ActorDiscovery) put(kv *mvccpb.KeyValue) {
+func (discovery *ActorSystem) put(kv *mvccpb.KeyValue) {
 	defer discovery.keyLock.Unlock()
 	discovery.keyLock.Lock()
 	discovery.onPut(kv)
 }
-func (discovery *ActorDiscovery) del(kv *mvccpb.KeyValue) {
+func (discovery *ActorSystem) del(kv *mvccpb.KeyValue) {
 	defer discovery.keyLock.Unlock()
 	discovery.keyLock.Lock()
 	key := string(kv.Key)
