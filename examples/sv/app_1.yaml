@@ -24,6 +24,7 @@ db:
     database: xhgo
 
 network:
+    endian: littleEndian       #大小端
     send_msg_max_len: 0        #发送消息最大长度
     read_msg_max_len: 2048     #读取消息最大长度
     reconnect_interval: 1      #重连间隔
@@ -41,6 +42,7 @@ webSocket:
     ws_keyfile: ""
 
 etcd:
-    etcd_list: 127.0.0.1:2379 #etcd集
+    etcd_list:                #etcd集
+    - 127.0.0.1:2379 
     etcd_timeout: 5           #连接超时
     etcd_lease_time: 5        #续约时间s

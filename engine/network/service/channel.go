@@ -4,6 +4,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/types"
 )
 
@@ -41,7 +42,7 @@ func (channel *Channel) Send(data []byte) {
 	if !channel.IsRun {
 		return
 	}
-	sendMax := channel.Session.AppConf().Network.SendMsgMaxLen
+	sendMax := gox.AppConf.Network.SendMsgMaxLen
 	if sendMax > 0 { //分片发送
 		DLen := len(data)
 		pos := 0

@@ -10,6 +10,7 @@ type (
 	//INetwork 网络接口
 	INetwork interface {
 		Init()
+		Start()
 		Destroy()
 		//GetSessionById 通过Id获取通信Session
 		GetSessionById(uint32) ISession
@@ -59,9 +60,8 @@ type (
 
 	//IRPC rpc接口
 	IRPC interface {
-		Serve()
-		//GetServer 获取GRpc服务
-		GetServer() *grpc.Server
+		//GRpcServer 获取GRpc服务
+		GRpcServer() *grpc.Server
 		//GetClientConnByAddr 通过地址获取GRPC客户端
 		GetClientConnByAddr(string) *grpc.ClientConn
 	}

@@ -14,6 +14,7 @@ import (
 type (
 	NetWork struct {
 		__init        bool
+		__start       bool
 		outside       types.IService
 		interior      types.IService
 		rpc           types.IRPC
@@ -46,6 +47,7 @@ func (network *NetWork) GetSessionById(sid uint32) types.ISession {
 func (network *NetWork) GetSessionByAddr(addr string) types.ISession {
 	return network.interior.GetSessionByAddr(addr)
 }
+
 func (network *NetWork) Rpc() types.IRPC {
 	return network.rpc
 }
@@ -103,6 +105,13 @@ func (network *NetWork) Init() {
 	network.serviceSystem.(*ServiceSystem).Start()
 	network.actorSystem.(*ActorSystem).Start()
 }
+func (network *NetWork) Start() {
+	if network.__start {
+		return
+	}
+	network.__start = true
+	network.rpc.(*rpc.RPC).Serve()
+}
 func (network *NetWork) Destroy() {
 	if !network.__init {
 		return
@@ -116,9 +125,6 @@ func (network *NetWork) Destroy() {
 	network.rpc.(*rpc.RPC).Stop()
 	network.serviceSystem.(*ServiceSystem).Stop()
 	network.actorSystem.(*ActorSystem).Stop()
-}
-func (network *NetWork) Serve() {
-	network.rpc.(*rpc.RPC).Serve()
 }
 
 // SetOutsideService 设置外部服务类型

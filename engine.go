@@ -2,7 +2,6 @@ package gox
 
 import (
 	"context"
-	"encoding/binary"
 	"log"
 	"os"
 	"os/signal"
@@ -22,7 +21,6 @@ var (
 	Ctx         context.Context
 	ctxCancelFn context.CancelFunc
 	AppConf     app.AppConf
-	Endian      binary.ByteOrder
 	Event       types.IEvent
 
 	NetWork       types.INetwork
@@ -41,7 +39,6 @@ func Init(appConfPath string) {
 	Ctx, ctxCancelFn = context.WithCancel(context.Background())
 	Event = xevent.New()
 	AppConf = loadConf(appConfPath)
-	Endian = binary.LittleEndian
 	xlog.Init(AppConf.Log)
 }
 
@@ -77,10 +74,10 @@ func Run() {
 		return
 	}
 	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", AppConf.Eid, AppConf.EType, AppConf.Version)
-	xlog.Info("[ByteOrder:%s]", Endian.String())
+	xlog.Info("[ByteOrder:%s]", AppConf.Network.Endian)
 	NetWork.Init()
 	mainModule.Init(mainModule)
-	NetWork.Rpc().Serve()
+	NetWork.Start()
 	mainModule.Start(mainModule)
 
 	sigChan := make(chan os.Signal, 1)
@@ -107,11 +104,6 @@ func SetNetWork(network types.INetwork) {
 	NetWork = network
 	ActorSystem = network.ActorSystem()
 	ServiceSystem = network.ServiceSystem()
-}
-
-// SetEndian 设置大小端
-func SetEndian(endian binary.ByteOrder) {
-	Endian = endian
 }
 
 // SetModule 设置初始模块

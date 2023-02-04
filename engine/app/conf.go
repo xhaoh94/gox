@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/binary"
 	"time"
 )
 
@@ -38,6 +39,7 @@ type (
 		Database string `yaml:"database"`
 	}
 	NetworkConf struct {
+		Endian binary.ByteOrder `yaml:"endian"`
 		//SendMsgMaxLen 发送最大长度(websocket的话不能超过126) 默认0 不分片
 		SendMsgMaxLen int `yaml:"send_msg_max_len"`
 		//ReadMsgMaxLen 包体最大长度
@@ -67,6 +69,61 @@ type (
 		EtcdLeaseTime int64         `yaml:"etcd_lease_time"`
 	}
 )
+
+func (ut *NetworkConf) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type alias struct {
+		Endian string `yaml:"endian"`
+		//SendMsgMaxLen 发送最大长度(websocket的话不能超过126) 默认0 不分片
+		SendMsgMaxLen int `yaml:"send_msg_max_len"`
+		//ReadMsgMaxLen 包体最大长度
+		ReadMsgMaxLen int `yaml:"read_msg_max_len"`
+		//ReConnectInterval 链接间隔
+		ReConnectInterval int `yaml:"reconnect_interval"`
+		//ConnectMax 尝试链接最大次数
+		ReConnectMax int `yaml:"reconnection_max"`
+		//Heartbeat 心跳时间
+		Heartbeat int `yaml:"heartbeat"`
+		//ConnectTimeout 链接超时
+		ConnectTimeout int `yaml:"connect_timeout"`
+		//ReadTimeout 读超时
+		ReadTimeout int `yaml:"read_timeout"`
+	}
+
+	var tmp alias
+	if err := unmarshal(&tmp); err != nil {
+		return err
+	}
+	if tmp.Endian == "littleEndian" {
+		ut.Endian = binary.LittleEndian
+	} else if tmp.Endian == "bigEndian" {
+		ut.Endian = binary.BigEndian
+	}
+	ut.SendMsgMaxLen = tmp.SendMsgMaxLen
+	ut.ReadMsgMaxLen = tmp.ReadMsgMaxLen
+	ut.ReConnectInterval = time.Duration(tmp.ReConnectInterval) * time.Second
+	ut.ReConnectMax = tmp.ReConnectMax
+	ut.Heartbeat = time.Duration(tmp.Heartbeat) * time.Second
+	ut.ConnectTimeout = time.Duration(tmp.ConnectTimeout) * time.Second
+	ut.ReadTimeout = time.Duration(tmp.ReadTimeout) * time.Second
+	return nil
+}
+
+func (ut *EtcdConf) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type alias struct {
+		EtcdList      []string `yaml:"etcd_list"`
+		EtcdTimeout   int      `yaml:"etcd_timeout"`
+		EtcdLeaseTime int64    `yaml:"etcd_lease_time"`
+	}
+
+	var tmp alias
+	if err := unmarshal(&tmp); err != nil {
+		return err
+	}
+	ut.EtcdList = tmp.EtcdList
+	ut.EtcdTimeout = time.Duration(tmp.EtcdTimeout) * time.Second
+	ut.EtcdLeaseTime = tmp.EtcdLeaseTime
+	return nil
+}
 
 // func initCfg() {
 // 	AppCfg = &AppConf{

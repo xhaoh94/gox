@@ -72,8 +72,8 @@ func (rpc *RPC) Stop() {
 	}
 }
 
-// GetServer 获取grpc 服务端
-func (rpc *RPC) GetServer() *grpc.Server {
+// GRpcServer 获取grpc 服务端
+func (rpc *RPC) GRpcServer() *grpc.Server {
 	if rpc.grpc != nil {
 		return rpc.grpc.server
 	}

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/consts"
 
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
@@ -191,7 +190,7 @@ func (session *Session) onHeartbeat() {
 		select {
 		case <-session.ctx.Done():
 			goto end
-		case <-time.After(session.AppConf().Network.Heartbeat):
+		case <-time.After(gox.AppConf.Network.Heartbeat):
 			session.sendHeartbeat(H_B_S) //发送空的心跳包
 		}
 	}
@@ -223,7 +222,7 @@ func (session *Session) parseReader(r io.Reader) bool {
 		return true
 	}
 
-	if int(msgLen) > session.AppConf().Network.ReadMsgMaxLen {
+	if int(msgLen) > gox.AppConf.Network.ReadMsgMaxLen {
 		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
 		return true
 	}
@@ -258,7 +257,7 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitMessage(cmd, nil)
 			return
 		}
-		msg := session.network().GetRegProtoMsg(cmd)
+		msg := gox.NetWork.GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
@@ -277,7 +276,7 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitRpc(cmd, rpcID, nil)
 			return
 		}
-		msg := session.network().GetRegProtoMsg(cmd)
+		msg := gox.NetWork.GetRegProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
@@ -307,28 +306,20 @@ func (session *Session) parseMsg(buf []byte) {
 		return
 	}
 }
-func (session *Session) AppConf() app.AppConf {
-	return gox.AppConf
-}
+
 func (session *Session) rpc() *rpc.RPC {
 	return gox.NetWork.Rpc().(*rpc.RPC)
 }
 func (session *Session) codec() types.ICodec {
 	return session.service.Codec
 }
-func (session *Session) network() types.INetwork {
-	return gox.NetWork
-}
-func (session *Session) event() types.IEvent {
-	return gox.Event
-}
 func (session *Session) endian() binary.ByteOrder {
-	return gox.Endian
+	return gox.AppConf.Network.Endian
 }
 
 // callEvt 触发
 func (session *Session) callEvt(event uint32, params ...any) (any, error) {
-	values, err := session.event().Call(event, params...)
+	values, err := gox.Event.Call(event, params...)
 	if err != nil {
 		return nil, err
 	}
