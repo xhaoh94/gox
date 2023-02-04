@@ -1,26 +1,32 @@
 # gox简介
 
-gox 是一个由 Go 语言（golang）编写的网络库。适用于各类游戏服务器的开发。
+gox 是一个由 Go 语言（golang）编写的网络库。
 gox 的关注点：
-* 模块组合机制，模块内可通过api快捷方便的注册消息
+* 模块组合机制
 * 可拆卸分布式，通过组装不同的模块，可随时随意把模块拆出来作为独立的服务器运行
 * 支持服务注册与发现，可随时随意获取最新的服务器列表
 * 支持TCP、WebSocket、KCP。
 * 支持Protobuf、Json、SProto数据格式
-* 通过GRpc或内置rpc系统，轻松搞定跨服务间的通信。
-* 支持Actor,任何对象通过继承actor.Actor，且实现了ActorID()，都可以进行Actor注册，之后不管这个对象在哪个服务器，都可以通过ActorID直接发送消息
+* 通过grpc或内置rpcx系统，轻松搞定跨服务间的通信。
+* 支持Actor,任何对象通过继承network.Actor，且实现了ActorID()，都可以进行Actor注册，之后不管这个对象在哪个服务器，都可以通过ActorID直接发送消息
 
 # API的简介
 
 现在让我们来看看如果创建一个服务器：
 ```
-engine := gox.NewEngine(sid, sType, "1.0.0")//实例化一个服务器 传入id，服务器类型，和版本
-game.Engine = engine //全局存储
-engine.SetModule(new(mods.MainModule)) //设置启动模块
-engine.SetCodec(codec.Json) //设置数据结构
-engine.SetInteriorService(new(tcp.TService), iAddr)//设置内部通信类型
-engine.SetOutsideService(new(kcp.KService), oAddr)//设置外部通信类型	
-engine.Start("gox.ini")//启动服务
+	var appConfPath string
+	flag.StringVar(&appConfPath, "appConf", "app_1.yaml", "启动配置")
+	flag.Parse()
+	if appConfPath == "" {
+		log.Fatalf("需要启动配置文件路径")
+	}
+	gox.Init(appConfPath)//初始化
+	network := network.New() //创建网络系统
+	network.SetInteriorService(new(kcp.KService), codechelper.Json) //设置内部通信服务类型和解析方式
+	network.SetOutsideService(new(ws.WService), codechelper.Json)//设置外部通信服务类型和解析方式
+	gox.SetNetWork(network)//设置网络系统
+	gox.SetModule(new(mods.MainModule))//设置启动模块
+	gox.Run()
   
 ```
 主模块：
@@ -34,21 +40,17 @@ MainModule struct {
 
 func (m *MainModule) OnInit() {
   //通过服务类型组装不同的模块
-	switch m.GetEngine().ServiceType() {
+	switch gox.AppConf.EType {
 	case game.Gate:
-		m.Put(&gate.GateModule{})
-		break
+		m.Put(&gate.GateModule{})		
 	case game.Login:
-		m.Put(&login.LoginModule{})
-		break
+		m.Put(&login.LoginModule{})		
 	case game.Scene:
-		m.Put(&scene.SceneModule{})
-		break
+		m.Put(&scene.SceneModule{})		
 	default:
 		m.Put(&gate.GateModule{})
 		m.Put(&login.LoginModule{})
-		m.Put(&scene.SceneModule{})
-		break
+		m.Put(&scene.SceneModule{})		
 	}
 }
 ```
@@ -63,7 +65,7 @@ type (
 
 //OnInit 初始化
 func (m *LoginModule) OnInit() {//协议注册得在初始化方法里进行
-	m.RegisterRPC(m.RspToken)//注册rpc回调
+	m.RegisterRpc(m.RspToken)//注册rpc回调
 	m.Register(netpack.CMD_C2L_Login, m.RspLogin)//注册协议	
 }
 func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) *netpack.L2G_Login { return &netpack.L2G_Login{Token: token} }
@@ -71,30 +73,31 @@ func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req 
 ```
 如果发送消息：
 ```
-  cfgs := m.GetServiceConfListByType(game.Login) //获取login服务器配置
+  cfgs := gox.ServiceSystem.GetServiceEntitysByType(game.Login) //获取login服务器配置
 	loginCfg := cfgs[0]
-	session := m.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
+	session := gox.NetWork.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
   
-  //直接发送没有返回
+  //发送
 	session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
   
-  //rpc请求 b:bool值     
+  //rpcx请求 b:bool值     
 	Rsp_L2G_Login := &netpack.L2G_Login{}
 	b := session.Call(&netpack.G2L_Login{User: msg.User}, Rsp_L2G_Login).Await()  
+
 ```
 Actor注册和发送
 ```  
 //注册
 type (
 	Scene struct {
-		actor.Actor
+		network.Actor
 		Id    uint
 	}
 )
 func newScene(id uint) *Scene {	
   scene := &Scene{Id: id}
 	scene.AddActorFn(s.OnUnitEnter) //添加Actor回调
-	game.Engine.GetNetWork().GetActorCtrl().Add(scene) //把场景添加进Actor
+	gox.ActorSystem.Add(scene) //把场景添加进Actor
 	return scene
 }
 
@@ -107,11 +110,10 @@ func (s *Scene) OnUnitEnter(ctx context.Context, req *netpack.L2S_Enter) *netpac
 	return &netpack.S2L_Enter{Code: 0}
 }
 //发送
-//直接发送没有返回
-game.Engine.GetNetWork().GetActorCtrl().Send(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}) 
-//通过rpc请求 b:bool值
+gox.ActorSystem.Send(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}) 
+//通过rpcx请求 b:bool值
 backRsp := &netpack.S2L_Enter{}
-b := game.Engine.GetNetWork().GetActorCtrl().Call(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() 
+b := gox.ActorSystem.Call(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() 
 ```
 
 # examples运行
