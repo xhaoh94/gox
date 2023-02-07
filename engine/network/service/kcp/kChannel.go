@@ -36,30 +36,35 @@ func (channel *KChannel) Conn() *kcp.UDPSession {
 // Start 开启异步接收数据
 func (channel *KChannel) Start() {
 	channel.Wg.Add(1)
-	go func() {
-		defer channel.OnStop()
-		channel.Wg.Wait()
-	}()
+	go channel.run()
 	channel.IsRun = true
 	go channel.recvAsync()
+}
+func (channel *KChannel) run() {
+	defer channel.OnStop()
+	channel.Wg.Wait()
 }
 func (channel *KChannel) recvAsync() {
 	defer channel.Wg.Done()
 	readTimeout := gox.AppConf.Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			xlog.Info("kpc addr[%s] 接受数据超时err:[%v]", channel.RemoteAddr(), err)
+			xlog.Info("kpc addr[%s] 接受数据超时", channel.RemoteAddr())
+			xlog.Info("err:[%v]", err)
 			channel.Stop()
 		}
 	}
 	for channel.Conn() != nil && channel.IsRun {
-		if channel.Read(channel.Conn()) {
+		if stop, err := channel.Read(channel.Conn()); stop {
+			xlog.Info("kpc addr[%s] err:[%v]", channel.RemoteAddr(), err)
 			channel.Stop()
+			break
 		}
 
 		if channel.IsRun && readTimeout > 0 {
 			if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				xlog.Info("kpc addr[%s] 接受数据超时err:[%v]", channel.RemoteAddr(), err)
+				xlog.Info("kpc addr[%s] 接受数据超时", channel.RemoteAddr())
+				xlog.Info("err:[%v]", err)
 				channel.Stop()
 			}
 		}

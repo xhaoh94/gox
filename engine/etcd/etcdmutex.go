@@ -60,7 +60,7 @@ func (em *EtcdMutex) Lock() error {
 		return err
 	}
 	if !txnResp.Succeeded { //判断txn.if条件是否成立
-		return consts.EtcdMutexLockError
+		return consts.Error_1
 	}
 	return nil
 }

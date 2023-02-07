@@ -6,11 +6,11 @@ type protobufCodec struct{}
 
 var Protobuf protobufCodec
 
-func (protobufCodec) Encode(msg interface{}) (bytes []byte, err error) {
+func (protobufCodec) Marshal(msg interface{}) (bytes []byte, err error) {
 	bytes, err = proto.Marshal(msg.(proto.Message))
 	return
 }
-func (protobufCodec) Decode(bytes []byte, msg interface{}) (err error) {
+func (protobufCodec) Unmarshal(bytes []byte, msg interface{}) (err error) {
 	err = proto.Unmarshal(bytes, msg.(proto.Message))
 	return
 }

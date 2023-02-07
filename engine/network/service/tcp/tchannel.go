@@ -36,29 +36,34 @@ func (channel *TChannel) Conn() net.Conn {
 // Start 开启异步接收数据
 func (channel *TChannel) Start() {
 	channel.Wg.Add(1)
-	go func() {
-		defer channel.OnStop()
-		channel.Wg.Wait()
-	}()
+	go channel.run()
 	channel.IsRun = true
 	go channel.recvAsync()
+}
+func (channel *TChannel) run() {
+	defer channel.OnStop()
+	channel.Wg.Wait()
 }
 func (channel *TChannel) recvAsync() {
 	defer channel.Wg.Done()
 	readTimeout := gox.AppConf.Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", channel.RemoteAddr(), err)
+			xlog.Info("tcp addr[%s] 接受数据超时", channel.RemoteAddr())
+			xlog.Info("err:[%v]", err)
 			channel.Stop()
 		}
 	}
 	for channel.Conn() != nil && channel.IsRun {
-		if channel.Read(channel.Conn()) {
+		if stop, err := channel.Read(channel.Conn()); stop {
+			xlog.Info("tcp addr[%s] err:[%v]", channel.RemoteAddr(), err)
 			channel.Stop()
+			break
 		}
 		if channel.IsRun && readTimeout > 0 {
 			if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				xlog.Info("tcp addr[%s] 接受数据超时err:[%v]", channel.RemoteAddr(), err)
+				xlog.Info("tcp addr[%s] 接受数据超时", channel.RemoteAddr())
+				xlog.Info("err:[%v]", err)
 				channel.Stop()
 			}
 		}

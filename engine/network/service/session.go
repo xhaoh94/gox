@@ -11,6 +11,7 @@ import (
 
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
+	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -31,9 +32,9 @@ type (
 var KEY []byte = []byte("key_key_")
 
 const (
-	C_S_C byte = 0x01
-	H_B_S byte = 0x02
-	H_B_R byte = 0x03
+	H_B_S byte = 0x01
+	H_B_R byte = 0x02
+	C_S_C byte = 0x03
 	RPC_S byte = 0x04
 	RPC_R byte = 0x05
 )
@@ -85,7 +86,7 @@ func (session *Session) Close() {
 }
 
 // Send 发送
-func (session *Session) Send(cmd uint32, msg interface{}) bool {
+func (session *Session) Send(cmd uint32, msg any) bool {
 	if !session.isAct() {
 		return false
 	}
@@ -103,7 +104,7 @@ func (session *Session) Send(cmd uint32, msg interface{}) bool {
 }
 
 // Call 呼叫
-func (session *Session) Call(msg interface{}, response interface{}) types.IRpcx {
+func (session *Session) Call(msg any, response any) types.IRpcx {
 	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
 	if !session.isAct() {
 		defer dr.Run(false)
@@ -125,7 +126,7 @@ func (session *Session) Call(msg interface{}, response interface{}) types.IRpcx 
 	return dr
 }
 
-func (session *Session) ActorCall(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
+func (session *Session) ActorCall(actorID uint32, msg any, response any) types.IRpcx {
 
 	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
 	if !session.isAct() {
@@ -155,7 +156,7 @@ func (session *Session) ActorCall(actorID uint32, msg interface{}, response inte
 }
 
 // reply 回应
-func (session *Session) reply(msg interface{}, rpcid uint32) bool {
+func (session *Session) reply(msg any, rpcid uint32) bool {
 	if !session.isAct() {
 		return false
 	}
@@ -207,33 +208,33 @@ func (session *Session) sendHeartbeat(t byte) {
 	session.sendData(pkt.PktData())
 }
 
-func (session *Session) parseReader(r io.Reader) bool {
+func (session *Session) parseReader(r io.Reader) (bool, error) {
 	if !session.isAct() {
-		return true
+		return true, consts.Error_5
 	}
 	header := make([]byte, 2)
 	_, err := io.ReadFull(r, header)
 	if err != nil {
-		return true
+		return true, err
 	}
 	msgLen := codechelper.BytesToUint16(header, session.endian())
 	if msgLen == 0 {
 		xlog.Error("读取到网络空包 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
-		return true
+		return true, consts.Error_6
 	}
 
 	if int(msgLen) > gox.AppConf.Network.ReadMsgMaxLen {
 		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
-		return true
+		return true, consts.Error_7
 	}
 	buf := make([]byte, msgLen)
 	_, err = io.ReadFull(r, buf)
 
 	if err != nil {
-		return true
+		return true, err
 	}
 	go session.parseMsg(buf)
-	return false
+	return false, nil
 }
 
 // parseMsg 解析包
@@ -257,7 +258,7 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitMessage(cmd, nil)
 			return
 		}
-		msg := gox.NetWork.GetRegProtoMsg(cmd)
+		msg := protoreg.GetProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
@@ -276,7 +277,7 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitRpc(cmd, rpcID, nil)
 			return
 		}
-		msg := gox.NetWork.GetRegProtoMsg(cmd)
+		msg := protoreg.GetProtoMsg(cmd)
 		if msg == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
@@ -331,11 +332,11 @@ func (session *Session) callEvt(event uint32, params ...any) (any, error) {
 	case 2:
 		return values[0].Interface(), (values[1].Interface()).(error)
 	default:
-		return nil, consts.CallNetError
+		return nil, consts.Error_3
 	}
 }
 
-func (session *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
+func (session *Session) emitRpc(cmd uint32, rpc uint32, msg any) {
 	if r, err := session.callEvt(cmd, session.ctx, msg); err == nil {
 		session.reply(r, rpc)
 	} else {
@@ -344,7 +345,7 @@ func (session *Session) emitRpc(cmd uint32, rpc uint32, msg interface{}) {
 }
 
 // emitMessage 派发网络消息
-func (session *Session) emitMessage(cmd uint32, msg interface{}) {
+func (session *Session) emitMessage(cmd uint32, msg any) {
 	if _, err := session.callEvt(cmd, session.ctx, session, msg); err != nil {
 		xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
 	}

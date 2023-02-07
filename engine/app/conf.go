@@ -40,19 +40,19 @@ type (
 	}
 	NetworkConf struct {
 		Endian binary.ByteOrder `yaml:"endian"`
-		//SendMsgMaxLen 发送最大长度(websocket的话不能超过126) 默认0 不分片
+		//发送最大长度(websocket的话不能超过126) 默认0 不分片
 		SendMsgMaxLen int `yaml:"send_msg_max_len"`
-		//ReadMsgMaxLen 包体最大长度
+		//包体最大长度
 		ReadMsgMaxLen int `yaml:"read_msg_max_len"`
-		//ReConnectInterval 链接间隔
+		//链接间隔
 		ReConnectInterval time.Duration `yaml:"reconnect_interval"`
-		//ConnectMax 尝试链接最大次数
+		//尝试链接最大次数
 		ReConnectMax int `yaml:"reconnection_max"`
-		//Heartbeat 心跳时间
+		//心跳时间
 		Heartbeat time.Duration `yaml:"heartbeat"`
-		//ConnectTimeout 链接超时
+		//链接超时
 		ConnectTimeout time.Duration `yaml:"connect_timeout"`
-		//ReadTimeout 读超时
+		//读超时
 		ReadTimeout time.Duration `yaml:"read_timeout"`
 	}
 	WebSocketConf struct {
@@ -73,17 +73,17 @@ type (
 func (ut *NetworkConf) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type alias struct {
 		Endian string `yaml:"endian"`
-		//SendMsgMaxLen 发送最大长度(websocket的话不能超过126) 默认0 不分片
+		//发送最大长度(websocket的话不能超过126) 默认0 不分片
 		SendMsgMaxLen int `yaml:"send_msg_max_len"`
-		//ReadMsgMaxLen 包体最大长度
+		//包体最大长度
 		ReadMsgMaxLen int `yaml:"read_msg_max_len"`
-		//ReConnectInterval 链接间隔
+		//链接间隔
 		ReConnectInterval int `yaml:"reconnect_interval"`
-		//ConnectMax 尝试链接最大次数
+		//尝试链接最大次数
 		ReConnectMax int `yaml:"reconnection_max"`
-		//Heartbeat 心跳时间
+		//心跳时间
 		Heartbeat int `yaml:"heartbeat"`
-		//ConnectTimeout 链接超时
+		//链接超时
 		ConnectTimeout int `yaml:"connect_timeout"`
 		//ReadTimeout 读超时
 		ReadTimeout int `yaml:"read_timeout"`
@@ -97,13 +97,26 @@ func (ut *NetworkConf) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		ut.Endian = binary.LittleEndian
 	} else if tmp.Endian == "bigEndian" {
 		ut.Endian = binary.BigEndian
+	} else {
+		ut.Endian = binary.LittleEndian
 	}
 	ut.SendMsgMaxLen = tmp.SendMsgMaxLen
 	ut.ReadMsgMaxLen = tmp.ReadMsgMaxLen
 	ut.ReConnectInterval = time.Duration(tmp.ReConnectInterval) * time.Second
 	ut.ReConnectMax = tmp.ReConnectMax
-	ut.Heartbeat = time.Duration(tmp.Heartbeat) * time.Second
-	ut.ConnectTimeout = time.Duration(tmp.ConnectTimeout) * time.Second
+
+	if tmp.Heartbeat > 0 {
+		ut.Heartbeat = time.Duration(tmp.Heartbeat) * time.Second
+	} else {
+		ut.Heartbeat = 30 * time.Second
+	}
+
+	if tmp.ConnectTimeout > 0 {
+		ut.ConnectTimeout = time.Duration(tmp.ConnectTimeout) * time.Second
+	} else {
+		ut.ConnectTimeout = 3 * time.Second
+	}
+
 	ut.ReadTimeout = time.Duration(tmp.ReadTimeout) * time.Second
 	return nil
 }
@@ -120,52 +133,13 @@ func (ut *EtcdConf) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	ut.EtcdList = tmp.EtcdList
-	ut.EtcdTimeout = time.Duration(tmp.EtcdTimeout) * time.Second
+
+	if tmp.EtcdTimeout > 0 {
+		ut.EtcdTimeout = time.Duration(tmp.EtcdTimeout) * time.Second
+	} else {
+		ut.EtcdTimeout = 3 * time.Second
+	}
+
 	ut.EtcdLeaseTime = tmp.EtcdLeaseTime
 	return nil
 }
-
-// func initCfg() {
-// 	AppCfg = &AppConf{
-// 		Log: LogConf{
-// 			LogPath:     "./log/",
-// 			IsWriteLog:  false,
-// 			Stacktrace:  "error",
-// 			LogLevel:    "debug",
-// 			LogMaxSize:  128,
-// 			MaxBackups:  30,
-// 			LogMaxAge:   7,
-// 			Development: true,
-// 			Console:     "console",
-// 			Skip:        2,
-// 			Split:       false,
-// 		},
-// 		MongoDb: MongoDbConf{
-// 			Url:      "127.0.0.1:27017",
-// 			User:     "",
-// 			Password: "",
-// 			Database: "gox",
-// 		},
-// 		Network: NetworkConf{
-// 			SendMsgMaxLen:     0,
-// 			ReadMsgMaxLen:     2048,
-// 			ReConnectInterval: 3 * time.Second,
-// 			Heartbeat:         30 * time.Second,
-// 			ConnectTimeout:    3 * time.Second,
-// 			ReadTimeout:       35 * time.Second,
-// 		},
-// 		WebSocket: WebSocketConf{
-// 			WebSocketMessageType: 2,
-// 			WebSocketPattern:     "ws",
-// 			WebSocketPath:        "/ws",
-// 			WebSocketScheme:      "/ws",
-// 			CertFile:             "",
-// 			KeyFile:              "",
-// 		},
-// 		Etcd: EtcdConf{
-// 			EtcdList:      []string{"127.0.0.1:2379"},
-// 			EtcdTimeout:   5 * time.Second,
-// 			EtcdLeaseTime: 5,
-// 		},
-// 	}
-// }

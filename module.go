@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
+	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 )
@@ -73,7 +74,7 @@ func (m *Module) Put(mod types.IModule) {
 }
 
 // Register 注册协议对应消息体和回调函数
-func (m *Module) Register(cmd uint32, fn interface{}) {
+func (m *Module) Register(cmd uint32, fn any) {
 
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
@@ -90,8 +91,7 @@ func (m *Module) Register(cmd uint32, fn interface{}) {
 			xlog.Error("协议回调函数参数需要是指针类型 cmd[%d]", cmd)
 			return
 		}
-		NetWork.RegisterRType(cmd, in)
-		break
+		protoreg.RegisterRType(cmd, in)
 	default:
 		xlog.Error("协议回调函数参数有误")
 		return
@@ -107,11 +107,9 @@ func (m *Module) RegisterRpc(args ...interface{}) {
 	switch l {
 	case 1:
 		fn = args[0]
-		break
 	case 2:
 		cmd = uint32(args[0].(int))
 		fn = args[1]
-		break
 	default:
 		xlog.Error("RPC回调函数参数有误")
 		return
@@ -131,7 +129,9 @@ func (m *Module) RegisterRpc(args ...interface{}) {
 		xlog.Error("RPC函数参数需要是指针类型")
 		return
 	}
+
 	key := out.Elem().Name()
+
 	switch tFun.NumIn() {
 	case 1: //ctx
 		break
@@ -145,8 +145,7 @@ func (m *Module) RegisterRpc(args ...interface{}) {
 			key = in.Elem().Name() + key
 			cmd = strhelper.StringToHash(key)
 		}
-		NetWork.RegisterRType(cmd, in)
-		break
+		protoreg.RegisterRType(cmd, in)
 	default:
 		xlog.Error("RPC回调函数参数有误")
 		return

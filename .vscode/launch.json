@@ -12,6 +12,15 @@
             "program": "${workspaceFolder}/examples/sv/",
             "env": {},
             "args": []
+        },
+        {
+            "name": "TestClient",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/examples/cl/",
+            "env": {},
+            "args": []
         }
     ]
 }

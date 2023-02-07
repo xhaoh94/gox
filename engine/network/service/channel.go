@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/types"
 )
 
@@ -83,35 +84,9 @@ func (channel *Channel) Init(wfn func([]byte), remoteAddr string, localAddr stri
 }
 
 // Read
-func (channel *Channel) Read(r io.Reader) bool {
-
-	// header, err := ioutil.ReadAll(io.LimitReader(r, 2))
-	// if err != nil {
-	// 	stopFunc() //超时断开链接
-	// 	return
-	// }
-	// msgLen := util.Bytes2Uint16(header)
-	// if int(msgLen) > consts.ReadMsgMaxLen {
-	// 	xlog.Errorf("read msg size exceed local:[%s] remote:[%s]", channel.LAddr, channel.RAddr)
-	// 	stopFunc() //超过读取最大限制
-	// 	return
-	// }
-	// if msgLen == 0 {
-	// 	xlog.Errorf("read msgLen=0 local:[%s] remote:[%s]", channel.LAddr, channel.RAddr)
-	// 	stopFunc() //空数据
-	// 	return
-	// }
-	// buf, err := ioutil.ReadAll(io.LimitReader(r, int64(msgLen)))
-	// if err != nil {
-	// 	stopFunc() //超时断开链接
-	// 	return
-	// }
-	// if len(buf) < int(msgLen) {
-	// 	return
-	// }
-	// channel.session.OnRead(buf)
+func (channel *Channel) Read(r io.Reader) (bool, error) {
 	if channel.Session != nil {
 		return channel.Session.parseReader(r)
 	}
-	return true
+	return true, consts.Error_4
 }

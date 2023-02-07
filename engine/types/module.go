@@ -1,7 +1,7 @@
 package types
 
 type (
-	//IModule 模块接口
+	//模块接口
 	IModule interface {
 		Init(IModule)
 		Start(IModule)

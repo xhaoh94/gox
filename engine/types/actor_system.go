@@ -1,7 +1,7 @@
 package types
 
 type (
-	//IActorSystem actor发现接口
+	//actor系统
 	IActorSystem interface {
 		Add(IActorEntity)
 		Del(IActorEntity)

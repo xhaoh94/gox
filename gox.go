@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/types"
@@ -54,12 +53,6 @@ func loadConf(appConfPath string) app.AppConf {
 		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
 		return AppCfg
 	}
-	AppCfg.Network.ReConnectInterval *= time.Second
-	AppCfg.Network.Heartbeat *= time.Second
-	AppCfg.Network.ConnectTimeout *= time.Second
-	AppCfg.Network.ReadTimeout *= time.Second
-	AppCfg.Etcd.EtcdTimeout *= time.Second
-
 	return AppCfg
 }
 
@@ -81,7 +74,7 @@ func Run() {
 	mainModule.Start(mainModule)
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 	<-sigChan
 	shutdown()
 	os.Exit(1)

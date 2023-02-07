@@ -1,14 +1,14 @@
 package types
 
 type (
-	//IServiceSystem 服务发现接口
+	//服务发现系统
 	IServiceSystem interface {
 		// GetServiceEntityByID 通过id获取服务配置
 		GetServiceEntityByID(uint) IServiceEntity
 		// GetServiceEntitysByType 获取对应类型的所有服务配置
 		GetServiceEntitysByType(string) []IServiceEntity
 	}
-	//IServiceEntity 服务器配置
+	//服务器配置
 	IServiceEntity interface {
 		GetID() uint
 		GetType() string

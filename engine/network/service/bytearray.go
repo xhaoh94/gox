@@ -22,7 +22,7 @@ import (
 // [uint16] [[8]byte] [[1]byte] [uint32]  [uint32] [[n]byte]
 // |------------------------------------------------|
 
-var bytePool sync.Pool = sync.Pool{New: func() interface{} { return &ByteArray{} }}
+var bytePool sync.Pool = sync.Pool{New: func() any { return &ByteArray{} }}
 
 // ByteArray 默认包体格式
 type ByteArray struct {
@@ -76,11 +76,11 @@ func (bytearray *ByteArray) AppendString(v string) {
 	bytearray.AppendUint16(uint16(l))
 	bytearray.data = append(bytearray.data, []byte(v)...)
 }
-func (bytearray *ByteArray) AppendMessage(msg interface{}, cdc types.ICodec) error {
+func (bytearray *ByteArray) AppendMessage(msg any, codec types.ICodec) error {
 	if msg == nil {
-		return consts.CodecError
+		return consts.Error_2
 	}
-	msgData, err := cdc.Encode(msg)
+	msgData, err := codec.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -139,10 +139,10 @@ func (bytearray *ByteArray) ReadString() string {
 	return string(bytes)
 }
 
-func (bytearray *ByteArray) ReadMessage(msg interface{}, cdc types.ICodec) error {
+func (bytearray *ByteArray) ReadMessage(msg any, cdc types.ICodec) error {
 	msgLen := bytearray.Length() - bytearray.Position()
 	msgData := bytearray.ReadBytes(msgLen)
-	if err := cdc.Decode(msgData, msg); err != nil {
+	if err := cdc.Unmarshal(msgData, msg); err != nil {
 		return err
 	}
 	return nil

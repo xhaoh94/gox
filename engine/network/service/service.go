@@ -96,13 +96,6 @@ func (service *Service) Stop() {
 		service.idToSession[k].stop()
 	}
 	service.idMutex.Unlock()
-
-	// service.addrMutex.Lock()
-	// for k := range service.addrToSession {
-	// 	service.addrToSession[k].stop()
-	// }
-	// service.addrMutex.Unlock()
-
 	service.sessionWg.Wait()
 }
 

@@ -1,11 +1,7 @@
 package network
 
 import (
-	"reflect"
-	"sync"
-
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -20,21 +16,18 @@ type (
 		rpc           types.IRPC
 		serviceSystem types.IServiceSystem
 		actorSystem   types.IActorSystem
-		cmdType       map[uint32]reflect.Type
-		cmdLock       sync.RWMutex
 	}
 )
 
 func New() *NetWork {
 	network := new(NetWork)
-	network.cmdType = make(map[uint32]reflect.Type)
 	network.rpc = rpc.New()
 	network.actorSystem = newActorSystem(gox.Ctx)
 	network.serviceSystem = newServiceSystem(gox.Ctx)
 	return network
 }
 
-// GetSession 通过id获取Session
+// 通过id获取Session
 func (network *NetWork) GetSessionById(sid uint32) types.ISession {
 	session := network.interior.GetSessionById(sid)
 	if session == nil && network.outside != nil {
@@ -43,7 +36,7 @@ func (network *NetWork) GetSessionById(sid uint32) types.ISession {
 	return session
 }
 
-// GetSessionByAddr 通过地址获取Session
+// 通过地址获取Session
 func (network *NetWork) GetSessionByAddr(addr string) types.ISession {
 	return network.interior.GetSessionByAddr(addr)
 }
@@ -56,35 +49,6 @@ func (network *NetWork) ServiceSystem() types.IServiceSystem {
 }
 func (network *NetWork) ActorSystem() types.IActorSystem {
 	return network.actorSystem
-}
-
-// RegisterRType 注册协议消息体类型
-func (network *NetWork) RegisterRType(cmd uint32, protoType reflect.Type) {
-	defer network.cmdLock.Unlock()
-	network.cmdLock.Lock()
-	if _, ok := network.cmdType[cmd]; ok {
-		xlog.Error("重复注册协议 cmd[%s]", cmd)
-		return
-	}
-	network.cmdType[cmd] = protoType
-}
-
-// RegisterRType 注册协议消息体类型
-func (network *NetWork) UnRegisterRType(cmd uint32) {
-	defer network.cmdLock.Unlock()
-	network.cmdLock.Lock()
-	delete(network.cmdType, cmd)
-}
-
-// GetRegProtoMsg 获取协议消息体
-func (network *NetWork) GetRegProtoMsg(cmd uint32) interface{} {
-	network.cmdLock.RLock()
-	rType, ok := network.cmdType[cmd]
-	network.cmdLock.RUnlock()
-	if !ok {
-		return nil
-	}
-	return commonhelper.RTypeToInterface(rType)
 }
 
 func (network *NetWork) Init() {

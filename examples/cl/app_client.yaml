@@ -1,9 +1,7 @@
-eid: 1
-etype: gate
+eid: 999
+etype: test
 version: "1.0.0"
-interioraddr: "127.0.0.1:10001"
-outsideaddr: "127.0.0.1:10002"
-rpcaddr: ""
+interioraddr: "127.0.0.1:9099"
 log:    
     log_file_name: "./log/e_1.log"     #日志文件路径
     log_write_open: false  #是否写入log文件
@@ -17,11 +15,6 @@ log:
     log_callerskip: 2      #跳过文件名和行号路径
     log_split_level: false #是否把error及以上的日志拆分到另一份文件
 
-mongodb:
-    url: 127.0.0.1:27017
-    user: ""
-    password: ""
-    database: xhgo
 
 network:
     send_msg_max_len: 0        #发送消息最大长度
@@ -41,6 +34,7 @@ webSocket:
     ws_keyfile: ""
 
 etcd:
-    etcd_list: 127.0.0.1:2379 #etcd集
+    etcd_list: #etcd集
+        - 127.0.0.1:2379 
     etcd_timeout: 5           #连接超时
     etcd_lease_time: 5        #续约时间s

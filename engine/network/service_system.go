@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"encoding/json"
-	"sync"
 	"time"
 
 	"github.com/xhaoh94/gox"
@@ -13,14 +12,14 @@ import (
 	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
-	"go.etcd.io/etcd/clientv3"
 )
 
 type (
 	ServiceSystem struct {
-		context      context.Context
-		es           *etcd.EtcdService
-		lock         sync.RWMutex
+		etcd.EtcdComponent
+		context context.Context
+		es      *etcd.EtcdService
+		// lock         sync.RWMutex
 		keyToService map[string]ServiceEntity
 		idToService  map[uint]ServiceEntity
 		curService   ServiceEntity
@@ -91,9 +90,11 @@ func newServiceConfig(val []byte) (ServiceEntity, error) {
 	return service, nil
 }
 
-func (discovery *ServiceSystem) Start() {
+func (ss *ServiceSystem) Start() {
 	appConf := gox.AppConf
-	discovery.curService = ServiceEntity{
+	ss.EtcdComponent.OnPut = ss.onPut
+	ss.EtcdComponent.OnDel = ss.onDel
+	ss.curService = ServiceEntity{
 		EID:          appConf.Eid,
 		EType:        appConf.EType,
 		Version:      appConf.Version,
@@ -101,30 +102,30 @@ func (discovery *ServiceSystem) Start() {
 		InteriorAddr: appConf.InteriorAddr,
 		RpcAddr:      appConf.RpcAddr,
 	}
-	timeoutCtx, timeoutCancelFunc := context.WithCancel(discovery.context)
-	go discovery.checkTimeout(timeoutCtx)
+	timeoutCtx, timeoutCancelFunc := context.WithCancel(ss.context)
+	go ss.checkTimeout(timeoutCtx)
 	var err error
-	discovery.es, err = etcd.NewEtcdService(gox.AppConf.Etcd, discovery.get, discovery.put, discovery.del)
+	ss.es, err = etcd.NewEtcdService(gox.AppConf.Etcd, ss)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("服务注册失败 [%v]", err)
 		return
 	}
-	key := convertKey(discovery.curService)
-	value := convertValue(discovery.curService)
-	discovery.es.Put(key, value)
-	discovery.es.Get("services/", true)
+	key := convertKey(ss.curService)
+	value := convertValue(ss.curService)
+	ss.es.Put(key, value)
+	ss.es.Get("services/", true)
 }
-func (discovery *ServiceSystem) Stop() {
-	// if discovery.curService != nil {
-	// 	key := convertKey(discovery.curService)
-	// 	discovery.es.Del(key)
+func (ss *ServiceSystem) Stop() {
+	// if ss.curService != nil {
+	// 	key := convertKey(ss.curService)
+	// 	ss.es.Del(key)
 	// }
-	if discovery.es != nil {
-		discovery.es.Close()
+	if ss.es != nil {
+		ss.es.Close()
 	}
 }
-func (discovery *ServiceSystem) checkTimeout(ctx context.Context) {
+func (ss *ServiceSystem) checkTimeout(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		// 被取消，直接返回
@@ -135,22 +136,22 @@ func (discovery *ServiceSystem) checkTimeout(ctx context.Context) {
 }
 
 // GetServiceEntityByID 通过id获取服务配置
-func (discovery *ServiceSystem) GetServiceEntityByID(id uint) types.IServiceEntity {
-	defer discovery.lock.RUnlock()
-	discovery.lock.RLock()
-	if conf, ok := discovery.idToService[id]; ok {
+func (ss *ServiceSystem) GetServiceEntityByID(id uint) types.IServiceEntity {
+	defer ss.RUnlock()
+	ss.RLock()
+	if conf, ok := ss.idToService[id]; ok {
 		return conf
 	}
 	return nil
 }
 
 // GetServiceEntitysByType 获取对应类型的所有服务配置
-func (discovery *ServiceSystem) GetServiceEntitysByType(serviceType string) []types.IServiceEntity {
-	defer discovery.lock.RUnlock()
-	discovery.lock.RLock()
+func (ss *ServiceSystem) GetServiceEntitysByType(serviceType string) []types.IServiceEntity {
+	defer ss.RUnlock()
+	ss.RLock()
 	list := make([]types.IServiceEntity, 0)
-	for k := range discovery.idToService {
-		v := discovery.idToService[k]
+	for k := range ss.idToService {
+		v := ss.idToService[k]
 		if v.EType == serviceType {
 			list = append(list, v)
 		}
@@ -158,17 +159,7 @@ func (discovery *ServiceSystem) GetServiceEntitysByType(serviceType string) []ty
 	return list
 }
 
-func (discovery *ServiceSystem) get(resp *clientv3.GetResponse) {
-	if resp == nil || resp.Kvs == nil {
-		return
-	}
-	defer discovery.lock.Unlock()
-	discovery.lock.Lock()
-	for i := range resp.Kvs {
-		discovery.onPut(resp.Kvs[i])
-	}
-}
-func (discovery *ServiceSystem) onPut(kv *mvccpb.KeyValue) {
+func (ss *ServiceSystem) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
@@ -178,23 +169,15 @@ func (discovery *ServiceSystem) onPut(kv *mvccpb.KeyValue) {
 		xlog.Error("解析服务注册配置错误[%v]", err)
 		return
 	}
-	discovery.idToService[service.EID] = service
-	discovery.keyToService[key] = service
+	ss.idToService[service.EID] = service
+	ss.keyToService[key] = service
 	xlog.Info("服务注册发现 sid:[%d] type:[%s] version:[%s]", service.EID, service.EType, service.Version)
 }
-func (discovery *ServiceSystem) put(kv *mvccpb.KeyValue) {
-	defer discovery.lock.Unlock()
-	discovery.lock.Lock()
-	discovery.onPut(kv)
-}
-
-func (discovery *ServiceSystem) del(kv *mvccpb.KeyValue) {
-	discovery.lock.Lock()
-	defer discovery.lock.Unlock()
+func (ss *ServiceSystem) onDel(kv *mvccpb.KeyValue) {
 	key := string(kv.Key)
-	if service, ok := discovery.keyToService[key]; ok {
-		delete(discovery.keyToService, key)
-		delete(discovery.idToService, service.EID)
+	if service, ok := ss.keyToService[key]; ok {
+		delete(ss.keyToService, key)
+		delete(ss.idToService, service.EID)
 		xlog.Info("服务注销 sid:[%d] type:[%s]", service.EID, service.EType)
 	}
 }

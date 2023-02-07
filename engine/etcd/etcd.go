@@ -3,40 +3,75 @@ package etcd
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
 
 	"github.com/xhaoh94/gox/engine/app"
+	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
 )
 
 type (
-	putFn func(kv *mvccpb.KeyValue)
-	getFn func(resp *clientv3.GetResponse)
-	delFn func(kv *mvccpb.KeyValue)
+	IEtcdComponent interface {
+		put(*mvccpb.KeyValue)
+		get(*clientv3.GetResponse)
+		del(*mvccpb.KeyValue)
+	}
+	EtcdComponent struct {
+		lock  sync.RWMutex
+		OnPut func(kv *mvccpb.KeyValue)
+		OnDel func(kv *mvccpb.KeyValue)
+	}
+
+	// EtcdService etcd
+	EtcdService struct {
+		isRun         bool
+		leaseOverdue  bool
+		conf          app.EtcdConf
+		client        *clientv3.Client
+		kv            clientv3.KV
+		lease         clientv3.Lease
+		leaseID       clientv3.LeaseID
+		cancle        context.CancelFunc
+		keepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
+		etcdComponent IEtcdComponent
+	}
 )
 
-// EtcdService etcd
-type EtcdService struct {
-	isRun         bool
-	conf          app.EtcdConf
-	client        *clientv3.Client
-	kv            clientv3.KV
-	lease         clientv3.Lease
-	leaseID       clientv3.LeaseID
-	canclefunc    func()
-	keepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
-	putFn         putFn
-	getFn         getFn
-	delFn         delFn
+func (component *EtcdComponent) RUnlock() {
+	component.lock.RUnlock()
+
+}
+func (component *EtcdComponent) RLock() {
+	component.lock.RLock()
 }
 
-// func GetEtcdConf() clientv3.Config {
-// 	return clientv3.Config{Endpoints: app.GetAppCfg().Etcd.EtcdList, DialTimeout: app.GetAppCfg().Etcd.EtcdTimeout}
-// }
+func (component *EtcdComponent) get(resp *clientv3.GetResponse) {
+	if resp == nil || resp.Kvs == nil {
+		return
+	}
+	defer component.lock.Unlock()
+	component.lock.Lock()
+	for i := range resp.Kvs {
+		component.OnPut(resp.Kvs[i])
+	}
+}
+func (component *EtcdComponent) put(kv *mvccpb.KeyValue) {
+	defer component.lock.Unlock()
+	component.lock.Lock()
+	component.OnPut(kv)
+}
 
-// NewEtcdService 创建etcd
-func NewEtcdService(conf app.EtcdConf, get getFn, put putFn, del delFn) (*EtcdService, error) {
+func (component *EtcdComponent) del(kv *mvccpb.KeyValue) {
+	defer component.lock.Unlock()
+	component.lock.Lock()
+	component.OnDel(kv)
+}
+
+// 创建etcd
+func NewEtcdService(conf app.EtcdConf, component IEtcdComponent) (*EtcdService, error) {
 	clientConf := clientv3.Config{
 		Endpoints:   conf.EtcdList,
 		DialTimeout: conf.EtcdTimeout,
@@ -47,17 +82,16 @@ func NewEtcdService(conf app.EtcdConf, get getFn, put putFn, del delFn) (*EtcdSe
 	}
 	kv := clientv3.NewKV(client)
 	es := &EtcdService{
-		isRun:  true,
-		conf:   conf,
-		client: client,
-		kv:     kv,
-		putFn:  put,
-		getFn:  get,
-		delFn:  del,
+		isRun:         true,
+		conf:          conf,
+		client:        client,
+		kv:            kv,
+		etcdComponent: component,
 	}
 	if err := es.setLease(); err != nil {
 		return nil, err
 	}
+	go es.listenLease()
 	return es, nil
 }
 
@@ -70,17 +104,15 @@ func (es *EtcdService) setLease() error {
 		return err
 	}
 	//设置续租
-	ctx, cancelFunc := context.WithCancel(es.client.Ctx())
+	ctx, cancel := context.WithCancel(es.client.Ctx())
 	leaseRespChan, err := lease.KeepAlive(ctx, leaseResp.ID)
-
 	if err != nil {
-		cancelFunc()
+		cancel()
 		return err
 	}
-	go es.listenLease()
 	es.lease = lease
 	es.leaseID = leaseResp.ID
-	es.canclefunc = cancelFunc
+	es.cancle = cancel
 	es.keepAliveChan = leaseRespChan
 	return nil
 }
@@ -88,14 +120,13 @@ func (es *EtcdService) setLease() error {
 // 监听 续租情况
 func (es *EtcdService) listenLease() {
 	for {
-		select {
-		case leaseKeepResp := <-es.keepAliveChan:
-			if leaseKeepResp == nil {
-				goto END //失效跳出循环
-			}
+		leaseKeepResp := <-es.keepAliveChan
+		if leaseKeepResp == nil {
+			xlog.Debug("etcd 续租失效")
+			es.leaseOverdue = true
+			return //失效跳出循环
 		}
 	}
-END:
 }
 
 // Del 删除
@@ -118,7 +149,11 @@ func (es *EtcdService) Put(key, val string) error {
 
 // RevokeLease 撤销租约
 func (es *EtcdService) RevokeLease() error {
-	es.canclefunc()
+	es.cancle()
+	time.Sleep(2 * time.Second)
+	if es.leaseOverdue {
+		return nil
+	}
 	_, err := es.lease.Revoke(es.client.Ctx(), es.leaseID)
 	return err
 }
@@ -132,9 +167,7 @@ func (es *EtcdService) Get(prefix string, isWatcher bool) error {
 	if err != nil {
 		return err
 	}
-	if es.getFn != nil {
-		es.getFn(resp)
-	}
+	es.etcdComponent.get(resp)
 	if isWatcher {
 		go es.watcher(prefix)
 	}
@@ -149,13 +182,9 @@ func (es *EtcdService) watcher(prefix string) {
 				ev := wresp.Events[i]
 				switch ev.Type {
 				case mvccpb.PUT:
-					if es.putFn != nil {
-						es.putFn(ev.Kv)
-					}
+					es.etcdComponent.put(ev.Kv)
 				case mvccpb.DELETE:
-					if es.delFn != nil {
-						es.delFn(ev.Kv)
-					}
+					es.etcdComponent.del(ev.Kv)
 				}
 			}
 		}

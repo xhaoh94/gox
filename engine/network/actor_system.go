@@ -11,16 +11,17 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/etcd"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
+	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
-	"go.etcd.io/etcd/clientv3"
 )
 
 type (
 	ActorSystem struct {
+		etcd.EtcdComponent
 		context        context.Context
 		actorPrefix    string
 		es             *etcd.EtcdService
@@ -41,7 +42,7 @@ func newActorSystem(ctx context.Context) *ActorSystem {
 	}
 }
 
-func (discovery *ActorSystem) parseFn(aid uint32, fn interface{}) uint32 {
+func (as *ActorSystem) parseFn(aid uint32, fn interface{}) uint32 {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	if tFun.Kind() != reflect.Func {
@@ -84,13 +85,13 @@ func (discovery *ActorSystem) parseFn(aid uint32, fn interface{}) uint32 {
 		return cmd
 	}
 	if in != nil {
-		gox.NetWork.RegisterRType(cmd, in)
+		protoreg.RegisterRType(cmd, in)
 	}
 	gox.Event.Bind(cmd, fn)
 	return cmd
 }
 
-func (discovery *ActorSystem) Add(actor types.IActorEntity) {
+func (as *ActorSystem) Add(actor types.IActorEntity) {
 	aid := actor.ActorID()
 	if aid == 0 {
 		xlog.Error("Actor没有初始化ID")
@@ -109,17 +110,17 @@ func (discovery *ActorSystem) Add(actor types.IActorEntity) {
 	}
 	for index := range fnList {
 		fn := fnList[index]
-		if cmd := discovery.parseFn(aid, fn); cmd != 0 {
+		if cmd := as.parseFn(aid, fn); cmd != 0 {
 			actor.SetCmdList(cmd)
 		}
 	}
 
-	key := fmt.Sprintf(discovery.actorPrefix+"/%d", aid)
-	discovery.es.Put(key, string(b))
+	key := fmt.Sprintf(as.actorPrefix+"/%d", aid)
+	as.es.Put(key, string(b))
 }
-func (discovery *ActorSystem) Del(actor types.IActorEntity) {
-	defer discovery.keyLock.Unlock()
-	discovery.keyLock.Lock()
+func (as *ActorSystem) Del(actor types.IActorEntity) {
+	defer as.keyLock.Unlock()
+	as.keyLock.Lock()
 	aid := actor.ActorID()
 	if aid == 0 {
 		xlog.Error("Actor没有初始化ID")
@@ -128,29 +129,29 @@ func (discovery *ActorSystem) Del(actor types.IActorEntity) {
 	cmdList := actor.GetCmdList()
 	for index := range cmdList {
 		cmd := cmdList[index]
-		gox.NetWork.UnRegisterRType(cmd)
+		protoreg.UnRegisterRType(cmd)
 		gox.Event.UnBind(cmd)
 	}
 
-	key := fmt.Sprintf(discovery.actorPrefix+"/%d", aid)
-	if _, ok := discovery.keyToActorConf[key]; ok {
-		discovery.es.Del(key)
+	key := fmt.Sprintf(as.actorPrefix+"/%d", aid)
+	if _, ok := as.keyToActorConf[key]; ok {
+		as.es.Del(key)
 	}
 	actor.Destroy()
 }
-func (discovery *ActorSystem) Get(actorID uint32) (ActorEntity, bool) {
-	defer discovery.keyLock.RUnlock()
-	discovery.keyLock.RLock()
-	key := fmt.Sprintf(discovery.actorPrefix+"/%d", actorID)
-	actor, ok := discovery.keyToActorConf[key]
+func (as *ActorSystem) Get(actorID uint32) (ActorEntity, bool) {
+	defer as.keyLock.RUnlock()
+	as.keyLock.RLock()
+	key := fmt.Sprintf(as.actorPrefix+"/%d", actorID)
+	actor, ok := as.keyToActorConf[key]
 	if !ok {
 		xlog.Error("找不到对应的Actor[%d]", actorID)
 		return ActorEntity{}, false
 	}
 	return actor, true
 }
-func (discovery *ActorSystem) getSession(actorID uint32) types.ISession {
-	conf, ok := discovery.Get(actorID)
+func (as *ActorSystem) getSession(actorID uint32) types.ISession {
+	conf, ok := as.Get(actorID)
 	if !ok {
 		return nil
 	}
@@ -166,17 +167,16 @@ func (discovery *ActorSystem) getSession(actorID uint32) types.ISession {
 	}
 	return session
 }
-
-func (discovery *ActorSystem) Send(actorID uint32, msg interface{}) bool {
-	session := discovery.getSession(actorID)
+func (as *ActorSystem) Send(actorID uint32, msg interface{}) bool {
+	session := as.getSession(actorID)
 	if session == nil {
 		return false
 	}
 	cmd := cmdhelper.ToCmd(msg, nil, actorID)
 	return session.Send(cmd, msg)
 }
-func (discovery *ActorSystem) Call(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
-	session := discovery.getSession(actorID)
+func (as *ActorSystem) Call(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
+	session := as.getSession(actorID)
 	if session == nil {
 		dr := rpc.NewDefaultRpc(0, context.TODO(), response)
 		defer dr.Run(false)
@@ -185,25 +185,26 @@ func (discovery *ActorSystem) Call(actorID uint32, msg interface{}, response int
 	return session.ActorCall(actorID, msg, response)
 }
 
-func (discovery *ActorSystem) Start() {
-
-	timeoutCtx, timeoutCancelFunc := context.WithCancel(discovery.context)
-	go discovery.checkTimeout(timeoutCtx)
+func (as *ActorSystem) Start() {
+	as.EtcdComponent.OnPut = as.onPut
+	as.EtcdComponent.OnDel = as.onDel
+	timeoutCtx, timeoutCancelFunc := context.WithCancel(as.context)
+	go as.checkTimeout(timeoutCtx)
 	var err error
-	discovery.es, err = etcd.NewEtcdService(gox.AppConf.Etcd, discovery.get, discovery.put, discovery.del)
+	as.es, err = etcd.NewEtcdService(gox.AppConf.Etcd, as)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("actor启动失败 [%v]", err)
 		return
 	}
-	discovery.es.Get(discovery.actorPrefix, true)
+	as.es.Get(as.actorPrefix, true)
 }
-func (discovery *ActorSystem) Stop() {
-	if discovery.es != nil {
-		discovery.es.Close()
+func (as *ActorSystem) Stop() {
+	if as.es != nil {
+		as.es.Close()
 	}
 }
-func (discovery *ActorSystem) checkTimeout(ctx context.Context) {
+func (as *ActorSystem) checkTimeout(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		// 被取消，直接返回
@@ -213,24 +214,13 @@ func (discovery *ActorSystem) checkTimeout(ctx context.Context) {
 	}
 }
 
-func (discovery *ActorSystem) get(resp *clientv3.GetResponse) {
-	if resp == nil || resp.Kvs == nil {
-		return
-	}
-
-	defer discovery.keyLock.Unlock()
-	discovery.keyLock.Lock()
-	for i := range resp.Kvs {
-		discovery.onPut(resp.Kvs[i])
-	}
-}
-func (discovery *ActorSystem) onPut(kv *mvccpb.KeyValue) {
+func (as *ActorSystem) onPut(kv *mvccpb.KeyValue) {
 	if kv.Value == nil {
 		return
 	}
 	key := string(kv.Key)
 
-	value, ok := discovery.keyToActorConf[key]
+	value, ok := as.keyToActorConf[key]
 	if !ok {
 		value = ActorEntity{}
 	}
@@ -239,18 +229,12 @@ func (discovery *ActorSystem) onPut(kv *mvccpb.KeyValue) {
 		return
 	}
 	if !ok {
-		discovery.keyToActorConf[key] = value
+		as.keyToActorConf[key] = value
 	}
 	xlog.Debug("actor注册 %v", string(kv.Value))
 }
-func (discovery *ActorSystem) put(kv *mvccpb.KeyValue) {
-	defer discovery.keyLock.Unlock()
-	discovery.keyLock.Lock()
-	discovery.onPut(kv)
-}
-func (discovery *ActorSystem) del(kv *mvccpb.KeyValue) {
-	defer discovery.keyLock.Unlock()
-	discovery.keyLock.Lock()
+
+func (as *ActorSystem) onDel(kv *mvccpb.KeyValue) {
 	key := string(kv.Key)
-	delete(discovery.keyToActorConf, key)
+	delete(as.keyToActorConf, key)
 }
