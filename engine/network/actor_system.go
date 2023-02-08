@@ -150,14 +150,10 @@ func (as *ActorSystem) Get(actorID uint32) (ActorEntity, bool) {
 	}
 	return actor, true
 }
-func (as *ActorSystem) getSession(actorID uint32) types.ISession {
-	conf, ok := as.Get(actorID)
-	if !ok {
-		return nil
-	}
-	svConf := gox.ServiceSystem.GetServiceEntityByID(conf.EID)
+func (as *ActorSystem) getSession(entityConf ActorEntity) types.ISession {
+	svConf := gox.ServiceSystem.GetServiceEntityByID(entityConf.EID)
 	if svConf == nil {
-		xlog.Error("Actor没有找到服务 ServiceID:[%s]", conf.EID)
+		xlog.Error("Actor没有找到服务 ServiceID:[%s]", entityConf.EID)
 		return nil
 	}
 	session := gox.NetWork.GetSessionByAddr(svConf.GetInteriorAddr())
@@ -168,19 +164,48 @@ func (as *ActorSystem) getSession(actorID uint32) types.ISession {
 	return session
 }
 func (as *ActorSystem) Send(actorID uint32, msg interface{}) bool {
-	session := as.getSession(actorID)
+	entityConf, ok := as.Get(actorID)
+	if !ok {
+		return false
+	}
+	session := as.getSession(entityConf)
 	if session == nil {
 		return false
 	}
 	cmd := cmdhelper.ToCmd(msg, nil, actorID)
+	if entityConf.EID == gox.AppConf.Eid {
+		if _, err := cmdhelper.CallEvt(cmd, as.context, session, msg); err != nil {
+			xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
+		}
+		return true
+	}
 	return session.Send(cmd, msg)
 }
 func (as *ActorSystem) Call(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
-	session := as.getSession(actorID)
+	entityConf, ok := as.Get(actorID)
+	if !ok {
+		rpcx := rpc.NewDefaultRpc(0, as.context, response)
+		defer rpcx.Run(false)
+		return rpcx
+	}
+	session := as.getSession(entityConf)
 	if session == nil {
-		dr := rpc.NewDefaultRpc(0, context.TODO(), response)
-		defer dr.Run(false)
-		return dr
+		rpcx := rpc.NewDefaultRpc(0, as.context, response)
+		defer rpcx.Run(false)
+		return rpcx
+	}
+	if entityConf.EID == gox.AppConf.Eid {
+		cmd := cmdhelper.ToCmd(msg, response, actorID)
+		var rpcx *rpc.Rpcx
+		if response, err := cmdhelper.CallEvt(cmd, as.context, msg); err == nil {
+			rpcx = rpc.NewDefaultRpc(session.ID(), as.context, response)
+			defer rpcx.Run(true)
+		} else {
+			xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
+			rpcx = rpc.NewDefaultRpc(0, as.context, response)
+			defer rpcx.Run(false)
+		}
+		return rpcx
 	}
 	return session.ActorCall(actorID, msg, response)
 }

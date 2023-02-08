@@ -52,9 +52,9 @@ func (m *MainModule) RspToken(ctx context.Context, session types.ISession, rsp *
 
 func (m *MainModule) RspLogin(ctx context.Context, session types.ISession, rsp *netpack.L2C_Login) {
 	xlog.Debug("登录结果返回Code:%d", rsp.Code)
-	// session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 100})
-	// session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 200})
-	// session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 2, UnitId: 300})
+	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 100})
+	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 200})
+	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 2, UnitId: 300})
 }
 
 func (m *MainModule) RspEnter(ctx context.Context, session types.ISession, rsp *netpack.L2C_Enter) {

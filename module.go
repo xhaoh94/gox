@@ -39,14 +39,14 @@ func (m *Module) Start(self types.IModule) {
 	if m.childModules != nil {
 		for i := range m.childModules {
 			v := m.childModules[i]
-			v.Start(self)
+			v.Start(v)
 		}
 	}
 }
 
 // OnStart 模块启动
 func (mm *Module) OnStart() {
-
+	xlog.Debug("xxxxxxxxxx")
 }
 
 // Destroy 销毁模块

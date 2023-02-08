@@ -111,6 +111,10 @@ func (session *Session) Call(msg any, response any) types.IRpcx {
 		return dr
 	}
 	cmd := cmdhelper.ToCmd(msg, response, 0)
+	if cmd == 0 {
+		defer dr.Run(false)
+		return dr
+	}
 	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
@@ -140,6 +144,10 @@ func (session *Session) ActorCall(actorID uint32, msg any, response any) types.I
 	}
 
 	cmd := cmdhelper.ToCmd(msg, response, actorID)
+	if cmd == 0 {
+		defer dr.Run(false)
+		return dr
+	}
 	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
@@ -318,26 +326,8 @@ func (session *Session) endian() binary.ByteOrder {
 	return gox.AppConf.Network.Endian
 }
 
-// callEvt 触发
-func (session *Session) callEvt(event uint32, params ...any) (any, error) {
-	values, err := gox.Event.Call(event, params...)
-	if err != nil {
-		return nil, err
-	}
-	switch len(values) {
-	case 0:
-		return nil, nil
-	case 1:
-		return values[0].Interface(), nil
-	case 2:
-		return values[0].Interface(), (values[1].Interface()).(error)
-	default:
-		return nil, consts.Error_3
-	}
-}
-
 func (session *Session) emitRpc(cmd uint32, rpc uint32, msg any) {
-	if r, err := session.callEvt(cmd, session.ctx, msg); err == nil {
+	if r, err := cmdhelper.CallEvt(cmd, session.ctx, msg); err == nil {
 		session.reply(r, rpc)
 	} else {
 		xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
@@ -346,7 +336,7 @@ func (session *Session) emitRpc(cmd uint32, rpc uint32, msg any) {
 
 // emitMessage 派发网络消息
 func (session *Session) emitMessage(cmd uint32, msg any) {
-	if _, err := session.callEvt(cmd, session.ctx, session, msg); err != nil {
+	if _, err := cmdhelper.CallEvt(cmd, session.ctx, session, msg); err != nil {
 		xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
 	}
 }

@@ -74,7 +74,7 @@ func Run() {
 	mainModule.Start(mainModule)
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 	shutdown()
 	os.Exit(1)

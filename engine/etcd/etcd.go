@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox/engine/app"
-	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
@@ -122,7 +121,6 @@ func (es *EtcdService) listenLease() {
 	for {
 		leaseKeepResp := <-es.keepAliveChan
 		if leaseKeepResp == nil {
-			xlog.Debug("etcd 续租失效")
 			es.leaseOverdue = true
 			return //失效跳出循环
 		}
@@ -150,7 +148,7 @@ func (es *EtcdService) Put(key, val string) error {
 // RevokeLease 撤销租约
 func (es *EtcdService) RevokeLease() error {
 	es.cancle()
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	if es.leaseOverdue {
 		return nil
 	}
