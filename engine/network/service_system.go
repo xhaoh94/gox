@@ -17,9 +17,8 @@ import (
 type (
 	ServiceSystem struct {
 		etcd.EtcdComponent
-		context context.Context
-		es      *etcd.EtcdService
-		// lock         sync.RWMutex
+		context      context.Context
+		es           *etcd.EtcdConf
 		keyToService map[string]ServiceEntity
 		idToService  map[uint]ServiceEntity
 		curService   ServiceEntity
@@ -105,7 +104,7 @@ func (ss *ServiceSystem) Start() {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ss.context)
 	go ss.checkTimeout(timeoutCtx)
 	var err error
-	ss.es, err = etcd.NewEtcdService(gox.AppConf.Etcd, ss)
+	ss.es, err = etcd.NewEtcdConf(gox.AppConf.Etcd, ss)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("服务注册失败 [%v]", err)
@@ -146,13 +145,13 @@ func (ss *ServiceSystem) GetServiceEntityByID(id uint) types.IServiceEntity {
 }
 
 // GetServiceEntitysByType 获取对应类型的所有服务配置
-func (ss *ServiceSystem) GetServiceEntitysByType(serviceType string) []types.IServiceEntity {
+func (ss *ServiceSystem) GetServiceEntitysByType(appType string) []types.IServiceEntity {
 	defer ss.RUnlock()
 	ss.RLock()
 	list := make([]types.IServiceEntity, 0)
-	for k := range ss.idToService {
-		v := ss.idToService[k]
-		if v.EType == serviceType {
+	for _, v := range ss.idToService {
+		// v := ss.idToService[k]
+		if v.EType == appType {
 			list = append(list, v)
 		}
 	}

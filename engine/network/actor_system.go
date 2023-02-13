@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/xhaoh94/gox"
@@ -24,8 +23,7 @@ type (
 		etcd.EtcdComponent
 		context        context.Context
 		actorPrefix    string
-		es             *etcd.EtcdService
-		keyLock        sync.RWMutex
+		es             *etcd.EtcdConf
 		keyToActorConf map[string]ActorEntity
 	}
 	ActorEntity struct {
@@ -119,8 +117,8 @@ func (as *ActorSystem) Add(actor types.IActorEntity) {
 	as.es.Put(key, string(b))
 }
 func (as *ActorSystem) Del(actor types.IActorEntity) {
-	defer as.keyLock.Unlock()
-	as.keyLock.Lock()
+	defer as.RUnlock()
+	as.RLock()
 	aid := actor.ActorID()
 	if aid == 0 {
 		xlog.Error("Actor没有初始化ID")
@@ -140,8 +138,8 @@ func (as *ActorSystem) Del(actor types.IActorEntity) {
 	actor.Destroy()
 }
 func (as *ActorSystem) Get(actorID uint32) (ActorEntity, bool) {
-	defer as.keyLock.RUnlock()
-	as.keyLock.RLock()
+	defer as.RUnlock()
+	as.RLock()
 	key := fmt.Sprintf(as.actorPrefix+"/%d", actorID)
 	actor, ok := as.keyToActorConf[key]
 	if !ok {
@@ -216,7 +214,7 @@ func (as *ActorSystem) Start() {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(as.context)
 	go as.checkTimeout(timeoutCtx)
 	var err error
-	as.es, err = etcd.NewEtcdService(gox.AppConf.Etcd, as)
+	as.es, err = etcd.NewEtcdConf(gox.AppConf.Etcd, as)
 	timeoutCancelFunc()
 	if err != nil {
 		xlog.Fatal("actor启动失败 [%v]", err)

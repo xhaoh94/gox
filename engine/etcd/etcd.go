@@ -24,8 +24,8 @@ type (
 		OnDel func(kv *mvccpb.KeyValue)
 	}
 
-	// EtcdService etcd
-	EtcdService struct {
+	// etcd
+	EtcdConf struct {
 		isRun         bool
 		leaseOverdue  bool
 		conf          app.EtcdConf
@@ -70,7 +70,7 @@ func (component *EtcdComponent) del(kv *mvccpb.KeyValue) {
 }
 
 // 创建etcd
-func NewEtcdService(conf app.EtcdConf, component IEtcdComponent) (*EtcdService, error) {
+func NewEtcdConf(conf app.EtcdConf, component IEtcdComponent) (*EtcdConf, error) {
 	clientConf := clientv3.Config{
 		Endpoints:   conf.EtcdList,
 		DialTimeout: conf.EtcdTimeout,
@@ -80,7 +80,7 @@ func NewEtcdService(conf app.EtcdConf, component IEtcdComponent) (*EtcdService, 
 		return nil, err
 	}
 	kv := clientv3.NewKV(client)
-	es := &EtcdService{
+	es := &EtcdConf{
 		isRun:         true,
 		conf:          conf,
 		client:        client,
@@ -95,7 +95,7 @@ func NewEtcdService(conf app.EtcdConf, component IEtcdComponent) (*EtcdService, 
 }
 
 // 设置租约
-func (es *EtcdService) setLease() error {
+func (es *EtcdConf) setLease() error {
 	lease := clientv3.NewLease(es.client)
 	//设置租约时间
 	leaseResp, err := lease.Grant(es.client.Ctx(), es.conf.EtcdLeaseTime)
@@ -117,7 +117,7 @@ func (es *EtcdService) setLease() error {
 }
 
 // 监听 续租情况
-func (es *EtcdService) listenLease() {
+func (es *EtcdConf) listenLease() {
 	for {
 		leaseKeepResp := <-es.keepAliveChan
 		if leaseKeepResp == nil {
@@ -128,7 +128,7 @@ func (es *EtcdService) listenLease() {
 }
 
 // Del 删除
-func (es *EtcdService) Del(key string) error {
+func (es *EtcdConf) Del(key string) error {
 	if !es.isRun {
 		return errors.New("etcd 服务没有开启")
 	}
@@ -137,7 +137,7 @@ func (es *EtcdService) Del(key string) error {
 }
 
 // Put 通过租约 注册服务
-func (es *EtcdService) Put(key, val string) error {
+func (es *EtcdConf) Put(key, val string) error {
 	if !es.isRun {
 		return errors.New("etcd 服务没有开启")
 	}
@@ -146,7 +146,7 @@ func (es *EtcdService) Put(key, val string) error {
 }
 
 // RevokeLease 撤销租约
-func (es *EtcdService) RevokeLease() error {
+func (es *EtcdConf) RevokeLease() error {
 	es.cancle()
 	time.Sleep(1 * time.Second)
 	if es.leaseOverdue {
@@ -157,7 +157,7 @@ func (es *EtcdService) RevokeLease() error {
 }
 
 // Get 获取
-func (es *EtcdService) Get(prefix string, isWatcher bool) error {
+func (es *EtcdConf) Get(prefix string, isWatcher bool) error {
 	if !es.isRun {
 		return errors.New("etcd 服务没有开启")
 	}
@@ -172,7 +172,7 @@ func (es *EtcdService) Get(prefix string, isWatcher bool) error {
 	return nil
 }
 
-func (es *EtcdService) watcher(prefix string) {
+func (es *EtcdConf) watcher(prefix string) {
 	rch := es.client.Watch(es.client.Ctx(), prefix, clientv3.WithPrefix())
 	for wresp := range rch {
 		if es.isRun {
@@ -190,7 +190,7 @@ func (es *EtcdService) watcher(prefix string) {
 }
 
 // Close 关闭
-func (es *EtcdService) Close() {
+func (es *EtcdConf) Close() {
 	es.isRun = false
 	es.RevokeLease()
 	es.client.Close()
