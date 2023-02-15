@@ -32,11 +32,13 @@ type (
 var KEY []byte = []byte("key_key_")
 
 const (
-	H_B_S byte = 0x01
-	H_B_R byte = 0x02
-	C_S_C byte = 0x03
-	RPC_S byte = 0x04
-	RPC_R byte = 0x05
+	H_B_S   byte = 0x01
+	H_B_R   byte = 0x02
+	C_S_C   byte = 0x03
+	RPC_S   byte = 0x04
+	RPC_R   byte = 0x05
+	ACTOR_S byte = 0x06
+	ACTOR_R byte = 0x07
 )
 
 // UID 获取id
@@ -105,7 +107,7 @@ func (session *Session) Send(cmd uint32, msg any) bool {
 
 // Call 呼叫
 func (session *Session) Call(msg any, response any) types.IRpcx {
-	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
+	dr := rpc.NewRpcx(session.id, session.ctx, response)
 	if !session.isAct() {
 		defer dr.Run(false)
 		return dr
@@ -130,37 +132,54 @@ func (session *Session) Call(msg any, response any) types.IRpcx {
 	return dr
 }
 
-func (session *Session) ActorCall(actorID uint32, msg any, response any) types.IRpcx {
+func (session *Session) ActorCall(cmd uint32, msg any, response any) types.IRpcx {
 
-	dr := rpc.NewDefaultRpc(session.id, session.ctx, response)
+	rpcx := rpc.NewRpcx(session.id, session.ctx, response)
 	if !session.isAct() {
-		defer dr.Run(false)
-		return dr
-	}
-	if actorID == 0 {
-		xlog.Error("ActorCall传入ActorID不能为空")
-		defer dr.Run(false)
-		return dr
+		defer rpcx.Run(false)
+		return rpcx
 	}
 
-	cmd := cmdhelper.ToCmd(msg, response, actorID)
-	if cmd == 0 {
-		defer dr.Run(false)
-		return dr
-	}
 	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(RPC_S)
 	pkt.AppendUint32(cmd)
-	pkt.AppendUint32(dr.RID())
+	pkt.AppendUint32(rpcx.RID())
 	if err := pkt.AppendMessage(msg, session.codec()); err != nil {
-		defer dr.Run(false)
-		return dr
+		defer rpcx.Run(false)
+		return rpcx
 	}
-	session.rpc().Put(dr)
+	session.rpc().Put(rpcx)
 	session.sendData(pkt.Data())
-	return dr
+	return rpcx
+}
+
+func (session *Session) ActorCall1(cmd uint32, data []byte) types.IActorx {
+
+	rpcx := rpc.NewActorx(session.ctx)
+	if !session.isAct() {
+		defer rpcx.Run(nil)
+		return rpcx
+	}
+
+	pkt := NewByteArray(make([]byte, 0), binary.LittleEndian)
+	defer pkt.Release()
+	pkt.AppendBytes(KEY)
+	pkt.AppendByte(ACTOR_S)
+	pkt.AppendUint32(cmd)
+	pkt.AppendUint32(rpcx.RID())
+	if data != nil && len(data) > 0 {
+		pkt.AppendBytes(data)
+	}
+
+	if err := pkt.AppendMessage(msg, session.codec()); err != nil {
+		defer rpcx.Run(false)
+		return rpcx
+	}
+	session.rpc().Put(rpcx)
+	session.sendData(pkt.Data())
+	return rpcx
 }
 
 // reply 回应

@@ -64,4 +64,8 @@ type (
 	IRpcx interface {
 		Await() bool
 	}
+	//内部rpc
+	IActorx interface {
+		Await() []byte
+	}
 )

@@ -19,6 +19,11 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 )
 
+const (
+	lock   uint32 = 1
+	unlock uint32 = 2
+)
+
 type (
 	ActorLock struct {
 		wg sync.WaitGroup
@@ -38,6 +43,24 @@ type (
 		EID     uint
 	}
 )
+
+func (lock *ActorLock) Wait() {
+	lock.wg.Wait()
+}
+func (lock *ActorLock) Add() {
+	entitys := gox.ServiceSystem.GetServiceEntitys()
+	for _, v := range entitys {
+		go lock.SyncState(v)
+	}
+}
+func (lock *ActorLock) SyncState(entity types.IServiceEntity) {
+	defer lock.wg.Done()
+	lock.wg.Add(1)
+	session := gox.NetWork.GetSessionByAddr(entity.GetInteriorAddr())
+	if session == nil {
+		return
+	}
+}
 
 func newActorSystem(ctx context.Context) *ActorSystem {
 	return &ActorSystem{
@@ -193,30 +216,42 @@ func (as *ActorSystem) Send(actorID uint32, msg interface{}) bool {
 func (as *ActorSystem) Call(actorID uint32, msg interface{}, response interface{}) types.IRpcx {
 	entityConf, ok := as.Get(actorID)
 	if !ok {
-		rpcx := rpc.NewDefaultRpc(0, as.context, response)
+		rpcx := rpc.NewRpcx(0, as.context, response)
 		defer rpcx.Run(false)
 		return rpcx
 	}
+	if actorID == 0 {
+		xlog.Error("ActorCall传入ActorID不能为空")
+		rpcx := rpc.NewRpcx(0, as.context, response)
+		defer rpcx.Run(false)
+		return rpcx
+	}
+
 	session := as.getSession(entityConf)
 	if session == nil {
-		rpcx := rpc.NewDefaultRpc(0, as.context, response)
+		rpcx := rpc.NewRpcx(0, as.context, response)
+		defer rpcx.Run(false)
+		return rpcx
+	}
+	cmd := cmdhelper.ToCmd(msg, response, actorID)
+	if cmd == 0 {
+		rpcx := rpc.NewRpcx(0, as.context, response)
 		defer rpcx.Run(false)
 		return rpcx
 	}
 	if entityConf.EID == gox.AppConf.Eid {
-		cmd := cmdhelper.ToCmd(msg, response, actorID)
 		var rpcx *rpc.Rpcx
 		if response, err := cmdhelper.CallEvt(cmd, as.context, msg); err == nil {
-			rpcx = rpc.NewDefaultRpc(session.ID(), as.context, response)
+			rpcx = rpc.NewRpcx(session.ID(), as.context, response)
 			defer rpcx.Run(true)
 		} else {
 			xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
-			rpcx = rpc.NewDefaultRpc(0, as.context, response)
+			rpcx = rpc.NewRpcx(0, as.context, response)
 			defer rpcx.Run(false)
 		}
 		return rpcx
 	}
-	return session.ActorCall(actorID, msg, response)
+	return session.ActorCall(cmd, msg, response)
 }
 
 func (as *ActorSystem) Start() {

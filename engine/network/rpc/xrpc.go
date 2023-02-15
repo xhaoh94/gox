@@ -17,11 +17,19 @@ type (
 		response interface{}
 		del      func(uint32)
 	}
+	Actorx struct {
+		rid uint32
+		c   chan []byte
+		ctx context.Context
+		del func(uint32)
+	}
 )
 
 var (
-	pool   *sync.Pool
-	rpcOps uint32
+	pool    *sync.Pool
+	rpcxOps uint32
+
+	actorPool *sync.Pool
 )
 
 func init() {
@@ -30,14 +38,25 @@ func init() {
 			return &Rpcx{}
 		},
 	}
+	actorPool = &sync.Pool{
+		New: func() interface{} {
+			return &Actorx{}
+		},
+	}
 }
 
-func NewDefaultRpc(sid uint32, ctx context.Context, response interface{}) *Rpcx {
+func NewRpcx(sid uint32, ctx context.Context, response interface{}) *Rpcx {
 	rpcx := pool.Get().(*Rpcx)
 	rpcx.sid = sid
 	rpcx.c = make(chan bool)
 	rpcx.ctx = ctx
 	rpcx.response = response
+	return rpcx
+}
+func NewActorx(ctx context.Context) *Actorx {
+	rpcx := actorPool.Get().(*Actorx)
+	rpcx.c = make(chan []byte)
+	rpcx.ctx = ctx
 	return rpcx
 }
 
@@ -90,6 +109,48 @@ func (rpcx *Rpcx) RID() uint32 {
 	return rpcx.rid
 }
 
+// Run 调用
+func (nr *Actorx) Run(data []byte) {
+	nr.c <- data
+}
+
+// Await 异步等待
+func (nr *Actorx) Await() []byte {
+	select {
+	case <-nr.ctx.Done():
+		nr.close()
+		return nil
+	case r := <-nr.c:
+		nr.close()
+		return r
+	case <-time.After(time.Second * 3):
+		nr.close()
+		return nil
+	}
+}
+
+func (rpcx *Actorx) close() {
+	close(rpcx.c)
+	if rpcx.rid != 0 && rpcx.del != nil {
+		rpcx.del(rpcx.rid)
+	}
+}
+
+func (rpcx *Actorx) release() {
+	rpcx.rid = 0
+	rpcx.c = nil
+	rpcx.ctx = nil
+	rpcx.del = nil
+	actorPool.Put(rpcx)
+}
+
+// RID 获取RPCID
+func (rpcx *Actorx) RID() uint32 {
+	if rpcx.rid == 0 {
+		rpcx.rid = AssignID()
+	}
+	return rpcx.rid
+}
 func AssignID() uint32 {
-	return atomic.AddUint32(&rpcOps, 1)
+	return atomic.AddUint32(&rpcxOps, 1)
 }
