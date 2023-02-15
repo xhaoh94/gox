@@ -140,8 +140,7 @@ func (bytearray *ByteArray) ReadString() string {
 }
 
 func (bytearray *ByteArray) ReadMessage(msg any, cdc types.ICodec) error {
-	msgLen := bytearray.Length() - bytearray.Position()
-	msgData := bytearray.ReadBytes(msgLen)
+	msgData := bytearray.RemainData()
 	if err := cdc.Unmarshal(msgData, msg); err != nil {
 		return err
 	}
@@ -158,12 +157,12 @@ func (bytearray *ByteArray) Length() uint32 {
 func (bytearray *ByteArray) RemainLength() uint32 {
 	return bytearray.Length() - bytearray.Position()
 }
+func (bytearray *ByteArray) RemainData() []byte {
+	return bytearray.ReadBytes(bytearray.RemainLength())
+}
 
 func (bytearray *ByteArray) Data() []byte {
-	return bytearray.data
-}
-func (bytearray *ByteArray) PktData() []byte {
-	bytes := codechelper.Uint16ToBytes(uint16(bytearray.Length()), bytearray.endian)
+	bytes := codechelper.Uint16ToBytes(uint16(len(bytearray.data)), bytearray.endian)
 	bytes = append(bytes, bytearray.data...)
 	return bytes
 }

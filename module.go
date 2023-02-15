@@ -46,7 +46,7 @@ func (m *Module) Start(self types.IModule) {
 
 // OnStart 模块启动
 func (mm *Module) OnStart() {
-	xlog.Debug("xxxxxxxxxx")
+
 }
 
 // Destroy 销毁模块

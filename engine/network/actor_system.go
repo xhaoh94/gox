@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/xhaoh94/gox"
@@ -19,12 +20,18 @@ import (
 )
 
 type (
+	ActorLock struct {
+		wg sync.WaitGroup
+	}
 	ActorSystem struct {
 		etcd.EtcdComponent
 		context        context.Context
 		actorPrefix    string
 		es             *etcd.EtcdConf
 		keyToActorConf map[string]ActorEntity
+
+		entitys map[string]ActorEntity
+		cacel   map[string]ActorEntity
 	}
 	ActorEntity struct {
 		ActorID uint32
@@ -87,6 +94,10 @@ func (as *ActorSystem) parseFn(aid uint32, fn interface{}) uint32 {
 	}
 	gox.Event.Bind(cmd, fn)
 	return cmd
+}
+
+func (as *ActorSystem) Lock() {
+	gox.ServiceSystem.GetServiceEntitys()
 }
 
 func (as *ActorSystem) Add(actor types.IActorEntity) {

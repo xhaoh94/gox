@@ -26,17 +26,19 @@ type (
 
 	//ServiceEntity 服务组配置
 	ServiceEntity struct {
-		//EID 标记
-		EID uint
-		//EType 服务类型
-		EType string
+		//标记
+		AppID uint
+		//服务类型
+		AppType string
+		//区
+		Zones string
 		//版本
 		Version string
-		//RpcAddr rpc服务地址
+		//rpc服务地址
 		RpcAddr string
-		//AddrHost 外部服务地址
+		//外部服务地址
 		OutsideAddr string
-		//InteriorAddr 内部服务地址
+		//内部服务地址
 		InteriorAddr string
 	}
 )
@@ -51,10 +53,10 @@ func (entity ServiceEntity) GetInteriorAddr() string {
 	return entity.InteriorAddr
 }
 func (entity ServiceEntity) GetID() uint {
-	return entity.EID
+	return entity.AppID
 }
 func (entity ServiceEntity) GetType() string {
-	return entity.EType
+	return entity.AppType
 }
 func (entity ServiceEntity) GetVersion() string {
 	return entity.Version
@@ -69,7 +71,7 @@ func newServiceSystem(ctx context.Context) *ServiceSystem {
 }
 
 func convertKey(entity ServiceEntity) string {
-	key := "services/" + entity.EType + "/" + strhelper.ValToString(entity.EID)
+	key := "services/" + entity.AppType + "/" + strhelper.ValToString(entity.AppID)
 	return key
 }
 
@@ -94,8 +96,8 @@ func (ss *ServiceSystem) Start() {
 	ss.EtcdComponent.OnPut = ss.onPut
 	ss.EtcdComponent.OnDel = ss.onDel
 	ss.curService = ServiceEntity{
-		EID:          appConf.Eid,
-		EType:        appConf.EType,
+		AppID:        appConf.Eid,
+		AppType:      appConf.EType,
 		Version:      appConf.Version,
 		OutsideAddr:  appConf.OutsideAddr,
 		InteriorAddr: appConf.InteriorAddr,
@@ -134,7 +136,7 @@ func (ss *ServiceSystem) checkTimeout(ctx context.Context) {
 	}
 }
 
-// GetServiceEntityByID 通过id获取服务配置
+// 通过id获取服务配置
 func (ss *ServiceSystem) GetServiceEntityByID(id uint) types.IServiceEntity {
 	defer ss.RUnlock()
 	ss.RLock()
@@ -144,16 +146,27 @@ func (ss *ServiceSystem) GetServiceEntityByID(id uint) types.IServiceEntity {
 	return nil
 }
 
-// GetServiceEntitysByType 获取对应类型的所有服务配置
+// 获取对应类型的所有服务配置
 func (ss *ServiceSystem) GetServiceEntitysByType(appType string) []types.IServiceEntity {
 	defer ss.RUnlock()
 	ss.RLock()
 	list := make([]types.IServiceEntity, 0)
 	for _, v := range ss.idToService {
 		// v := ss.idToService[k]
-		if v.EType == appType {
+		if v.AppType == appType {
 			list = append(list, v)
 		}
+	}
+	return list
+}
+
+// 获取对应类型的所有服务配置
+func (ss *ServiceSystem) GetServiceEntitys() []types.IServiceEntity {
+	defer ss.RUnlock()
+	ss.RLock()
+	list := make([]types.IServiceEntity, 0)
+	for _, v := range ss.idToService {
+		list = append(list, v)
 	}
 	return list
 }
@@ -168,15 +181,15 @@ func (ss *ServiceSystem) onPut(kv *mvccpb.KeyValue) {
 		xlog.Error("解析服务注册配置错误[%v]", err)
 		return
 	}
-	ss.idToService[service.EID] = service
+	ss.idToService[service.AppID] = service
 	ss.keyToService[key] = service
-	xlog.Info("服务注册发现 sid:[%d] type:[%s] version:[%s]", service.EID, service.EType, service.Version)
+	xlog.Info("服务注册发现 sid:[%d] type:[%s] version:[%s]", service.AppID, service.AppType, service.Version)
 }
 func (ss *ServiceSystem) onDel(kv *mvccpb.KeyValue) {
 	key := string(kv.Key)
 	if service, ok := ss.keyToService[key]; ok {
 		delete(ss.keyToService, key)
-		delete(ss.idToService, service.EID)
-		xlog.Info("服务注销 sid:[%d] type:[%s]", service.EID, service.EType)
+		delete(ss.idToService, service.AppID)
+		xlog.Info("服务注销 sid:[%d] type:[%s]", service.AppID, service.AppType)
 	}
 }

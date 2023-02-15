@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/helper/codechelper"
 	"github.com/xhaoh94/gox/engine/network"
+	"github.com/xhaoh94/gox/engine/network/codec"
 	"github.com/xhaoh94/gox/engine/network/service/kcp"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/examples/sv/mods"
@@ -29,8 +29,8 @@ func main() {
 	}
 	gox.Init(appConfPath)
 	network := network.New()
-	network.SetInteriorService(new(kcp.KService), codechelper.Json)
-	network.SetOutsideService(new(ws.WService), codechelper.Json)
+	network.SetInteriorService(new(kcp.KService), codec.Json)
+	network.SetOutsideService(new(ws.WService), codec.Json)
 
 	gox.SetNetWork(network)
 	gox.SetModule(new(mods.MainModule))

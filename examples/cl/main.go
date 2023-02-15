@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/helper/codechelper"
 	"github.com/xhaoh94/gox/engine/network"
+	"github.com/xhaoh94/gox/engine/network/codec"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -71,7 +71,7 @@ func main() {
 	}
 	gox.Init(appConfPath)
 	network := network.New()
-	network.SetInteriorService(new(ws.WService), codechelper.Json)
+	network.SetInteriorService(new(ws.WService), codec.Json)
 	gox.SetNetWork(network)
 	gox.SetModule(new(MainModule))
 	gox.Run()

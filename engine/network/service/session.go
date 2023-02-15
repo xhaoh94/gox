@@ -99,7 +99,7 @@ func (session *Session) Send(cmd uint32, msg any) bool {
 		return false
 	}
 
-	session.sendData(pkt.PktData())
+	session.sendData(pkt.Data())
 	return true
 }
 
@@ -126,7 +126,7 @@ func (session *Session) Call(msg any, response any) types.IRpcx {
 		return dr
 	}
 	session.rpc().Put(dr)
-	session.sendData(pkt.PktData())
+	session.sendData(pkt.Data())
 	return dr
 }
 
@@ -159,7 +159,7 @@ func (session *Session) ActorCall(actorID uint32, msg any, response any) types.I
 		return dr
 	}
 	session.rpc().Put(dr)
-	session.sendData(pkt.PktData())
+	session.sendData(pkt.Data())
 	return dr
 }
 
@@ -176,7 +176,7 @@ func (session *Session) reply(msg any, rpcid uint32) bool {
 	if err := pkt.AppendMessage(msg, session.codec()); err != nil {
 		return false
 	}
-	session.sendData(pkt.PktData())
+	session.sendData(pkt.Data())
 	return true
 }
 
@@ -213,7 +213,7 @@ func (session *Session) sendHeartbeat(t byte) {
 	defer pkt.Release()
 	pkt.AppendBytes(KEY)
 	pkt.AppendByte(t)
-	session.sendData(pkt.PktData())
+	session.sendData(pkt.Data())
 }
 
 func (session *Session) parseReader(r io.Reader) (bool, error) {
