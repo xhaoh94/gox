@@ -22,9 +22,10 @@ var (
 	AppConf     app.AppConf
 	Event       types.IEvent
 
-	NetWork       types.INetwork
-	ActorSystem   types.IActorSystem
-	ServiceSystem types.IServiceSystem
+	NetWork  types.INetwork
+	Location types.ILocationSystem
+	// ActorSystem   types.IActorSystem
+	// ServiceSystem types.IServiceSystem
 
 	mainModule types.IModule
 )
@@ -38,6 +39,10 @@ func Init(appConfPath string) {
 	Ctx, ctxCancelFn = context.WithCancel(context.Background())
 	Event = xevent.New()
 	AppConf = loadConf(appConfPath)
+	if AppConf.Eid == 0 {
+		log.Printf("gox: AppID 必须大于0")
+		return
+	}
 	xlog.Init(AppConf.Log)
 }
 
@@ -95,8 +100,9 @@ func shutdown() {
 // SetModule 设置网络模块
 func SetNetWork(network types.INetwork) {
 	NetWork = network
-	ActorSystem = network.ActorSystem()
-	ServiceSystem = network.ServiceSystem()
+	Location = network.LocationSystem()
+	// ActorSystem = network.ActorSystem()
+	// ServiceSystem = network.ServiceSystem()
 }
 
 // SetModule 设置初始模块

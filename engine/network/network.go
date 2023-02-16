@@ -2,6 +2,7 @@ package network
 
 import (
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -15,15 +16,17 @@ type (
 		interior      types.IService
 		rpc           types.IRPC
 		serviceSystem types.IServiceSystem
-		actorSystem   types.IActorSystem
+		// actorSystem   types.IActorSystem
+		location types.ILocationSystem
 	}
 )
 
 func New() *NetWork {
 	network := new(NetWork)
 	network.rpc = rpc.New()
-	network.actorSystem = newActorSystem(gox.Ctx)
+	// network.actorSystem = newActorSystem(gox.Ctx)
 	network.serviceSystem = newServiceSystem(gox.Ctx)
+	network.location = location.New(gox.Ctx)
 	return network
 }
 
@@ -44,11 +47,16 @@ func (network *NetWork) GetSessionByAddr(addr string) types.ISession {
 func (network *NetWork) Rpc() types.IRPC {
 	return network.rpc
 }
-func (network *NetWork) ServiceSystem() types.IServiceSystem {
-	return network.serviceSystem
-}
-func (network *NetWork) ActorSystem() types.IActorSystem {
-	return network.actorSystem
+
+// func (network *NetWork) ServiceSystem() types.IServiceSystem {
+// 	return network.serviceSystem
+// }
+
+//	func (network *NetWork) ActorSystem() types.IActorSystem {
+//		return network.actorSystem
+//	}
+func (network *NetWork) LocationSystem() types.ILocationSystem {
+	return network.location
 }
 
 func (network *NetWork) Init() {
@@ -67,7 +75,7 @@ func (network *NetWork) Init() {
 	}
 	network.rpc.(*rpc.RPC).Start()
 	network.serviceSystem.(*ServiceSystem).Start()
-	network.actorSystem.(*ActorSystem).Start()
+	network.location.(*location.LocationSystem).Init()
 }
 func (network *NetWork) Start() {
 	if network.__start {
@@ -75,6 +83,7 @@ func (network *NetWork) Start() {
 	}
 	network.__start = true
 	network.rpc.(*rpc.RPC).Serve()
+	network.location.(*location.LocationSystem).Start()
 }
 func (network *NetWork) Destroy() {
 	if !network.__init {
@@ -88,7 +97,23 @@ func (network *NetWork) Destroy() {
 	network.interior.Stop()
 	network.rpc.(*rpc.RPC).Stop()
 	network.serviceSystem.(*ServiceSystem).Stop()
-	network.actorSystem.(*ActorSystem).Stop()
+	network.location.(*location.LocationSystem).Stop()
+	// network.actorSystem.(*ActorSystem).Stop()
+}
+
+// 通过id获取服务配置
+func (ss *NetWork) GetServiceEntityByID(id uint) types.IServiceEntity {
+	return ss.serviceSystem.GetServiceEntityByID(id)
+}
+
+// 获取对应类型的所有服务配置
+func (ss *NetWork) GetServiceEntitysByType(appType string) []types.IServiceEntity {
+	return ss.serviceSystem.GetServiceEntitysByType(appType)
+}
+
+// 获取对应类型的所有服务配置
+func (ss *NetWork) GetServiceEntitys() []types.IServiceEntity {
+	return ss.serviceSystem.GetServiceEntitys()
 }
 
 // SetOutsideService 设置外部服务类型

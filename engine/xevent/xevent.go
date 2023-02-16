@@ -166,8 +166,7 @@ func (evt *Event) Call(event interface{}, params ...interface{}) ([]reflect.Valu
 	fn, ok := evt.bingFnMap[event]
 	evt.bingLock.RUnlock()
 	if !ok {
-		tip := fmt.Sprintf("没有找到监听的事件 event:[%v]", event)
-		return nil, errors.New(tip)
+		return nil, errors.New("没有找到监听的事件")
 	}
 	numIn := fn.Type().NumIn()
 	in := make([]reflect.Value, numIn)

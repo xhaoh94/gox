@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
 	"github.com/xhaoh94/gox/engine/types"
 )
@@ -78,7 +77,7 @@ func (bytearray *ByteArray) AppendString(v string) {
 }
 func (bytearray *ByteArray) AppendMessage(msg any, codec types.ICodec) error {
 	if msg == nil {
-		return consts.Error_2
+		return nil
 	}
 	msgData, err := codec.Marshal(msg)
 	if err != nil {
