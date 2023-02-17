@@ -5,15 +5,14 @@ type (
 	ILocationSystem interface {
 		Add(ILocationEntity)
 		Del(ILocationEntity)
-		Send(uint32, interface{}) bool
-		Call(uint32, interface{}, interface{}) IRpcx
 	}
 	ILocationEntity interface {
+		Init()
+		Destroy()
 		ActorID() uint32
 		AddActorFn(fn interface{})
 		GetFnList() []interface{}
 		GetCmdList() []uint32
 		SetCmdList(cmd uint32)
-		Destroy()
 	}
 )

@@ -8,6 +8,7 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/etcd"
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
+	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 
@@ -190,6 +191,7 @@ func (ss *ServiceSystem) onDel(kv *mvccpb.KeyValue) {
 	if service, ok := ss.keyToService[key]; ok {
 		delete(ss.keyToService, key)
 		delete(ss.idToService, service.AppID)
+		gox.Location.(*location.LocationSystem).ServiceClose(service.AppID)
 		xlog.Info("服务注销 sid:[%d] type:[%s]", service.AppID, service.AppType)
 	}
 }

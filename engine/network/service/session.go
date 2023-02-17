@@ -245,6 +245,7 @@ func (session *Session) parseMsg(buf []byte) {
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
+		// xlog.Debug("rpcs:cmd:%d,rpcID:%d,msgLen:%d", cmd, rpcID, msgLen)
 		if msgLen == 0 {
 			session.emitRpc(cmd, rpcID, nil)
 			return
@@ -263,19 +264,25 @@ func (session *Session) parseMsg(buf []byte) {
 	case RPC_R:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
-		dr := session.rpc().Get(rpcID)
-		if dr != nil {
+		rpcx := session.rpc().Get(rpcID)
+		if rpcx != nil {
 			msgLen := pkt.RemainLength()
+			// xlog.Debug("rpcr:cmd:%d,rpcID:%d,msgLen:%d", cmd, rpcID, msgLen)
 			if msgLen == 0 {
-				dr.Run(false)
+				rpcx.Run(false)
 				return
 			}
-			if err := pkt.ReadMessage(dr.GetResponse(), session.codec(cmd)); err != nil {
+			response := rpcx.GetResponse()
+			if response == nil {
+				rpcx.Run(true)
+				return
+			}
+			if err := pkt.ReadMessage(response, session.codec(cmd)); err != nil {
 				xlog.Error("解析网络包体失败 err:[%v]", err)
-				dr.Run(false)
+				rpcx.Run(false)
 				return
 			}
-			dr.Run(true)
+			rpcx.Run(true)
 		}
 		return
 	}
@@ -290,6 +297,7 @@ func (session *Session) codec(cmd uint32) types.ICodec {
 		return codec.MsgPack
 	case consts.LocationRefresh:
 		return codec.MsgPack
+	case consts.LocationInit:
 	}
 	return session.service.Codec
 }

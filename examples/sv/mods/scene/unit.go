@@ -19,7 +19,7 @@ type (
 func newUnit(id uint) *Unit {
 	unit := &Unit{Id: id}
 	unit.OnInit()
-	gox.ActorSystem.Add(unit) //添加到Actor
+	gox.Location.Add(unit) //添加到Actor
 	return unit
 }
 

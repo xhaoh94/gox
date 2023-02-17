@@ -14,6 +14,8 @@ type (
 		GetSessionById(uint32) ISession
 		//通过地址获取通信Session
 		GetSessionByAddr(string) ISession
+		//获取进程间通信Session
+		GetSessionByAppID(uint) ISession
 		//Rpc
 		Rpc() IRPC
 
@@ -25,6 +27,9 @@ type (
 		// 获取对应类型的所有服务配置
 		GetServiceEntitys() []IServiceEntity
 		LocationSystem() ILocationSystem
+
+		LocationSend(uint32, interface{}) bool
+		LocationCall(uint32, interface{}, interface{}) IRpcx
 	}
 	//服务器接口
 	IService interface {

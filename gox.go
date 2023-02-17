@@ -22,11 +22,8 @@ var (
 	AppConf     app.AppConf
 	Event       types.IEvent
 
-	NetWork  types.INetwork
-	Location types.ILocationSystem
-	// ActorSystem   types.IActorSystem
-	// ServiceSystem types.IServiceSystem
-
+	NetWork    types.INetwork
+	Location   types.ILocationSystem
 	mainModule types.IModule
 )
 
@@ -101,8 +98,6 @@ func shutdown() {
 func SetNetWork(network types.INetwork) {
 	NetWork = network
 	Location = network.LocationSystem()
-	// ActorSystem = network.ActorSystem()
-	// ServiceSystem = network.ServiceSystem()
 }
 
 // SetModule 设置初始模块

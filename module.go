@@ -108,7 +108,7 @@ func (m *Module) RegisterRpc(args ...interface{}) {
 	case 1:
 		fn = args[0]
 	case 2:
-		cmd = uint32(args[0].(int))
+		cmd = uint32(args[0].(uint32))
 		fn = args[1]
 	default:
 		xlog.Error("RPC回调函数参数有误")
