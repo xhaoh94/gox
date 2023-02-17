@@ -1,72 +1,62 @@
-package network
+package location
 
 import (
 	"reflect"
-	"sync"
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 type (
-	Actor struct {
-		fnLock  sync.RWMutex
+	Entity struct {
 		fnList  []interface{}
-		cmdLock sync.RWMutex
 		cmdList []uint32
 	}
 )
 
-// AddActorFn 添加Actor回调
-func (actor *Actor) AddActorFn(fn interface{}) {
-	defer actor.fnLock.Unlock()
-	actor.fnLock.Lock()
-	if actor.fnList == nil {
-		actor.fnList = make([]interface{}, 0)
+// 添加Actor回调
+func (entity *Entity) Register(fn interface{}) {
+	if entity.fnList == nil {
+		entity.fnList = make([]interface{}, 0)
 	}
-	actor.fnList = append(actor.fnList, fn)
+	entity.fnList = append(entity.fnList, fn)
 }
-func (art *Actor) Init() {
-	fnList := actor.GetFnList()
+
+func (entity *Entity) Init(actor types.ILocationEntity) bool {
+	actor.OnInit()
+	fnList := entity.fnList
 	if fnList == nil {
 		xlog.Error("Actor没有注册回调函数")
-		return
+		return false
+	}
+
+	if entity.cmdList == nil {
+		entity.cmdList = make([]uint32, 0)
 	}
 	for index := range fnList {
 		fn := fnList[index]
-		if cmd := as.parseFn(aid, fn); cmd != 0 {
-			actor.SetCmdList(cmd)
+		if cmd := entity.parseFn(actor.ActorID(), fn); cmd != 0 {
+			entity.cmdList = append(entity.cmdList, cmd)
 		}
 	}
+	return true
 }
-func (art *Actor) Destroy() {
-	art.fnList = nil
-	art.cmdList = nil
-}
+func (entity *Entity) Destroy() {
 
-func (art *Actor) GetFnList() []interface{} {
-	defer art.fnLock.RUnlock()
-	art.fnLock.RLock()
-	return art.fnList
-}
-
-func (art *Actor) GetCmdList() []uint32 {
-	defer art.cmdLock.RUnlock()
-	art.cmdLock.RLock()
-	return art.cmdList
-}
-func (art *Actor) SetCmdList(cmd uint32) {
-	defer art.cmdLock.Unlock()
-	art.cmdLock.Lock()
-	if art.cmdList == nil {
-		art.cmdList = make([]uint32, 0)
+	cmdList := entity.cmdList
+	for index := range cmdList {
+		cmd := cmdList[index]
+		protoreg.UnRegisterRType(cmd)
+		gox.Event.UnBind(cmd)
 	}
-	art.cmdList = append(art.cmdList, cmd)
+	entity.fnList = nil
+	entity.cmdList = nil
 }
 
-func (as *Actor) parseFn(aid uint32, fn interface{}) uint32 {
+func (entity *Entity) parseFn(aid uint32, fn interface{}) uint32 {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	if tFun.Kind() != reflect.Func {

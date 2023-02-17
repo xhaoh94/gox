@@ -18,15 +18,12 @@ type (
 		GetSessionByAppID(uint) ISession
 		//Rpc
 		Rpc() IRPC
-
 		// 通过id获取服务配置
 		GetServiceEntityByID(uint) IServiceEntity
+		// // 获取对应类型的所有服务配置
+		// GetServiceEntitysByType(string) []IServiceEntity
 		// 获取对应类型的所有服务配置
-		GetServiceEntitysByType(string) []IServiceEntity
-
-		// 获取对应类型的所有服务配置
-		GetServiceEntitys() []IServiceEntity
-		LocationSystem() ILocationSystem
+		GetServiceEntitys(...ServiceOptionFunc) []IServiceEntity
 
 		LocationSend(uint32, interface{}) bool
 		LocationCall(uint32, interface{}, interface{}) IRpcx

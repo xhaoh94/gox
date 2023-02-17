@@ -148,26 +148,20 @@ func (ss *ServiceSystem) GetServiceEntityByID(id uint) types.IServiceEntity {
 }
 
 // 获取对应类型的所有服务配置
-func (ss *ServiceSystem) GetServiceEntitysByType(appType string) []types.IServiceEntity {
+func (ss *ServiceSystem) GetServiceEntitys(opts ...types.ServiceOptionFunc) []types.IServiceEntity {
 	defer ss.RUnlock()
 	ss.RLock()
 	list := make([]types.IServiceEntity, 0)
 	for _, v := range ss.idToService {
-		// v := ss.idToService[k]
-		if v.AppType == appType {
+		if len(opts) > 0 {
+			for _, fun := range opts {
+				if fun(v) {
+					list = append(list, v)
+				}
+			}
+		} else {
 			list = append(list, v)
 		}
-	}
-	return list
-}
-
-// 获取对应类型的所有服务配置
-func (ss *ServiceSystem) GetServiceEntitys() []types.IServiceEntity {
-	defer ss.RUnlock()
-	ss.RLock()
-	list := make([]types.IServiceEntity, 0)
-	for _, v := range ss.idToService {
-		list = append(list, v)
 	}
 	return list
 }

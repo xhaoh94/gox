@@ -1,16 +1,6 @@
 package types
 
 type (
-	//服务发现系统
-	IServiceSystem interface {
-		// 通过id获取服务配置
-		GetServiceEntityByID(uint) IServiceEntity
-		// 获取对应类型的所有服务配置
-		GetServiceEntitysByType(string) []IServiceEntity
-
-		// 获取对应类型的所有服务配置
-		GetServiceEntitys() []IServiceEntity
-	}
 	//服务器配置
 	IServiceEntity interface {
 		GetID() uint
@@ -23,4 +13,17 @@ type (
 		//GetInteriorAddr 获取内部通信地址
 		GetInteriorAddr() string
 	}
+	ServiceOptionFunc func(entity IServiceEntity) bool
 )
+
+func WithType(t string) ServiceOptionFunc {
+	return func(entity IServiceEntity) bool {
+		return entity.GetType() == t
+	}
+}
+
+func WithExcludeID(id uint) ServiceOptionFunc {
+	return func(entity IServiceEntity) bool {
+		return entity.GetID() != id
+	}
+}

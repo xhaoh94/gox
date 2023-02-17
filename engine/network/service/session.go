@@ -295,9 +295,9 @@ func (session *Session) codec(cmd uint32) types.ICodec {
 	switch cmd {
 	case consts.LocationLock:
 		return codec.MsgPack
-	case consts.LocationRefresh:
+	case consts.LocationAdd:
 		return codec.MsgPack
-	case consts.LocationInit:
+	case consts.LocationGet:
 	}
 	return session.service.Codec
 }

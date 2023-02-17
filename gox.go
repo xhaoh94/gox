@@ -97,7 +97,6 @@ func shutdown() {
 // SetModule 设置网络模块
 func SetNetWork(network types.INetwork) {
 	NetWork = network
-	Location = network.LocationSystem()
 }
 
 // SetModule 设置初始模块

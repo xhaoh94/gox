@@ -1,9 +1,10 @@
-package gox
+package location
 
 import (
 	"sync"
 	"time"
 
+	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/types"
 )
@@ -15,59 +16,43 @@ type (
 )
 
 func (lock *SyncLocation) Lock() {
-	entitys := NetWork.GetServiceEntitys()
+	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.AppConf.Eid))
+	lock.syncWg.Add(len(entitys))
 	for _, v := range entitys {
-		if v.GetID() == AppConf.Eid {
-			continue
-		}
-		lock.syncWg.Add(1)
 		go lock.syncCall(5, v, consts.LocationLock, &LocationLock{Lock: true}, &LocationReslut{})
 	}
 	lock.syncWg.Wait()
 }
 func (lock *SyncLocation) UnLock() {
-	entitys := NetWork.GetServiceEntitys()
-
+	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.AppConf.Eid))
+	lock.syncWg.Add(len(entitys))
 	for _, v := range entitys {
-		if v.GetID() == AppConf.Eid {
-			continue
-		}
-		lock.syncWg.Add(1)
 		go lock.syncCall(5, v, consts.LocationLock, &LocationLock{Lock: false}, &LocationReslut{})
 	}
 	lock.syncWg.Wait()
 }
-func (lock *SyncLocation) Add(actorID uint32, appID uint) {
-	entitys := NetWork.GetServiceEntitys()
+func (lock *SyncLocation) Add(datas []LocationData) {
+	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.AppConf.Eid))
+	lock.syncWg.Add(len(entitys))
 	for _, entity := range entitys {
-		if entity.GetID() == AppConf.Eid {
-			continue
-		}
-		lock.syncWg.Add(1)
-		go lock.syncCall(5, entity, consts.LocationRefresh, &LocationData{ActorID: actorID, AppID: appID}, &LocationReslut{})
+		go lock.syncCall(5, entity, consts.LocationAdd, &LocationAdd{Datas: datas}, &LocationReslut{})
 	}
 	lock.syncWg.Wait()
 }
-func (lock *SyncLocation) Remove(actorID uint32) {
-	entitys := NetWork.GetServiceEntitys()
+func (lock *SyncLocation) Remove(datas []uint32) {
+	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.AppConf.Eid))
+	lock.syncWg.Add(len(entitys))
 	for _, entity := range entitys {
-		if entity.GetID() == AppConf.Eid {
-			continue
-		}
-		lock.syncWg.Add(1)
-		go lock.syncCall(5, entity, consts.LocationRefresh, &LocationData{ActorID: actorID, AppID: 0}, &LocationReslut{})
+		go lock.syncCall(5, entity, consts.LocationAdd, &LocationRemove{Datas: datas}, &LocationReslut{})
 	}
 	lock.syncWg.Wait()
 }
-func (lock *SyncLocation) GetDatas() *LocationAdd {
-	entitys := NetWork.GetServiceEntitys()
+func (lock *SyncLocation) Get() *LocationAdd {
+	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.AppConf.Eid))
+	lock.syncWg.Add(len(entitys))
 	for _, entity := range entitys {
-		if entity.GetID() == AppConf.Eid {
-			continue
-		}
-		lock.syncWg.Add(1)
 		response := &LocationAdd{}
-		if lock.syncCall(2, entity, consts.LocationInit, nil, response) {
+		if lock.syncCall(2, entity, consts.LocationGet, nil, response) {
 			return response
 		}
 	}
@@ -77,7 +62,7 @@ func (lock *SyncLocation) GetDatas() *LocationAdd {
 
 func (lock *SyncLocation) syncCall(tryCnt int, entity types.IServiceEntity, cmd uint32, msg any, response any) bool {
 	defer lock.syncWg.Done()
-	session := NetWork.GetSessionByAddr(entity.GetInteriorAddr())
+	session := gox.NetWork.GetSessionByAddr(entity.GetInteriorAddr())
 	if session == nil {
 		return false
 	}

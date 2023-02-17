@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/network"
+	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 )
@@ -18,7 +18,7 @@ type (
 	}
 
 	Scene struct {
-		network.Actor
+		location.Entity
 		Id    uint
 		units map[uint]*Unit
 		mux   sync.Mutex
@@ -38,7 +38,6 @@ func (m *SceneModule) OnStart() {
 }
 func newScene(id uint) *Scene {
 	scene := &Scene{Id: id, units: make(map[uint]*Unit)}
-	scene.OnInit()
 	gox.Location.Add(scene) //把场景添加进Actor
 	return scene
 }
@@ -48,7 +47,7 @@ func (s *Scene) ActorID() uint32 {
 }
 
 func (s *Scene) OnInit() {
-	s.AddActorFn(s.OnUnitEnter) //添加Actor回调
+	s.Register(s.OnUnitEnter) //添加Actor回调
 }
 
 func (s *Scene) OnUnitEnter(ctx context.Context, req *netpack.L2S_Enter) *netpack.S2L_Enter {
