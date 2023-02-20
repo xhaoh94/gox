@@ -3,9 +3,13 @@ package location
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/consts"
+	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
+	"github.com/xhaoh94/gox/engine/network/protoreg"
+	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 )
@@ -19,35 +23,6 @@ type (
 		lock        sync.RWMutex
 		locationMap map[uint32]uint
 	}
-	LocationGetRequire struct {
-		IDs []uint32
-	}
-	LocationGetResponse struct {
-		Datas []LocationData
-	}
-
-	LocationAddRequire struct {
-		Datas []LocationData
-	}
-	LocationAddResponse struct {
-	}
-
-	LocationRemoveRequire struct {
-		IDs []uint32
-	}
-	LocationRemoveResponse struct {
-	}
-
-	LocationLockRequire struct {
-		Lock bool
-	}
-	LocationLockResponse struct {
-	}
-
-	LocationData struct {
-		LocationID uint32
-		AppID      uint
-	}
 )
 
 func New() *LocationSystem {
@@ -57,10 +32,10 @@ func New() *LocationSystem {
 }
 func (location *LocationSystem) Init() {
 	location.locationMap = make(map[uint32]uint, 0)
-	location.RegisterRpc(consts.LocationLock, location.LockHandler)
-	location.RegisterRpc(consts.LocationGet, location.GetHandler)
-	location.RegisterRpc(consts.LocationAdd, location.AddHandler)
-	location.RegisterRpc(consts.LocationRemove, location.RemoveHandler)
+	protoreg.RegisterRpcCmd(consts.LocationLock, location.LockHandler)
+	protoreg.RegisterRpcCmd(consts.LocationGet, location.GetHandler)
+	protoreg.RegisterRpcCmd(consts.LocationAdd, location.AddHandler)
+	protoreg.RegisterRpcCmd(consts.LocationRemove, location.RemoveHandler)
 
 }
 func (location *LocationSystem) Start() {
@@ -265,4 +240,69 @@ func (location *LocationSystem) syncLock() {
 func (location *LocationSystem) syncUnLock() {
 	location.SyncLocation.UnLock()
 	location.lockWg.Done()
+}
+
+func (as *LocationSystem) Send(locationID uint32, msg interface{}) bool {
+	if locationID == 0 {
+		xlog.Error("LocationSend 传入locationID不能为空")
+		return false
+	}
+	loopCnt := 0
+	cmd := cmdhelper.ToCmd(msg, nil, locationID)
+	for {
+		loopCnt++
+		if loopCnt > 5 {
+			return false
+		}
+		if id := as.GetAppID(locationID); id > 0 {
+			if session := gox.NetWork.GetSessionByAppID(id); session != nil {
+				if id == gox.AppConf.AppID {
+					if _, err := cmdhelper.CallEvt(cmd, gox.Ctx, session, msg); err == nil {
+						return true
+					} else {
+						xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
+					}
+				} else {
+					return session.Send(cmd, msg)
+				}
+			}
+		}
+		time.Sleep(time.Millisecond * 500) //等待0.5秒
+	}
+}
+func (as *LocationSystem) Call(locationID uint32, msg interface{}, response interface{}) types.IRpcx {
+	if locationID == 0 {
+		xlog.Error("LocationCall传入locationID不能为空")
+		return rpc.NewEmptyRpcx()
+	}
+
+	loopCnt := 0
+	cmd := cmdhelper.ToCmd(msg, response, locationID)
+	for {
+		loopCnt++
+		if loopCnt > 5 {
+			return rpc.NewEmptyRpcx()
+		}
+		if id := as.GetAppID(locationID); id > 0 {
+			if id == gox.AppConf.AppID {
+				if response, err := cmdhelper.CallEvt(cmd, gox.Ctx, msg); err == nil {
+					rpcx := rpc.NewRpcx(gox.Ctx, response)
+					defer rpcx.Run(true)
+					return rpcx
+				} else {
+					xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
+				}
+			} else {
+				if session := gox.NetWork.GetSessionByAppID(id); session != nil {
+					return session.CallByCmd(cmd, msg, response)
+				}
+			}
+		}
+		time.Sleep(time.Millisecond * 500) //等待0.5秒
+	}
+}
+func (as *LocationSystem) Broadcast(locationIDs []uint32, msg interface{}) {
+	for _, locationID := range locationIDs {
+		go as.Send(locationID, msg)
+	}
 }

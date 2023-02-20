@@ -9,6 +9,7 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/network/codec"
+	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
@@ -24,9 +25,9 @@ type (
 )
 
 func (m *MainModule) OnInit() {
-	m.Register(netpack.CMD_G2C_Login, m.RspToken)
-	m.Register(netpack.CMD_L2C_Login, m.RspLogin)
-	m.Register(netpack.CMD_L2C_Enter, m.RspEnter)
+	protoreg.Register(netpack.CMD_G2C_Login, m.RspToken)
+	protoreg.Register(netpack.CMD_L2C_Login, m.RspLogin)
+	protoreg.Register(netpack.CMD_L2C_Enter, m.RspEnter)
 
 }
 

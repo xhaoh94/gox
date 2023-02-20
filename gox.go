@@ -22,7 +22,9 @@ var (
 	AppConf     app.AppConf
 	Event       types.IEvent
 
-	NetWork    types.INetwork
+	//网络服务
+	NetWork types.INetwork
+	// 定位系统
 	Location   types.ILocationSystem
 	mainModule types.IModule
 )

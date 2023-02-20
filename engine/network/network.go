@@ -1,10 +1,7 @@
 package network
 
 import (
-	"time"
-
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
@@ -62,66 +59,6 @@ func (as *NetWork) GetSessionByAppID(appID uint) types.ISession {
 
 func (network *NetWork) Rpc() types.IRPC {
 	return network.rpc
-}
-
-func (as *NetWork) LocationSend(locationID uint32, msg interface{}) bool {
-	if locationID == 0 {
-		xlog.Error("LocationSend 传入locationID不能为空")
-		return false
-	}
-	loopCnt := 0
-	cmd := cmdhelper.ToCmd(msg, nil, locationID)
-	for {
-		loopCnt++
-		if loopCnt > 5 {
-			return false
-		}
-		if id := as.location.GetAppID(locationID); id > 0 {
-			if session := as.GetSessionByAppID(id); session != nil {
-				if id == gox.AppConf.AppID {
-					if _, err := cmdhelper.CallEvt(cmd, gox.Ctx, session, msg); err == nil {
-						return true
-					} else {
-						xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
-					}
-				} else {
-					return session.Send(cmd, msg)
-				}
-			}
-		}
-		time.Sleep(time.Millisecond * 500) //等待0.5秒
-	}
-}
-func (as *NetWork) LocationCall(locationID uint32, msg interface{}, response interface{}) types.IRpcx {
-	if locationID == 0 {
-		xlog.Error("LocationCall传入locationID不能为空")
-		return rpc.NewEmptyRpcx()
-	}
-
-	loopCnt := 0
-	cmd := cmdhelper.ToCmd(msg, response, locationID)
-	for {
-		loopCnt++
-		if loopCnt > 5 {
-			return rpc.NewEmptyRpcx()
-		}
-		if id := as.location.GetAppID(locationID); id > 0 {
-			if id == gox.AppConf.AppID {
-				if response, err := cmdhelper.CallEvt(cmd, gox.Ctx, msg); err == nil {
-					rpcx := rpc.NewRpcx(gox.Ctx, response)
-					defer rpcx.Run(true)
-					return rpcx
-				} else {
-					xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
-				}
-			} else {
-				if session := as.GetSessionByAppID(id); session != nil {
-					return session.CallByCmd(cmd, msg, response)
-				}
-			}
-		}
-		time.Sleep(time.Millisecond * 500) //等待0.5秒
-	}
 }
 
 func (network *NetWork) Init() {

@@ -12,12 +12,13 @@ import (
 
 type (
 	Entity struct {
-		fnList  []interface{}
-		cmdList []uint32
+		locationID uint32
+		fnList     []interface{}
+		cmdList    []uint32
 	}
 )
 
-// 添加Actor回调
+// 注册消息
 func (entity *Entity) Register(fn interface{}) {
 	if entity.fnList == nil {
 		entity.fnList = make([]interface{}, 0)
@@ -26,10 +27,11 @@ func (entity *Entity) Register(fn interface{}) {
 }
 
 func (entity *Entity) Init(actor types.ILocationEntity) bool {
+	entity.locationID = actor.LocationID()
 	actor.OnInit()
 	fnList := entity.fnList
 	if fnList == nil {
-		xlog.Error("Actor没有注册回调函数")
+		xlog.Error("Location没有注册回调函数")
 		return false
 	}
 
@@ -38,7 +40,7 @@ func (entity *Entity) Init(actor types.ILocationEntity) bool {
 	}
 	for index := range fnList {
 		fn := fnList[index]
-		if cmd := entity.parseFn(actor.LocationID(), fn); cmd != 0 {
+		if cmd := entity.parseFn(fn); cmd != 0 {
 			entity.cmdList = append(entity.cmdList, cmd)
 		}
 	}
@@ -56,7 +58,7 @@ func (entity *Entity) Destroy() {
 	entity.cmdList = nil
 }
 
-func (entity *Entity) parseFn(aid uint32, fn interface{}) uint32 {
+func (entity *Entity) parseFn(fn interface{}) uint32 {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	if tFun.Kind() != reflect.Func {
@@ -93,7 +95,7 @@ func (entity *Entity) parseFn(aid uint32, fn interface{}) uint32 {
 		xlog.Error("Actor回调参数有误")
 		return 0
 	}
-	cmd := cmdhelper.ToCmdByRtype(in, out, aid)
+	cmd := cmdhelper.ToCmdByRtype(in, out, entity.locationID)
 	if cmd == 0 {
 		xlog.Error("Actor转换cmd错误")
 		return cmd

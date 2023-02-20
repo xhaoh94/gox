@@ -22,9 +22,6 @@ type (
 		GetServiceEntityByID(uint) IServiceEntity
 		// 获取对应类型的所有服务配置
 		GetServiceEntitys(...ServiceOptionFunc) []IServiceEntity
-
-		LocationSend(uint32, interface{}) bool
-		LocationCall(uint32, interface{}, interface{}) IRpcx
 	}
 	//服务器接口
 	IService interface {
