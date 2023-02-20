@@ -13,12 +13,14 @@ import (
 )
 
 var (
-	cmdType map[uint32]reflect.Type = make(map[uint32]reflect.Type)
-	cmdLock sync.RWMutex
+	cmdType        map[uint32]reflect.Type = make(map[uint32]reflect.Type)
+	cmdLock        sync.RWMutex
+	locationToCmds map[uint32][]uint32
+	locationLock   sync.RWMutex
 )
 
 // 注册协议消息体类型
-func RegisterRType(cmd uint32, protoType reflect.Type) {
+func registerRType(cmd uint32, protoType reflect.Type) {
 	defer cmdLock.Unlock()
 	cmdLock.Lock()
 	if _, ok := cmdType[cmd]; ok {
@@ -29,7 +31,7 @@ func RegisterRType(cmd uint32, protoType reflect.Type) {
 }
 
 // 注销协议消息体类型
-func UnRegisterRType(cmd uint32) {
+func unRegisterRType(cmd uint32) {
 	defer cmdLock.Unlock()
 	cmdLock.Lock()
 	delete(cmdType, cmd)
@@ -60,7 +62,7 @@ func Register[T func(context.Context, types.ISession, V), V any](cmd uint32, fn 
 		xlog.Error("协议回调函数参数需要是指针类型 cmd[%d]", cmd)
 		return
 	}
-	RegisterRType(cmd, in)
+	registerRType(cmd, in)
 	gox.Event.Bind(cmd, fn)
 }
 
@@ -80,7 +82,7 @@ func RegisterRpcCmd[T func(context.Context, V1) V2, V1 any, V2 any](cmd uint32, 
 		xlog.Error("RPC函数参数需要是指针类型")
 		return
 	}
-	RegisterRType(cmd, in)
+	registerRType(cmd, in)
 	gox.Event.Bind(cmd, fn)
 }
 
@@ -91,6 +93,58 @@ func RegisterRpc[T func(context.Context, V1) V2, V1 any, V2 any](fn T) {
 	out := tFun.Out(0)
 	in := tFun.In(1)
 	cmd := cmdhelper.ToCmdByRtype(in, out, 0)
-	RegisterRType(cmd, in)
+	registerRType(cmd, in)
 	gox.Event.Bind(cmd, fn)
+}
+
+// 注册定位消息
+func AddLocation[T func(context.Context, types.ISession, V), V any](entity types.ILocationEntity, fn T) {
+	tVlaue := reflect.ValueOf(fn)
+	tFun := tVlaue.Type()
+	in := tFun.In(2)
+	locationID := entity.LocationID()
+	cmd := cmdhelper.ToCmdByRtype(in, nil, locationID)
+	registerRType(cmd, in)
+	gox.Event.Bind(cmd, fn)
+
+	defer locationLock.Unlock()
+	locationLock.Lock()
+	if _, ok := locationToCmds[locationID]; !ok {
+		locationToCmds[locationID] = make([]uint32, 0)
+	}
+	locationToCmds[locationID] = append(locationToCmds[locationID], cmd)
+}
+
+// 注册定位RPC消息
+func AddLocationRpc[T func(context.Context, V1) V2, V1 any, V2 any](entity types.ILocationEntity, fn T) {
+	tVlaue := reflect.ValueOf(fn)
+	tFun := tVlaue.Type()
+	out := tFun.Out(0)
+	in := tFun.In(1)
+	locationID := entity.LocationID()
+	cmd := cmdhelper.ToCmdByRtype(in, out, locationID)
+	registerRType(cmd, in)
+	gox.Event.Bind(cmd, fn)
+
+	defer locationLock.Unlock()
+	locationLock.Lock()
+	if _, ok := locationToCmds[locationID]; !ok {
+		locationToCmds[locationID] = make([]uint32, 0)
+	}
+	locationToCmds[locationID] = append(locationToCmds[locationID], cmd)
+}
+
+// 注册定位消息
+func RemoveLocation(entity types.ILocationEntity) {
+	defer locationLock.Unlock()
+	locationLock.Lock()
+	locationID := entity.LocationID()
+	if cmdList, ok := locationToCmds[locationID]; ok {
+		for index := range cmdList {
+			cmd := cmdList[index]
+			unRegisterRType(cmd)
+			gox.Event.UnBind(cmd)
+		}
+	}
+	locationLock.Unlock()
 }

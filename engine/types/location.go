@@ -23,11 +23,10 @@ type (
 		Call(uint32, interface{}, interface{}) IRpcx
 	}
 	ILocationEntity interface {
-		Init(ILocationEntity) bool
-		OnInit()
-		Destroy()
 		//定位ID 每个实体的ID都是唯一的，且不变的
 		LocationID() uint32
-		Register(fn interface{})
+		Init(ILocationEntity)
+		OnInit()
+		Destroy(ILocationEntity)
 	}
 )

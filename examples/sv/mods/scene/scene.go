@@ -6,6 +6,7 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/network/location"
+	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 )
@@ -47,7 +48,7 @@ func (s *Scene) LocationID() uint32 {
 }
 
 func (s *Scene) OnInit() {
-	s.Register(s.OnUnitEnter) //添加Actor回调
+	protoreg.AddLocationRpc(s, s.OnUnitEnter)
 }
 
 func (s *Scene) OnUnitEnter(ctx context.Context, req *netpack.L2S_Enter) *netpack.S2L_Enter {

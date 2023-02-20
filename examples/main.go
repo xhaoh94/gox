@@ -13,7 +13,6 @@ func main() {
 	// ExecuteCmd("run", "sv/main.go", "-appConf", "app_1.yaml")
 	protoreg.Register(1002, Test)
 	protoreg.Register(1000, Test1)
-	protoreg.RegisterRpc1(RspToken)
 }
 func Test(ctx context.Context, session types.ISession, msg *pb.A) {
 	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})

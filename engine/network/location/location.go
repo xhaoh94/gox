@@ -157,9 +157,7 @@ func (location *LocationSystem) Add(entity types.ILocationEntity) {
 		xlog.Error("Location没有初始化ID")
 		return
 	}
-	if !entity.Init(entity) {
-		return
-	}
+	entity.Init(entity)
 
 	location.syncLock()
 	datas := []LocationData{{LocationID: aid, AppID: gox.AppConf.AppID}}
@@ -175,9 +173,7 @@ func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
 			xlog.Error("Location没有初始化ID")
 			return
 		}
-		if !entity.Init(entity) {
-			return
-		}
+		entity.Init(entity)
 		datas = append(datas, LocationData{LocationID: aid, AppID: gox.AppConf.AppID})
 	}
 	if len(datas) == 0 {
@@ -199,7 +195,7 @@ func (location *LocationSystem) Del(entity types.ILocationEntity) {
 	location.del(datas)
 	location.SyncLocation.Remove(datas)
 	location.syncUnLock()
-	entity.Destroy()
+	entity.Destroy(entity)
 }
 func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
 	datas := make([]uint32, 0)
@@ -219,7 +215,7 @@ func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
 	location.SyncLocation.Remove(datas)
 	location.syncUnLock()
 	for _, entity := range entitys {
-		entity.Destroy()
+		entity.Destroy(entity)
 	}
 }
 func (location *LocationSystem) ServiceClose(appID uint) {
