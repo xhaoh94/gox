@@ -38,7 +38,7 @@ func (entity *Entity) Init(actor types.ILocationEntity) bool {
 	}
 	for index := range fnList {
 		fn := fnList[index]
-		if cmd := entity.parseFn(actor.ActorID(), fn); cmd != 0 {
+		if cmd := entity.parseFn(actor.LocationID(), fn); cmd != 0 {
 			entity.cmdList = append(entity.cmdList, cmd)
 		}
 	}

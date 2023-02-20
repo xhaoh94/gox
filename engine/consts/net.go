@@ -6,8 +6,8 @@ const (
 	//Windows Windows
 	Windows string = "windows"
 
-	LocationLock   uint32 = 1029941012
-	LocationGet    uint32 = 2029941012
-	LocationAdd    uint32 = 1028950709
-	LocationRemove uint32 = 2028950709
+	LocationLock   uint32 = 941012
+	LocationGet    uint32 = 950709
+	LocationAdd    uint32 = 220129
+	LocationRemove uint32 = 220306
 )

@@ -1,10 +1,10 @@
-eid: 2
-etype: login
+app_id: 2
+app_type: login
 version: "1.0.0"
 interioraddr: "127.0.0.1:20001"
 outsideaddr:  "127.0.0.1:20002"
 log:    
-    log_file_name: "./log/e_1.log"     #日志文件路径
+    log_file_name: "./log/app_2.log"     #日志文件路径
     log_write_open: false  #是否写入log文件
     log_stacktrace: fatal  #记录堆栈的级别
     log_level: debug       #panic,fatal,error,warn,info,debug

@@ -12,7 +12,7 @@ type (
 		Init(ILocationEntity) bool
 		OnInit()
 		Destroy()
-		ActorID() uint32
+		LocationID() uint32
 		Register(fn interface{})
 	}
 )

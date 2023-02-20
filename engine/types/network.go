@@ -20,8 +20,6 @@ type (
 		Rpc() IRPC
 		// 通过id获取服务配置
 		GetServiceEntityByID(uint) IServiceEntity
-		// // 获取对应类型的所有服务配置
-		// GetServiceEntitysByType(string) []IServiceEntity
 		// 获取对应类型的所有服务配置
 		GetServiceEntitys(...ServiceOptionFunc) []IServiceEntity
 
@@ -61,9 +59,9 @@ type (
 
 	//rpc接口
 	IRPC interface {
-		//GRpcServer 获取GRpc服务
+		//获取GRpc服务
 		GRpcServer() *grpc.Server
-		//GetClientConnByAddr 通过地址获取GRPC客户端
+		//通过地址获取GRPC客户端
 		GetClientConnByAddr(string) *grpc.ClientConn
 	}
 	//内部rpc

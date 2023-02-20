@@ -7,8 +7,8 @@ import (
 
 type (
 	AppConf struct {
-		Eid          uint          `yaml:"eid"`
-		EType        string        `yaml:"etype"`
+		AppID        uint          `yaml:"app_id"`
+		AppType      string        `yaml:"app_type"`
 		Version      string        `yaml:"version"`
 		InteriorAddr string        `yaml:"interioraddr"`
 		OutsideAddr  string        `yaml:"outsideaddr"`

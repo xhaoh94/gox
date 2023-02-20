@@ -42,7 +42,7 @@ func newScene(id uint) *Scene {
 	return scene
 }
 
-func (s *Scene) ActorID() uint32 {
+func (s *Scene) LocationID() uint32 {
 	return uint32(s.Id)
 }
 

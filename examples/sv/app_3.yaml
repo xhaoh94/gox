@@ -1,10 +1,10 @@
-eid: 3
-etype: scene
+app_id: 3
+app_type: scene
 version: "1.0.0"
 interioraddr: "127.0.0.1:30001"
 # outsideaddr:  "127.0.0.1:30002"
 log:    
-    log_file_name: "./log/e_3.log"     #日志文件路径
+    log_file_name: "./log/app_3.log"     #日志文件路径
     log_write_open: false  #是否写入log文件
     log_stacktrace: fatal  #记录堆栈的级别
     log_level: debug       #panic,fatal,error,warn,info,debug

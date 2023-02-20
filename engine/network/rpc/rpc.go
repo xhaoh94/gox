@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 
 	"google.golang.org/grpc"
@@ -25,13 +24,13 @@ type (
 	}
 )
 
-// Put 添加rpc
+// 添加rpc
 func (rpc *RPC) Put(rpcx *Rpcx) {
 	rpcx.del = rpc.del
 	rpc.rpcMap.Store(rpcx.RID(), rpcx)
 }
 
-// Get 获取RPC
+// 获取RPC
 func (rpc *RPC) Get(id uint32) *Rpcx {
 	if dr, ok := rpc.rpcMap.Load(id); ok {
 		return dr.(*Rpcx)
@@ -39,7 +38,7 @@ func (rpc *RPC) Get(id uint32) *Rpcx {
 	return nil
 }
 
-// Del 删除rpc
+// 删除rpc
 func (rpc *RPC) del(id uint32) {
 	if dr, ok := rpc.rpcMap.LoadAndDelete(id); ok {
 		dr.(*Rpcx).release()
@@ -56,7 +55,7 @@ func (rpc *RPC) Serve() {
 	}
 }
 
-// Init 开启服务
+// 开启服务
 func (rpc *RPC) Start() {
 	rpcAddr := gox.AppConf.RpcAddr
 	if rpcAddr != "" {
@@ -65,14 +64,14 @@ func (rpc *RPC) Start() {
 	}
 }
 
-// Destroy 停止服务
+// 停止服务
 func (rpc *RPC) Stop() {
 	if rpc.grpc != nil {
 		rpc.grpc.stop()
 	}
 }
 
-// GRpcServer 获取grpc 服务端
+// 获取grpc 服务端
 func (rpc *RPC) GRpcServer() *grpc.Server {
 	if rpc.grpc != nil {
 		return rpc.grpc.server
@@ -80,13 +79,13 @@ func (rpc *RPC) GRpcServer() *grpc.Server {
 	return nil
 }
 
-// GetConnByAddr 获取grpc客户端
+// 获取grpc客户端
 func (rpc *RPC) GetClientConnByAddr(addr string) *grpc.ClientConn {
 	return rpc.grpc.getConnByAddr(addr)
 }
 
-// NewGrpcServer 初始化
-func New() types.IRPC {
+// 初始化
+func New() *RPC {
 	return &RPC{}
 }
 

@@ -97,8 +97,8 @@ func (ss *ServiceSystem) Start() {
 	ss.EtcdComponent.OnPut = ss.onPut
 	ss.EtcdComponent.OnDel = ss.onDel
 	ss.curService = ServiceEntity{
-		AppID:        appConf.Eid,
-		AppType:      appConf.EType,
+		AppID:        appConf.AppID,
+		AppType:      appConf.AppType,
 		Version:      appConf.Version,
 		OutsideAddr:  appConf.OutsideAddr,
 		InteriorAddr: appConf.InteriorAddr,

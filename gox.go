@@ -36,7 +36,7 @@ func Init(appConfPath string) {
 	Ctx, ctxCancelFn = context.WithCancel(context.Background())
 	Event = xevent.New()
 	AppConf = loadConf(appConfPath)
-	if AppConf.Eid == 0 {
+	if AppConf.AppID == 0 {
 		log.Printf("gox: AppID 必须大于0")
 		return
 	}
@@ -68,7 +68,7 @@ func Run() {
 		xlog.Fatal("gox: 没有设置主模块")
 		return
 	}
-	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", AppConf.Eid, AppConf.EType, AppConf.Version)
+	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", AppConf.AppID, AppConf.AppType, AppConf.Version)
 	xlog.Info("[ByteOrder:%s]", AppConf.Network.Endian)
 	NetWork.Init()
 	mainModule.Init(mainModule)
@@ -88,7 +88,7 @@ func shutdown() {
 	ctxCancelFn()
 	mainModule.Destroy(mainModule)
 	NetWork.Destroy()
-	xlog.Info("服务退出[sid:%d]", AppConf.Eid)
+	xlog.Info("服务退出[sid:%d]", AppConf.AppID)
 	xlog.Destroy()
 }
 

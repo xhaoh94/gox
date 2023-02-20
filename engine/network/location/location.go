@@ -15,27 +15,38 @@ type (
 		gox.Module
 		SyncLocation
 
-		lockWg          sync.WaitGroup
-		lock            sync.RWMutex
-		locationDataMap map[uint32]uint
-
-		cacellock sync.RWMutex
-		cacelMap  map[uint32]uint
+		lockWg      sync.WaitGroup
+		lock        sync.RWMutex
+		locationMap map[uint32]uint
 	}
-	LocationAdd struct {
+	LocationGetRequire struct {
+		IDs []uint32
+	}
+	LocationGetResponse struct {
 		Datas []LocationData
 	}
-	LocationRemove struct {
-		Datas []uint32
+
+	LocationAddRequire struct {
+		Datas []LocationData
 	}
-	LocationLock struct {
+	LocationAddResponse struct {
+	}
+
+	LocationRemoveRequire struct {
+		IDs []uint32
+	}
+	LocationRemoveResponse struct {
+	}
+
+	LocationLockRequire struct {
 		Lock bool
 	}
-	LocationData struct {
-		ActorID uint32
-		AppID   uint
+	LocationLockResponse struct {
 	}
-	LocationReslut struct {
+
+	LocationData struct {
+		LocationID uint32
+		AppID      uint
 	}
 )
 
@@ -45,8 +56,7 @@ func New() *LocationSystem {
 	return locationSystem
 }
 func (location *LocationSystem) Init() {
-	location.locationDataMap = make(map[uint32]uint, 0)
-	location.cacelMap = make(map[uint32]uint, 0)
+	location.locationMap = make(map[uint32]uint, 0)
 	location.RegisterRpc(consts.LocationLock, location.LockHandler)
 	location.RegisterRpc(consts.LocationGet, location.GetHandler)
 	location.RegisterRpc(consts.LocationAdd, location.AddHandler)
@@ -54,108 +64,122 @@ func (location *LocationSystem) Init() {
 
 }
 func (location *LocationSystem) Start() {
-	location.SyncLocation.Lock()
-	if locationData := location.SyncLocation.Get(); locationData != nil && len(locationData.Datas) > 0 {
-		location.lock.Lock()
-		for _, v := range locationData.Datas {
-			xlog.Debug("新增Actor:%d,AppID:%d", v.ActorID, v.AppID)
-			location.locationDataMap[v.ActorID] = v.AppID
-		}
-		defer location.lock.Unlock()
-	}
-	location.SyncLocation.UnLock()
+
 }
 
 func (location *LocationSystem) Stop() {
 
 }
 
-func (location *LocationSystem) LockHandler(ctx context.Context, req *LocationLock) *LocationReslut {
+func (location *LocationSystem) LockHandler(ctx context.Context, req *LocationLockRequire) *LocationLockResponse {
 
 	if req.Lock {
 		location.lockWg.Add(1)
 	} else {
 		location.lockWg.Done()
 	}
-	return &LocationReslut{}
+	return &LocationLockResponse{}
 }
 
-func (location *LocationSystem) GetHandler(ctx context.Context) *LocationAdd {
+func (location *LocationSystem) GetHandler(ctx context.Context, req *LocationGetRequire) *LocationGetResponse {
 	defer location.lock.RUnlock()
 	location.lock.RLock()
-	datas := make([]LocationData, len(location.locationDataMap))
-	index := 0
-	for aid, appId := range location.locationDataMap {
-		datas[index] = LocationData{ActorID: aid, AppID: appId}
-		index++
+	datas := make([]LocationData, 0)
+	for _, k := range req.IDs {
+		if v, ok := location.locationMap[k]; ok {
+			datas = append(datas, LocationData{LocationID: k, AppID: v})
+		}
 	}
-	return &LocationAdd{Datas: datas}
+	return &LocationGetResponse{Datas: datas}
 }
 
-func (location *LocationSystem) AddHandler(ctx context.Context, req *LocationAdd) *LocationReslut {
+func (location *LocationSystem) AddHandler(ctx context.Context, req *LocationAddRequire) *LocationAddResponse {
 	if req != nil && req.Datas != nil {
 		location.add(req.Datas)
 	}
-	return &LocationReslut{}
+	return &LocationAddResponse{}
 }
-func (location *LocationSystem) RemoveHandler(ctx context.Context, req *LocationRemove) *LocationReslut {
-	if req != nil && req.Datas != nil {
-		location.del(req.Datas)
+func (location *LocationSystem) RemoveHandler(ctx context.Context, req *LocationRemoveRequire) *LocationRemoveResponse {
+	if req != nil && req.IDs != nil {
+		location.del(req.IDs)
 	}
-	return &LocationReslut{}
+	return &LocationRemoveResponse{}
 }
 func (location *LocationSystem) add(Datas []LocationData) {
 	defer location.lock.Unlock()
 	location.lock.Lock()
 	for _, v := range Datas {
-		xlog.Debug("新增Actor:%d,AppID:%d", v.ActorID, v.AppID)
-		location.locationDataMap[v.ActorID] = v.AppID
+		xlog.Debug("新增LocationID:%d,AppID:%d", v.LocationID, v.AppID)
+		location.locationMap[v.LocationID] = v.AppID
 	}
 }
 func (location *LocationSystem) del(Datas []uint32) {
 	defer location.lock.Unlock()
 	location.lock.Lock()
 	for _, v := range Datas {
-		xlog.Debug("删除Actor:%d", v)
-		delete(location.locationDataMap, v)
+		xlog.Debug("删除LocationID:%d", v)
+		delete(location.locationMap, v)
 	}
 }
 
-func (location *LocationSystem) RLockCacel(b bool) {
-	if b {
-		location.cacellock.RLock()
-	} else {
-		location.cacellock.RUnlock()
+func (location *LocationSystem) GetAppID(locationID uint32) uint {
+	location.lockWg.Wait()
+	defer location.lock.RUnlock()
+	location.lock.RLock()
+
+	if id, ok := location.locationMap[locationID]; ok {
+		return id
 	}
-}
-func (location *LocationSystem) LockCacel(b bool) {
-	if b {
-		location.cacellock.Lock()
-	} else {
-		location.cacellock.Unlock()
-	}
-}
-func (location *LocationSystem) GetAppID(actorID uint32) uint {
-	if cacelId, ok := location.cacelMap[actorID]; ok {
-		return cacelId
-	} else {
-		location.lockWg.Wait()
-		defer location.lock.RUnlock()
-		location.lock.RLock()
-		if id, ok := location.locationDataMap[actorID]; ok && id != cacelId {
-			location.cacellock.Lock()
-			location.cacelMap[actorID] = id
-			location.cacellock.Unlock()
-			return id
+
+	defer location.syncUnLock()
+	location.syncLock()
+
+	datas := location.SyncLocation.Get([]uint32{locationID})
+	location.lock.Lock()
+	var appID uint
+	for _, v := range datas {
+		location.locationMap[v.LocationID] = v.AppID
+		if v.LocationID == locationID {
+			appID = v.AppID
 		}
-		return 0
 	}
+	location.lock.Unlock()
+	return appID
+}
+func (location *LocationSystem) GetAppIDs(locationIDs []uint32) []uint {
+	location.lockWg.Wait()
+	defer location.lock.RUnlock()
+	location.lock.RLock()
+	AppIDs := make([]uint, 0)
+	reqIDs := make([]uint32, 0)
+	for _, locationID := range locationIDs {
+		if id, ok := location.locationMap[locationID]; ok {
+			AppIDs = append(AppIDs, id)
+		} else {
+			reqIDs = append(reqIDs, locationID)
+		}
+	}
+	if len(reqIDs) == 0 {
+		return AppIDs
+	}
+
+	defer location.syncUnLock()
+	location.syncLock()
+
+	datas := location.SyncLocation.Get(reqIDs)
+	location.lock.Lock()
+	for _, v := range datas {
+		location.locationMap[v.LocationID] = v.AppID
+		AppIDs = append(AppIDs, v.AppID)
+	}
+	location.lock.Unlock()
+	return AppIDs
 }
 
 func (location *LocationSystem) Add(entity types.ILocationEntity) {
-	aid := entity.ActorID()
+	aid := entity.LocationID()
 	if aid == 0 {
-		xlog.Error("Actor没有初始化ID")
+		xlog.Error("Location没有初始化ID")
 		return
 	}
 	if !entity.Init(entity) {
@@ -163,7 +187,7 @@ func (location *LocationSystem) Add(entity types.ILocationEntity) {
 	}
 
 	location.syncLock()
-	datas := []LocationData{{ActorID: aid, AppID: gox.AppConf.Eid}}
+	datas := []LocationData{{LocationID: aid, AppID: gox.AppConf.AppID}}
 	location.add(datas)
 	location.SyncLocation.Add(datas)
 	location.syncUnLock()
@@ -171,15 +195,15 @@ func (location *LocationSystem) Add(entity types.ILocationEntity) {
 func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
 	datas := make([]LocationData, 0)
 	for _, entity := range entitys {
-		aid := entity.ActorID()
+		aid := entity.LocationID()
 		if aid == 0 {
-			xlog.Error("Actor没有初始化ID")
+			xlog.Error("Location没有初始化ID")
 			return
 		}
 		if !entity.Init(entity) {
 			return
 		}
-		datas = append(datas, LocationData{ActorID: aid, AppID: gox.AppConf.Eid})
+		datas = append(datas, LocationData{LocationID: aid, AppID: gox.AppConf.AppID})
 	}
 	if len(datas) == 0 {
 		return
@@ -190,9 +214,9 @@ func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
 	location.syncUnLock()
 }
 func (location *LocationSystem) Del(entity types.ILocationEntity) {
-	aid := entity.ActorID()
+	aid := entity.LocationID()
 	if aid == 0 {
-		xlog.Error("Actor没有初始化ID")
+		xlog.Error("Location没有初始化ID")
 		return
 	}
 	location.syncLock()
@@ -205,9 +229,9 @@ func (location *LocationSystem) Del(entity types.ILocationEntity) {
 func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
 	datas := make([]uint32, 0)
 	for _, entity := range entitys {
-		aid := entity.ActorID()
+		aid := entity.LocationID()
 		if aid == 0 {
-			xlog.Error("Actor没有初始化ID")
+			xlog.Error("Location没有初始化ID")
 			return
 		}
 		datas = append(datas, aid)
@@ -226,10 +250,10 @@ func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
 func (location *LocationSystem) ServiceClose(appID uint) {
 	defer location.lock.Unlock()
 	location.lock.Lock()
-	for k, v := range location.locationDataMap {
+	for k, v := range location.locationMap {
 		if v == appID {
-			xlog.Debug("删除Actor:%d", k)
-			delete(location.locationDataMap, k)
+			xlog.Debug("删除Location:%d", k)
+			delete(location.locationMap, k)
 		}
 	}
 }

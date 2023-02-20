@@ -23,3 +23,18 @@ func RTypeToInterface(t reflect.Type) interface{} {
 	}
 	return nil
 }
+
+type Number interface {
+	int | uint | int16 | uint16 | int32 | uint32 | int64 | uint64
+}
+
+func DeleteSlice[T Number | string](list []T, elem T) []T {
+	j := 0
+	for _, v := range list {
+		if v != elem {
+			list[j] = v
+			j++
+		}
+	}
+	return list[:j]
+}

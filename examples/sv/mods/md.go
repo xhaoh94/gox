@@ -16,7 +16,7 @@ type (
 )
 
 func (m *MainModule) OnInit() {
-	switch gox.AppConf.EType {
+	switch gox.AppConf.AppType {
 	case game.Gate:
 		m.Put(&gate.GateModule{})
 	case game.Login:

@@ -22,7 +22,7 @@ func newUnit(id uint) *Unit {
 	return unit
 }
 
-func (unit *Unit) ActorID() uint32 {
+func (unit *Unit) LocationID() uint32 {
 	return uint32(unit.Id)
 }
 

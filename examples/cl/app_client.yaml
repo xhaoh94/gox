@@ -1,9 +1,9 @@
-eid: 999
-etype: test
+app_id: 999
+app_type: test
 version: "1.0.0"
 interioraddr: "127.0.0.1:9099"
 log:    
-    log_file_name: "./log/e_1.log"     #日志文件路径
+    log_file_name: "./log/app_client.log"     #日志文件路径
     log_write_open: false  #是否写入log文件
     log_stacktrace: fatal  #记录堆栈的级别
     log_level: debug       #panic,fatal,error,warn,info,debug
