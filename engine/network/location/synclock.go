@@ -8,7 +8,6 @@ import (
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 type (
@@ -53,13 +52,11 @@ func (lock *SyncLocation) Remove(datas []uint32) {
 func (lock *SyncLocation) Get(datas []uint32) []LocationData {
 	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.AppConf.AppID))
 	Datas := make([]LocationData, 0)
-	xlog.Debug("xxxxxxxxxxxxxxxxxxxxxxxGetAppID %v", datas)
 	for _, entity := range entitys {
 		if len(datas) == 0 {
 			break
 		}
 		response := &LocationGetResponse{}
-		xlog.Debug("xxxxxxxxxxxxxxxxxxxxxxxCall APPID %d, 开始 %v", entity.GetID(), datas)
 		err := lock.call(entity, consts.LocationGet, &LocationGetRequire{IDs: datas}, response).Await()
 		if err == nil && response.Datas != nil && len(response.Datas) > 0 {
 			for _, v := range response.Datas {
@@ -67,9 +64,7 @@ func (lock *SyncLocation) Get(datas []uint32) []LocationData {
 				Datas = append(Datas, LocationData{LocationID: v.LocationID, AppID: v.AppID})
 			}
 		}
-		xlog.Debug("xxxxxxxxxxxxxxxxxxxxxxxCall APPID %d, 结束 %v", entity.GetID(), Datas)
 	}
-	xlog.Debug("xxxxxxxxxxxxxxxxxxxxxxxLocationData  %v", Datas)
 	return Datas
 }
 

@@ -32,9 +32,3 @@ webSocket:
     ws_scheme: ws
     ws_certfile: ""
     ws_keyfile: ""
-
-etcd:
-    etcd_list: #etcd集
-        - 127.0.0.1:2379 
-    etcd_timeout: 5           #连接超时
-    etcd_lease_time: 5        #续约时间s

@@ -94,6 +94,10 @@ func newServiceConfig(val []byte) (ServiceEntity, error) {
 
 func (ss *ServiceSystem) Start() {
 	appConf := gox.AppConf
+	if len(appConf.Etcd.EtcdList) == 0 {
+		xlog.Error("EtcdList 为空，无法启动服务注册")
+		return
+	}
 	ss.EtcdComponent.OnPut = ss.onPut
 	ss.EtcdComponent.OnDel = ss.onDel
 	ss.curService = ServiceEntity{

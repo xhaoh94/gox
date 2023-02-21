@@ -59,7 +59,6 @@ func (location *LocationSystem) Stop() {
 // }
 
 func (location *LocationSystem) GetHandler(ctx context.Context, req *LocationGetRequire) (*LocationGetResponse, error) {
-	xlog.Debug("xxxxxxxxxxxxxxxxxxxxxxxGetHandler")
 	datas := make([]LocationData, 0)
 	if len(location.locationMap) > 0 && len(req.IDs) > 0 {
 		defer location.lock.RUnlock()
