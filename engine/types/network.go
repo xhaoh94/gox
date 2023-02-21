@@ -26,6 +26,7 @@ type (
 	//服务器接口
 	IService interface {
 		Init(string, ICodec)
+		Codec() ICodec
 		Start()
 		Stop()
 		GetAddr() string
@@ -35,6 +36,7 @@ type (
 	//会话接口
 	ISession interface {
 		ID() uint32
+		Codec() ICodec
 		RemoteAddr() string
 		LocalAddr() string
 		//发送数据

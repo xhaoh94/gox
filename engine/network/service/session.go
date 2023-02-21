@@ -145,6 +145,9 @@ func (session *Session) reply(cmd uint32, response any, rpcid uint32) bool {
 		return false
 	}
 	session.sendData(pkt.Data())
+	if cmd == consts.LocationForward {
+		xlog.Debug("xxxxxxemitMessage2 :[%v]", response)
+	}
 	return true
 }
 
@@ -230,7 +233,7 @@ func (session *Session) parseMsg(buf []byte) {
 		cmd := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
 		if msgLen == 0 {
-			session.emitMessage(cmd, nil)
+			session.emitMessage(cmd, nil, 0)
 			return
 		}
 		require := protoreg.GetRequireByCmd(cmd)
@@ -242,7 +245,7 @@ func (session *Session) parseMsg(buf []byte) {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
-		session.emitMessage(cmd, require)
+		session.emitMessage(cmd, require, 0)
 		return
 	case RPC_REQUIRE:
 		cmd := pkt.ReadUint32()
@@ -250,7 +253,7 @@ func (session *Session) parseMsg(buf []byte) {
 		msgLen := pkt.RemainLength()
 		// xlog.Debug("rpcs:cmd:%d,rpcID:%d,msgLen:%d", cmd, rpcID, msgLen)
 		if msgLen == 0 {
-			session.emitRpc(cmd, rpcID, nil)
+			session.emitMessage(cmd, nil, rpcID)
 			return
 		}
 		require := protoreg.GetRequireByCmd(cmd)
@@ -264,7 +267,7 @@ func (session *Session) parseMsg(buf []byte) {
 			session.reply(cmd, nil, rpcID)
 			return
 		}
-		session.emitRpc(cmd, rpcID, require)
+		session.emitMessage(cmd, require, rpcID)
 		return
 	case RPC_RESPONSE:
 		cmd := pkt.ReadUint32()
@@ -281,15 +284,22 @@ func (session *Session) parseMsg(buf []byte) {
 				rpcx.Run(nil)
 				return
 			}
+
 			if err := pkt.ReadMessage(response, session.codec(cmd)); err != nil {
 				xlog.Error("解析网络包体失败 err:[%v]", err)
 				rpcx.Run(err)
 				return
 			}
+			if cmd == consts.LocationForward {
+				xlog.Debug("xxxxxx :[%v]", response)
+			}
 			rpcx.Run(nil)
 		}
 		return
 	}
+}
+func (session *Session) Codec() types.ICodec {
+	return session.service.Codec()
 }
 
 func (session *Session) rpc() *rpc.RPC {
@@ -305,25 +315,25 @@ func (session *Session) codec(cmd uint32) types.ICodec {
 		return codec.MsgPack
 	case consts.LocationGet:
 		return codec.MsgPack
+	case consts.LocationForward:
+		return codec.MsgPack
 	}
-	return session.service.Codec
+	return session.Codec()
 }
 func (session *Session) endian() binary.ByteOrder {
 	return gox.AppConf.Network.Endian
 }
 
-func (session *Session) emitRpc(cmd uint32, rpcID uint32, require any) {
-	if response, err := cmdhelper.CallEvt(cmd, session.ctx, require); err == nil {
-		session.reply(cmd, response, rpcID)
-	} else {
-		xlog.Warn("发送rpc消息失败 err:[%v]", err)
+func (session *Session) emitMessage(cmd uint32, require any, rpcID uint32) {
+	if cmd == consts.LocationForward {
+		xlog.Debug("xxxxxxemitMessage1 :[%v]", require)
 	}
-}
-
-// emitMessage 派发网络消息
-func (session *Session) emitMessage(cmd uint32, msg any) {
-	if _, err := cmdhelper.CallEvt(cmd, session.ctx, session, msg); err != nil {
-		xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
+	if response, err := cmdhelper.CallEvt(cmd, session.ctx, session, require); err == nil {
+		if rpcID > 0 {
+			session.reply(cmd, response, rpcID)
+		}
+	} else {
+		xlog.Warn("session->emitMessage: 发送消息失败 err:[%v]", err)
 	}
 }
 

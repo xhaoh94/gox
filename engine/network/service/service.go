@@ -11,7 +11,7 @@ import (
 type (
 	//Service 服务器
 	Service struct {
-		Codec              types.ICodec
+		codec              types.ICodec
 		ConnectChannelFunc func(addr string) types.IChannel
 		AcceptWg           sync.WaitGroup
 		IsRun              bool
@@ -33,10 +33,13 @@ var sessionPool *sync.Pool = &sync.Pool{
 
 // Init 服务初始化
 func (service *Service) Init(addr string, codec types.ICodec) {
-	service.Codec = codec
+	service.codec = codec
 	service.addr = addr
 	service.idToSession = make(map[uint32]*Session)
 	service.addrToSession = make(map[string]*Session)
+}
+func (service *Service) Codec() types.ICodec {
+	return service.codec
 }
 
 // GetAddr 获取地址

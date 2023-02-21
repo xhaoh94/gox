@@ -7,6 +7,7 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
+	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 )
@@ -51,7 +52,7 @@ func (s *Scene) OnInit() {
 	protoreg.AddLocationRpc(s, s.OnUnitEnter)
 }
 
-func (s *Scene) OnUnitEnter(ctx context.Context, req *netpack.L2S_Enter) (*netpack.S2L_Enter, error) {
+func (s *Scene) OnUnitEnter(ctx context.Context, session types.ISession, req *netpack.L2S_Enter) (*netpack.S2L_Enter, error) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	if _, ok := s.units[req.UnitId]; ok {

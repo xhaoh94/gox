@@ -67,7 +67,7 @@ func Register[T func(context.Context, types.ISession, V), V any](cmd uint32, fn 
 }
 
 // 注册带CMD的RPC消息
-func RegisterRpcCmd[T func(context.Context, V1) (V2, error), V1 any, V2 any](cmd uint32, fn T) {
+func RegisterRpcCmd[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](cmd uint32, fn T) {
 
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
@@ -77,7 +77,7 @@ func RegisterRpcCmd[T func(context.Context, V1) (V2, error), V1 any, V2 any](cmd
 		return
 	}
 
-	in := tFun.In(1)
+	in := tFun.In(2)
 	if in.Kind() != reflect.Ptr {
 		xlog.Error("RPC函数参数需要是指针类型")
 		return
@@ -87,11 +87,11 @@ func RegisterRpcCmd[T func(context.Context, V1) (V2, error), V1 any, V2 any](cmd
 }
 
 // 注册RPC消息
-func RegisterRpc[T func(context.Context, V1) (V2, error), V1 any, V2 any](fn T) {
+func RegisterRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](fn T) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	out := tFun.Out(0)
-	in := tFun.In(1)
+	in := tFun.In(2)
 	cmd := cmdhelper.ToCmdByRtype(in, out, 0)
 	registerRType(cmd, in)
 	gox.Event.Bind(cmd, fn)
@@ -116,11 +116,11 @@ func AddLocation[T func(context.Context, types.ISession, V), V any](entity types
 }
 
 // 注册定位RPC消息
-func AddLocationRpc[T func(context.Context, V1) (V2, error), V1 any, V2 any](entity types.ILocationEntity, fn T) {
+func AddLocationRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](entity types.ILocationEntity, fn T) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	out := tFun.Out(0)
-	in := tFun.In(1)
+	in := tFun.In(2)
 	locationID := entity.LocationID()
 	cmd := cmdhelper.ToCmdByRtype(in, out, locationID)
 	registerRType(cmd, in)

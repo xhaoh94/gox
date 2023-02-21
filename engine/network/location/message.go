@@ -8,6 +8,16 @@ type (
 		Datas []LocationData
 	}
 
+	LocationForwardRequire struct {
+		CMD     uint32
+		Require []byte
+		IsCall  bool
+	}
+	LocationForwardResponse struct {
+		IsSuc    bool
+		Response []byte
+	}
+
 	LocationAddRequire struct {
 		Datas []LocationData
 	}

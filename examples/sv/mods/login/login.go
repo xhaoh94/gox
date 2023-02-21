@@ -67,7 +67,7 @@ func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req 
 	session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 0}) //返回客户端结果
 }
 
-func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) (*netpack.L2G_Login, error) {
+func (m *LoginModule) RspToken(ctx context.Context, session types.ISession, req *netpack.G2L_Login) (*netpack.L2G_Login, error) {
 	token := commonhelper.NewUUID() //创建user对应的token
 	xlog.Debug("创建user[%s]对应的token[%s]", req.User, token)
 	m.mux.Lock()

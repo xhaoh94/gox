@@ -11,10 +11,6 @@ type (
 		Del(ILocationEntity)
 		//删除实体列表
 		Dels([]ILocationEntity)
-		//获取对应的进程ID
-		GetAppID(uint32) uint
-		//获取对应的进程ID列表
-		GetAppIDs([]uint32) []uint
 		//广播
 		Broadcast([]uint32, interface{})
 		//指定发送
