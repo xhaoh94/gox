@@ -45,10 +45,10 @@ func (m *GateModule) RspLogin(ctx context.Context, session types.ISession, msg *
 	loginCfg := cfgs[0]
 	loginSession := gox.NetWork.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
 	Rsp_L2G_Login := &netpack.L2G_Login{}
-	b := loginSession.Call(&netpack.G2L_Login{User: msg.User}, Rsp_L2G_Login).Await() //向login服务器请求token
+	err := loginSession.Call(&netpack.G2L_Login{User: msg.User}, Rsp_L2G_Login).Await() //向login服务器请求token
 
 	Rsp_G2C_Login := &netpack.G2C_Login{}
-	if b {
+	if err == nil {
 		Rsp_G2C_Login.Code = 0
 		Rsp_G2C_Login.Addr = loginCfg.GetOutsideAddr()
 		Rsp_G2C_Login.Token = Rsp_L2G_Login.Token

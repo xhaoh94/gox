@@ -67,25 +67,26 @@ func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req 
 	session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 0}) //返回客户端结果
 }
 
-func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) *netpack.L2G_Login {
+func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) (*netpack.L2G_Login, error) {
 	token := commonhelper.NewUUID() //创建user对应的token
 	xlog.Debug("创建user[%s]对应的token[%s]", req.User, token)
 	m.mux.Lock()
 	m.user2Token[req.User] = UserToken{user: req.User, token: token, time: time.Now()} //将user、token保存
 	m.mux.Unlock()
-	return &netpack.L2G_Login{Token: token}
+	return &netpack.L2G_Login{Token: token}, nil
 }
 
 func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req *netpack.C2L_Enter) {
 	sId := req.SceneId
 	backRsp := &netpack.S2L_Enter{}
-	b := gox.Location.Call(uint32(sId), &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() //Actor玩家进入场景
+	err := gox.Location.Call(uint32(sId), &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() //Actor玩家进入场景
 
 	enterRsp := &netpack.L2C_Enter{}
-	if b { //玩家进入场景成功
+	if err == nil { //玩家进入场景成功
 		rsp := &netpack.S2L_SayHello{}
-		b = gox.Location.Call(uint32(req.UnitId), &netpack.L2S_SayHello{Txt: "你好啊，我是机器人:" + strhelper.ValToString(req.UnitId)}, rsp).Await() //Actor 玩家发言
-		if b {
+		xlog.Debug("玩家发言")
+		err = gox.Location.Call(uint32(req.UnitId), &netpack.L2S_SayHello{Txt: "你好啊，我是机器人:" + strhelper.ValToString(req.UnitId)}, rsp).Await() //Actor 玩家发言
+		if err == nil {
 			xlog.Debug("发言返回:%s", rsp.BackTxt)
 			enterRsp.Code = 0
 		} else {
@@ -93,6 +94,7 @@ func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req 
 		}
 	} else {
 		enterRsp.Code = 1
+		xlog.Error("进入场景错误,%v", err)
 	}
 	session.Send(netpack.CMD_L2C_Enter, enterRsp)
 }

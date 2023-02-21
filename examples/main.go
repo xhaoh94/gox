@@ -1,32 +1,38 @@
 package main
 
 import (
-	"context"
+	"fmt"
+	"reflect"
+)
 
-	"github.com/xhaoh94/gox/engine/network/protoreg"
-	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/examples/netpack"
-	"github.com/xhaoh94/gox/examples/pb"
+type (
+	TT struct {
+		Name string
+		Age  int
+	}
 )
 
 func main() {
 	// ExecuteCmd("run", "sv/main.go", "-appConf", "app_1.yaml")
-	protoreg.Register(1002, Test)
-	protoreg.Register(1000, Test1)
+	t := &TT{}
+	tt(t)
+	fmt.Printf("%v", t)
 }
-func Test(ctx context.Context, session types.ISession, msg *pb.A) {
-	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
-}
-func Test1(ctx context.Context, session types.ISession, req any) {
-	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
-}
-func RspToken(ctx context.Context, req *netpack.G2L_Login) *netpack.L2G_Login {
-	return &netpack.L2G_Login{}
+func tt(t any) {
+	newT := &TT{}
+	newT.Name = "ccc"
+	newT.Age = 18
+	v1 := reflect.ValueOf(t).Elem()
+	v2 := reflect.ValueOf(newT).Elem()
+	for i := 0; i < v2.NumField(); i++ {
+		fieldInfo := v2.Type().Field(i)
+		v1.FieldByName(fieldInfo.Name).Set(v2.Field(i))
+	}
 }
 
 // func ExecuteCmd(args ...string) {
 // 	cmd := exec.Command("go", args...)
-// 	var stdout, stderr bytes.Buffer
+// 	var stdout, stderr bytes.Buffreflect
 // 	cmd.Stdout = &stdout // 标准输出
 // 	cmd.Stderr = &stderr // 标准错误
 // 	err := cmd.Run()

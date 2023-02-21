@@ -2,17 +2,20 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 // Rpcx 自定义rpcdata
 type (
 	Rpcx struct {
-		run      bool
+		err      error
 		rid      uint32
-		c        chan bool
+		errChan  chan error
 		ctx      context.Context
 		response interface{}
 		del      func(uint32)
@@ -32,47 +35,52 @@ func init() {
 	}
 }
 
-func NewRpcx(ctx context.Context, response interface{}) *Rpcx {
+func NewRpcx(ctx context.Context, rpcID uint32, response interface{}) *Rpcx {
 	rpcx := pool.Get().(*Rpcx)
-	rpcx.c = make(chan bool)
+	rpcx.errChan = make(chan error)
 	rpcx.ctx = ctx
+	rpcx.rid = rpcID
 	rpcx.response = response
-	rpcx.run = true
+	rpcx.err = nil
 	return rpcx
 }
-func NewEmptyRpcx() *Rpcx {
+func NewEmptyRpcx(err error) *Rpcx {
 	rpcx := pool.Get().(*Rpcx)
-	rpcx.run = false
+	rpcx.err = err
 	return rpcx
 }
 
 // Run 调用
-func (rpcx *Rpcx) Run(success bool) {
-	if rpcx.run {
-		rpcx.c <- success
+func (rpcx *Rpcx) Run(err error) {
+	if rpcx.err == nil {
+		rpcx.errChan <- err
 	}
 }
 
 // Await 异步等待
-func (rpcx *Rpcx) Await() bool {
-	if rpcx.run {
+func (rpcx *Rpcx) Await() error {
+	if rpcx.err == nil {
 		select {
 		case <-rpcx.ctx.Done():
-			rpcx.close()
-			return false
-		case r := <-rpcx.c:
-			rpcx.close()
-			return r
+			rpcx.err = errors.New("rpcx Context Done")
+			break
+		case rpcx.err = <-rpcx.errChan:
+			break
 		case <-time.After(time.Second * 3):
-			rpcx.close()
-			return false
+			rpcx.err = errors.New("rpcx 超时")
+			xlog.Error("rpcx 超时")
+			break
 		}
 	}
-	return false
+	rpcx.close()
+	return rpcx.err
 }
 
 func (rpcx *Rpcx) close() {
-	close(rpcx.c)
+	if rpcx.errChan != nil {
+		close(rpcx.errChan)
+	}
+
 	if rpcx.rid != 0 && rpcx.del != nil {
 		rpcx.del(rpcx.rid)
 	} else {
@@ -82,11 +90,11 @@ func (rpcx *Rpcx) close() {
 
 func (rpcx *Rpcx) release() {
 	rpcx.rid = 0
-	rpcx.c = nil
+	rpcx.err = nil
+	rpcx.errChan = nil
 	rpcx.ctx = nil
 	rpcx.response = nil
 	rpcx.del = nil
-	rpcx.run = false
 	pool.Put(rpcx)
 }
 
@@ -96,9 +104,6 @@ func (rpcx *Rpcx) GetResponse() interface{} {
 
 // RID 获取RPCID
 func (rpcx *Rpcx) RID() uint32 {
-	if rpcx.rid == 0 {
-		rpcx.rid = AssignID()
-	}
 	return rpcx.rid
 }
 

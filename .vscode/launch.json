@@ -5,13 +5,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Main",
+            "name": "S_1",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/examples/",
+            "program": "${workspaceFolder}/examples/sv",
             "env": {},
-            "args": []
+            "args": ["-appConf","app_1.yaml"]
+        },
+        {
+            "name": "S_2",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/examples/sv",
+            "env": {},
+            "args": ["-appConf","app_2.yaml"]
+        },
+        {
+            "name": "S_3",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/examples/sv",
+            "env": {},
+            "args":["-appConf","app_3.yaml"]
         },
         {
             "name": "TestClient",

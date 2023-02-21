@@ -24,6 +24,19 @@ func RTypeToInterface(t reflect.Type) interface{} {
 	return nil
 }
 
+// 替换字段值
+func ReplaceValue(value any, replace any) {
+	if value == nil || replace == nil {
+		return
+	}
+	v1 := reflect.ValueOf(value).Elem()
+	v2 := reflect.ValueOf(replace).Elem()
+	for i := 0; i < v2.NumField(); i++ {
+		fieldInfo := v2.Type().Field(i)
+		v1.FieldByName(fieldInfo.Name).Set(v2.Field(i))
+	}
+}
+
 type Number interface {
 	int | uint | int16 | uint16 | int32 | uint32 | int64 | uint64
 }

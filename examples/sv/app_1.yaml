@@ -27,7 +27,7 @@ db:
 network:
     endian: littleEndian       #大小端
     send_msg_max_len: 0        #发送消息最大长度
-    read_msg_max_len: 2048     #读取消息最大长度
+    read_msg_max_len: 0        #读取消息最大长度
     reconnect_interval: 1      #重连间隔
     reconnection_max: 3        #重连的最大尝试次数
     heartbeat: 30              #心跳间隔

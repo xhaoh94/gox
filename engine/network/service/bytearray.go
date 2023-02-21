@@ -44,27 +44,27 @@ func (bytearray *ByteArray) AppendBytes(v []byte) {
 	bytearray.data = append(bytearray.data, v...)
 }
 func (bytearray *ByteArray) AppendUint16(v uint16) {
-	bytes := codechelper.Uint16ToBytes(v, bytearray.endian)
+	bytes := codechelper.ToBytes(v, bytearray.endian)
 	bytearray.data = append(bytearray.data, bytes...)
 }
 func (bytearray *ByteArray) AppendInt16(v int16) {
-	bytes := codechelper.Int16ToBytes(v, bytearray.endian)
+	bytes := codechelper.ToBytes(v, bytearray.endian)
 	bytearray.data = append(bytearray.data, bytes...)
 }
 func (bytearray *ByteArray) AppendUint32(v uint32) {
-	bytes := codechelper.Uint32ToBytes(v, bytearray.endian)
+	bytes := codechelper.ToBytes(v, bytearray.endian)
 	bytearray.data = append(bytearray.data, bytes...)
 }
 func (bytearray *ByteArray) AppendInt32(v int32) {
-	bytes := codechelper.Int32ToBytes(v, bytearray.endian)
+	bytes := codechelper.ToBytes(v, bytearray.endian)
 	bytearray.data = append(bytearray.data, bytes...)
 }
 func (bytearray *ByteArray) AppendUint64(v uint64) {
-	bytes := codechelper.Uint64ToBytes(v, bytearray.endian)
+	bytes := codechelper.ToBytes(v, bytearray.endian)
 	bytearray.data = append(bytearray.data, bytes...)
 }
 func (bytearray *ByteArray) AppendInt64(v int64) {
-	bytes := codechelper.Int64ToBytes(v, bytearray.endian)
+	bytes := codechelper.ToBytes(v, bytearray.endian)
 	bytearray.data = append(bytearray.data, bytes...)
 }
 func (bytearray *ByteArray) AppendString(v string) {
@@ -98,37 +98,37 @@ func (bytearray *ByteArray) ReadBytes(size uint32) []byte {
 }
 
 func (bytearray *ByteArray) ReadUint16() uint16 {
-	r := codechelper.BytesToUint16(bytearray.data[bytearray.position:bytearray.position+2], bytearray.endian)
+	r := codechelper.BytesTo[uint16](bytearray.data[bytearray.position:bytearray.position+2], bytearray.endian)
 	bytearray.position += 2
 	return r
 }
 
 func (bytearray *ByteArray) ReadInt16() int16 {
-	r := codechelper.BytesToint16(bytearray.data[bytearray.position:bytearray.position+2], bytearray.endian)
+	r := codechelper.BytesTo[int16](bytearray.data[bytearray.position:bytearray.position+2], bytearray.endian)
 	bytearray.position += 2
 	return r
 }
 
 func (bytearray *ByteArray) ReadUint32() uint32 {
-	r := codechelper.BytesToUint32(bytearray.data[bytearray.position:bytearray.position+4], bytearray.endian)
+	r := codechelper.BytesTo[uint32](bytearray.data[bytearray.position:bytearray.position+4], bytearray.endian)
 	bytearray.position += 4
 	return r
 }
 
 func (bytearray *ByteArray) ReadInt32() int32 {
-	r := codechelper.BytesToint32(bytearray.data[bytearray.position:bytearray.position+4], bytearray.endian)
+	r := codechelper.BytesTo[int32](bytearray.data[bytearray.position:bytearray.position+4], bytearray.endian)
 	bytearray.position += 4
 	return r
 }
 
 func (bytearray *ByteArray) ReadUint64() uint64 {
-	r := codechelper.BytesToUint64(bytearray.data[bytearray.position:bytearray.position+8], bytearray.endian)
+	r := codechelper.BytesTo[uint64](bytearray.data[bytearray.position:bytearray.position+8], bytearray.endian)
 	bytearray.position += 8
 	return r
 }
 
 func (bytearray *ByteArray) ReadInt64() int64 {
-	r := codechelper.BytesToint64(bytearray.data[bytearray.position:bytearray.position+8], bytearray.endian)
+	r := codechelper.BytesTo[int64](bytearray.data[bytearray.position:bytearray.position+8], bytearray.endian)
 	bytearray.position += 8
 	return r
 }
@@ -161,7 +161,7 @@ func (bytearray *ByteArray) RemainData() []byte {
 }
 
 func (bytearray *ByteArray) Data() []byte {
-	bytes := codechelper.Uint16ToBytes(uint16(len(bytearray.data)), bytearray.endian)
+	bytes := codechelper.ToBytes(uint16(len(bytearray.data)), bytearray.endian)
 	bytes = append(bytes, bytearray.data...)
 	return bytes
 }

@@ -51,12 +51,14 @@ func (s *Scene) OnInit() {
 	protoreg.AddLocationRpc(s, s.OnUnitEnter)
 }
 
-func (s *Scene) OnUnitEnter(ctx context.Context, req *netpack.L2S_Enter) *netpack.S2L_Enter {
+func (s *Scene) OnUnitEnter(ctx context.Context, req *netpack.L2S_Enter) (*netpack.S2L_Enter, error) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	if _, ok := s.units[req.UnitId]; ok {
+		return &netpack.S2L_Enter{Code: 0}, nil
+	}
 	xlog.Debug("有玩家进入unitId:%d", req.UnitId)
 	unit := newUnit(req.UnitId) //创建玩家
-	s.mux.Lock()
 	s.units[unit.Id] = unit
-	s.mux.Unlock()
-	xlog.Debug("scene[%d],units[%v]", s.Id, s.units)
-	return &netpack.S2L_Enter{Code: 0}
+	return &netpack.S2L_Enter{Code: 0}, nil
 }

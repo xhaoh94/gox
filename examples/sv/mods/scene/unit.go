@@ -19,7 +19,7 @@ type (
 
 func newUnit(id uint) *Unit {
 	unit := &Unit{Id: id}
-	gox.Location.Add(unit) //添加到Actor
+	gox.Location.Add(unit) //添加到Location
 	return unit
 }
 
@@ -31,7 +31,7 @@ func (unit *Unit) OnInit() {
 	protoreg.AddLocationRpc(unit, unit.SayHello)
 }
 
-func (unit *Unit) SayHello(ctx context.Context, req *netpack.L2S_SayHello) *netpack.S2L_SayHello {
+func (unit *Unit) SayHello(ctx context.Context, req *netpack.L2S_SayHello) (*netpack.S2L_SayHello, error) {
 	xlog.Debug("收到sayHello:%s", req.Txt)
-	return &netpack.S2L_SayHello{BackTxt: req.Txt + "返回"}
+	return &netpack.S2L_SayHello{BackTxt: req.Txt + "返回"}, nil
 }

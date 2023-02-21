@@ -11,22 +11,22 @@ import (
 )
 
 var (
-	key2ukey map[string]uint32 = make(map[string]uint32)
+	keyToCmd map[string]uint32 = make(map[string]uint32)
 	mux      sync.RWMutex
 )
 
-func ToCmdByRtype(in reflect.Type, out reflect.Type, actorId uint32) uint32 {
+func ToCmdByRtype(in reflect.Type, out reflect.Type, locationID uint32) uint32 {
 	var key string
 	if in != nil {
 		if in.Kind() != reflect.Ptr {
-			xlog.Error("ToCmdByRtype参数需要是指针类型")
+			xlog.Error("ToCmdByRtype:参数需要是指针类型")
 			return 0
 		}
 		key = in.Elem().Name()
 	}
 	if out != nil {
 		if out.Kind() != reflect.Ptr {
-			xlog.Error("ToCmdByRtype参数需要是指针类型")
+			xlog.Error("ToCmdByRtype:参数需要是指针类型")
 			return 0
 		}
 		key = key + out.Elem().Name()
@@ -34,17 +34,17 @@ func ToCmdByRtype(in reflect.Type, out reflect.Type, actorId uint32) uint32 {
 	if key == "" {
 		return 0
 	}
-	if actorId > 0 {
-		key = strhelper.ValToString(actorId) + key
+	if locationID > 0 {
+		key = strhelper.ValToString(locationID) + key
 	}
 
 	mux.RLock()
-	uKey, ok := key2ukey[key]
+	uKey, ok := keyToCmd[key]
 	mux.RUnlock()
 	if !ok {
-		mux.Lock()
 		uKey = strhelper.StringToHash(key)
-		key2ukey[key] = uKey
+		mux.Lock()
+		keyToCmd[key] = uKey
 		mux.Unlock()
 	}
 	return uKey
@@ -73,7 +73,15 @@ func CallEvt(event uint32, params ...any) (any, error) {
 	case 1:
 		return values[0].Interface(), nil
 	case 2:
-		return values[0].Interface(), (values[1].Interface()).(error)
+		var v1 = values[1]
+		if v1.IsNil() {
+			return values[0].Interface(), nil
+		}
+		typeOfError := reflect.TypeOf((*error)(nil)).Elem()
+		if v1.Type().Implements(typeOfError) {
+			return values[0].Interface(), v1.Interface().(error)
+		}
+		return values[0].Interface(), nil
 	default:
 		return nil, consts.Error_3
 	}

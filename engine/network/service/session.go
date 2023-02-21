@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"time"
 
@@ -31,11 +32,11 @@ type (
 )
 
 const (
-	H_B_S byte = 0x01
-	H_B_R byte = 0x02
-	C_S_C byte = 0x03
-	RPC_S byte = 0x04
-	RPC_R byte = 0x05
+	H_B_S        byte = 0x01
+	H_B_R        byte = 0x02
+	C_S_C        byte = 0x03
+	RPC_REQUIRE  byte = 0x04
+	RPC_RESPONSE byte = 0x05
 )
 
 // 获取id
@@ -85,7 +86,7 @@ func (session *Session) Close() {
 }
 
 // 发送
-func (session *Session) Send(cmd uint32, msg any) bool {
+func (session *Session) Send(cmd uint32, require any) bool {
 	if !session.isAct() {
 		return false
 	}
@@ -93,7 +94,7 @@ func (session *Session) Send(cmd uint32, msg any) bool {
 	defer pkt.Release()
 	pkt.AppendByte(C_S_C)
 	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(msg, session.codec(cmd)); err != nil {
+	if err := pkt.AppendMessage(require, session.codec(cmd)); err != nil {
 		return false
 	}
 
@@ -102,44 +103,45 @@ func (session *Session) Send(cmd uint32, msg any) bool {
 }
 
 // 呼叫
-func (session *Session) Call(msg any, response any) types.IRpcx {
-	cmd := cmdhelper.ToCmd(msg, response, 0)
-	return session.CallByCmd(cmd, msg, response)
+func (session *Session) Call(require any, response any) types.IRpcx {
+	cmd := cmdhelper.ToCmd(require, response, 0)
+	return session.CallByCmd(cmd, require, response)
 }
 
-func (session *Session) CallByCmd(cmd uint32, msg any, response any) types.IRpcx {
+func (session *Session) CallByCmd(cmd uint32, require any, response any) types.IRpcx {
 	if !session.isAct() {
-		return rpc.NewEmptyRpcx()
+		return rpc.NewEmptyRpcx(errors.New("session not active"))
 	}
 	if cmd == 0 {
-		return rpc.NewEmptyRpcx()
+		return rpc.NewEmptyRpcx(errors.New("cmd == 0 "))
 	}
-	rpcx := rpc.NewRpcx(session.ctx, response)
+
 	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
-	pkt.AppendByte(RPC_S)
+	pkt.AppendByte(RPC_REQUIRE)
 	pkt.AppendUint32(cmd)
-	pkt.AppendUint32(rpcx.RID())
-	if err := pkt.AppendMessage(msg, session.codec(cmd)); err != nil {
-		defer rpcx.Run(false)
-		return rpcx
+	rpcID := rpc.AssignID()
+	pkt.AppendUint32(rpcID)
+	if err := pkt.AppendMessage(require, session.codec(cmd)); err != nil {
+		return rpc.NewEmptyRpcx(err)
 	}
+	rpcx := rpc.NewRpcx(session.ctx, rpcID, response)
 	session.rpc().Put(rpcx)
 	session.sendData(pkt.Data())
 	return rpcx
 }
 
 // 回应
-func (session *Session) reply(cmd uint32, msg any, rpcid uint32) bool {
+func (session *Session) reply(cmd uint32, response any, rpcid uint32) bool {
 	if !session.isAct() {
 		return false
 	}
 	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
-	pkt.AppendByte(RPC_R)
+	pkt.AppendByte(RPC_RESPONSE)
 	pkt.AppendUint32(cmd)
 	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(msg, session.codec(cmd)); err != nil {
+	if err := pkt.AppendMessage(response, session.codec(cmd)); err != nil {
 		return false
 	}
 	session.sendData(pkt.Data())
@@ -190,13 +192,14 @@ func (session *Session) parseReader(r io.Reader) (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	msgLen := codechelper.BytesToUint16(header, session.endian())
+	msgLen := codechelper.BytesTo[uint16](header, session.endian())
 	if msgLen == 0 {
 		xlog.Error("读取到网络空包 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
 		return true, consts.Error_6
 	}
 
-	if int(msgLen) > gox.AppConf.Network.ReadMsgMaxLen {
+	readMaxLen := gox.AppConf.Network.ReadMsgMaxLen
+	if readMaxLen > 0 && int(msgLen) > readMaxLen {
 		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
 		return true, consts.Error_7
 	}
@@ -230,18 +233,18 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitMessage(cmd, nil)
 			return
 		}
-		msg := protoreg.GetProtoMsg(cmd)
-		if msg == nil {
+		require := protoreg.GetRequireByCmd(cmd)
+		if require == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
 			return
 		}
-		if err := pkt.ReadMessage(msg, session.codec(cmd)); err != nil {
+		if err := pkt.ReadMessage(require, session.codec(cmd)); err != nil {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
 			return
 		}
-		session.emitMessage(cmd, msg)
+		session.emitMessage(cmd, require)
 		return
-	case RPC_S:
+	case RPC_REQUIRE:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
@@ -250,39 +253,40 @@ func (session *Session) parseMsg(buf []byte) {
 			session.emitRpc(cmd, rpcID, nil)
 			return
 		}
-		msg := protoreg.GetProtoMsg(cmd)
-		if msg == nil {
+		require := protoreg.GetRequireByCmd(cmd)
+		if require == nil {
 			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
+			session.reply(cmd, nil, rpcID)
 			return
 		}
-		if err := pkt.ReadMessage(msg, session.codec(cmd)); err != nil {
+		if err := pkt.ReadMessage(require, session.codec(cmd)); err != nil {
 			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
+			session.reply(cmd, nil, rpcID)
 			return
 		}
-		session.emitRpc(cmd, rpcID, msg)
+		session.emitRpc(cmd, rpcID, require)
 		return
-	case RPC_R:
+	case RPC_RESPONSE:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
 		rpcx := session.rpc().Get(rpcID)
 		if rpcx != nil {
 			msgLen := pkt.RemainLength()
-			// xlog.Debug("rpcr:cmd:%d,rpcID:%d,msgLen:%d", cmd, rpcID, msgLen)
 			if msgLen == 0 {
-				rpcx.Run(false)
+				rpcx.Run(errors.New("response len == 0"))
 				return
 			}
 			response := rpcx.GetResponse()
 			if response == nil {
-				rpcx.Run(true)
+				rpcx.Run(nil)
 				return
 			}
 			if err := pkt.ReadMessage(response, session.codec(cmd)); err != nil {
 				xlog.Error("解析网络包体失败 err:[%v]", err)
-				rpcx.Run(false)
+				rpcx.Run(err)
 				return
 			}
-			rpcx.Run(true)
+			rpcx.Run(nil)
 		}
 		return
 	}
@@ -297,7 +301,10 @@ func (session *Session) codec(cmd uint32) types.ICodec {
 		return codec.MsgPack
 	case consts.LocationAdd:
 		return codec.MsgPack
+	case consts.LocationRemove:
+		return codec.MsgPack
 	case consts.LocationGet:
+		return codec.MsgPack
 	}
 	return session.service.Codec
 }
@@ -305,11 +312,11 @@ func (session *Session) endian() binary.ByteOrder {
 	return gox.AppConf.Network.Endian
 }
 
-func (session *Session) emitRpc(cmd uint32, rpc uint32, msg any) {
-	if r, err := cmdhelper.CallEvt(cmd, session.ctx, msg); err == nil {
-		session.reply(cmd, r, rpc)
+func (session *Session) emitRpc(cmd uint32, rpcID uint32, require any) {
+	if response, err := cmdhelper.CallEvt(cmd, session.ctx, require); err == nil {
+		session.reply(cmd, response, rpcID)
 	} else {
-		xlog.Warn("发送rpc消息失败cmd:[%d] err:[%v]", cmd, err)
+		xlog.Warn("发送rpc消息失败 err:[%v]", err)
 	}
 }
 

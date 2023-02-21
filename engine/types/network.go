@@ -63,6 +63,6 @@ type (
 	}
 	//内部rpc
 	IRpcx interface {
-		Await() bool
+		Await() error
 	}
 )
