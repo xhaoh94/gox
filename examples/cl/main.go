@@ -35,9 +35,14 @@ func (m *MainModule) OnInit() {
 func (m *MainModule) OnStart() {
 	xlog.Debug("test")
 	time.Sleep(1 * time.Second)
-	session := gox.NetWork.GetSessionByAddr("127.0.0.1:10002") //向gate服务器请求token
-	session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
-	m.session = session
+	// session := gox.NetWork.GetSessionByAddr("127.0.0.1:10002") //向gate服务器请求token
+	// session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
+	// m.session = session
+
+	session := gox.NetWork.GetSessionByAddr("127.0.0.1:20002")
+	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 100})
+	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 200})
+	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 2, UnitId: 300})
 }
 
 func (m *MainModule) RspToken(ctx context.Context, session types.ISession, rsp *netpack.G2C_Login) {

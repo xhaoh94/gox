@@ -18,23 +18,23 @@ type (
 		Response []byte
 	}
 
-	LocationAddRequire struct {
-		Datas []LocationData
-	}
-	LocationAddResponse struct {
-	}
+	// LocationAddRequire struct {
+	// 	Datas []LocationData
+	// }
+	// LocationAddResponse struct {
+	// }
 
-	LocationRemoveRequire struct {
-		IDs []uint32
-	}
-	LocationRemoveResponse struct {
-	}
+	// LocationRemoveRequire struct {
+	// 	IDs []uint32
+	// }
+	// LocationRemoveResponse struct {
+	// }
 
-	LocationLockRequire struct {
-		Lock bool
-	}
-	LocationLockResponse struct {
-	}
+	// LocationLockRequire struct {
+	// 	Lock bool
+	// }
+	// LocationLockResponse struct {
+	// }
 
 	LocationData struct {
 		LocationID uint32

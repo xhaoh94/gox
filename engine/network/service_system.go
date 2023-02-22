@@ -35,6 +35,8 @@ type (
 		Zones string
 		//版本
 		Version string
+		//是否开启定位
+		Location bool
 		//rpc服务地址
 		RpcAddr string
 		//外部服务地址
@@ -56,6 +58,10 @@ func (entity ServiceEntity) GetInteriorAddr() string {
 func (entity ServiceEntity) GetID() uint {
 	return entity.AppID
 }
+func (entity ServiceEntity) IsLocation() bool {
+	return entity.Location
+}
+
 func (entity ServiceEntity) GetType() string {
 	return entity.AppType
 }
@@ -104,6 +110,7 @@ func (ss *ServiceSystem) Start() {
 		AppID:        appConf.AppID,
 		AppType:      appConf.AppType,
 		Version:      appConf.Version,
+		Location:     appConf.Location,
 		OutsideAddr:  appConf.OutsideAddr,
 		InteriorAddr: appConf.InteriorAddr,
 		RpcAddr:      appConf.RpcAddr,
@@ -150,6 +157,16 @@ func (ss *ServiceSystem) GetServiceEntityByID(id uint) types.IServiceEntity {
 	}
 	return nil
 }
+func (ss *ServiceSystem) checkOpt(entity types.IServiceEntity, opts ...types.ServiceOptionFunc) bool {
+	if len(opts) > 0 {
+		for _, fun := range opts {
+			if !fun(entity) {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 // 获取对应类型的所有服务配置
 func (ss *ServiceSystem) GetServiceEntitys(opts ...types.ServiceOptionFunc) []types.IServiceEntity {
@@ -157,13 +174,7 @@ func (ss *ServiceSystem) GetServiceEntitys(opts ...types.ServiceOptionFunc) []ty
 	ss.RLock()
 	list := make([]types.IServiceEntity, 0)
 	for _, v := range ss.idToService {
-		if len(opts) > 0 {
-			for _, fun := range opts {
-				if fun(v) {
-					list = append(list, v)
-				}
-			}
-		} else {
+		if ss.checkOpt(v, opts...) {
 			list = append(list, v)
 		}
 	}

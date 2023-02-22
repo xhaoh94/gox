@@ -13,6 +13,7 @@ type (
 		InteriorAddr string        `yaml:"interioraddr"`
 		OutsideAddr  string        `yaml:"outsideaddr"`
 		RpcAddr      string        `yaml:"rpcaddr"`
+		Location     bool          `yaml:"location"`
 		Log          LogConf       `yaml:"log"`
 		Db           DbConf        `yaml:"db"`
 		Network      NetworkConf   `yaml:"network"`

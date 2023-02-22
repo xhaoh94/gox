@@ -1,6 +1,7 @@
 app_id: 3
 app_type: scene
 version: "1.0.0"
+location: true
 interioraddr: "127.0.0.1:30001"
 # outsideaddr:  "127.0.0.1:30002"
 log:    

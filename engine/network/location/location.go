@@ -11,14 +11,12 @@ import (
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
-	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 type (
 	LocationSystem struct {
-		gox.Module
 		SyncLocation
 
 		// lockWg      sync.WaitGroup
@@ -37,32 +35,20 @@ func (location *LocationSystem) Init() {
 	// protoreg.RegisterRpcCmd(consts.LocationLock, location.LockHandler)
 	protoreg.RegisterRpcCmd(consts.LocationForward, location.ForwardHandler)
 	protoreg.RegisterRpcCmd(consts.LocationGet, location.GetHandler)
-	protoreg.RegisterRpcCmd(consts.LocationAdd, location.AddHandler)
-	protoreg.RegisterRpcCmd(consts.LocationRemove, location.RemoveHandler)
+	// protoreg.RegisterRpcCmd(consts.LocationAdd, location.AddHandler)
+	// protoreg.RegisterRpcCmd(consts.LocationRemove, location.RemoveHandler)
 
 }
 func (location *LocationSystem) Start() {
-
 }
 
 func (location *LocationSystem) Stop() {
-
 }
 
-// func (location *LocationSystem) LockHandler(ctx context.Context, req *LocationLockRequire) (*LocationLockResponse, error) {
-
-//		if req.Lock {
-//			location.lockWg.Add(1)
-//		} else {
-//			location.lockWg.Done()
-//		}
-//		return &LocationLockResponse{}, nil
-//	}
 func (location *LocationSystem) ForwardHandler(ctx context.Context, session types.ISession, req *LocationForwardRequire) (*LocationForwardResponse, error) {
 	forwardResponse := &LocationForwardResponse{}
 	cmd := req.CMD
 	forwardResponse.IsSuc = gox.Event.HasBind(cmd)
-	defer xlog.Debug("ForwardHandler %v", forwardResponse)
 	if forwardResponse.IsSuc {
 		require := protoreg.GetRequireByCmd(cmd)
 		if err := session.Codec().Unmarshal(req.Require, require); err != nil {
@@ -78,7 +64,6 @@ func (location *LocationSystem) ForwardHandler(ctx context.Context, session type
 	}
 	return forwardResponse, nil
 }
-
 func (location *LocationSystem) GetHandler(ctx context.Context, session types.ISession, req *LocationGetRequire) (*LocationGetResponse, error) {
 	datas := make([]LocationData, 0)
 	if len(location.locationMap) > 0 && len(req.IDs) > 0 {
@@ -93,33 +78,38 @@ func (location *LocationSystem) GetHandler(ctx context.Context, session types.IS
 	return &LocationGetResponse{Datas: datas}, nil
 }
 
-func (location *LocationSystem) AddHandler(ctx context.Context, session types.ISession, req *LocationAddRequire) (*LocationAddResponse, error) {
-	if req != nil && req.Datas != nil {
-		location.add(req.Datas)
-	}
-	return &LocationAddResponse{}, nil
-}
+//	func (location *LocationSystem) AddHandler(ctx context.Context, session types.ISession, req *LocationAddRequire) (*LocationAddResponse, error) {
+//		if req != nil && req.Datas != nil {
+//			location.add(req.Datas)
+//		}
+//		return &LocationAddResponse{}, nil
+//	}
+//
+//	func (location *LocationSystem) RemoveHandler(ctx context.Context, session types.ISession, req *LocationRemoveRequire) (*LocationRemoveResponse, error) {
+//		if req != nil && req.IDs != nil {
+//			location.del(req.IDs)
+//		}
+//		return &LocationRemoveResponse{}, nil
+//	}
 
-func (location *LocationSystem) RemoveHandler(ctx context.Context, session types.ISession, req *LocationRemoveRequire) (*LocationRemoveResponse, error) {
-	if req != nil && req.IDs != nil {
-		location.del(req.IDs)
-	}
-	return &LocationRemoveResponse{}, nil
-}
-func (location *LocationSystem) add(Datas []LocationData) {
+func (location *LocationSystem) add(Datas []LocationData, isLock bool) {
 	if len(Datas) > 0 {
-		defer location.lock.Unlock()
-		location.lock.Lock()
+		if isLock {
+			defer location.lock.Unlock()
+			location.lock.Lock()
+		}
 		for _, v := range Datas {
 			xlog.Debug("新增LocationID:%d,AppID:%d", v.LocationID, v.AppID)
 			location.locationMap[v.LocationID] = v.AppID
 		}
 	}
 }
-func (location *LocationSystem) del(Datas []uint32) {
+func (location *LocationSystem) del(Datas []uint32, isLock bool) {
 	if len(Datas) > 0 && len(location.locationMap) > 0 {
-		defer location.lock.Unlock()
-		location.lock.Lock()
+		if isLock {
+			defer location.lock.Unlock()
+			location.lock.Lock()
+		}
 		for _, v := range Datas {
 			if _, ok := location.locationMap[v]; ok {
 				delete(location.locationMap, v)
@@ -129,58 +119,55 @@ func (location *LocationSystem) del(Datas []uint32) {
 	}
 }
 
-func (location *LocationSystem) UpdateLocationToAppID(locationID uint32) {
-	// defer location.syncUnLock()
-	// location.syncLock()
-	datas := location.SyncLocation.Get([]uint32{locationID})
-	for _, v := range datas {
-		location.locationMap[v.LocationID] = v.AppID
+func (location *LocationSystem) UpdateLocationToAppID(locationID uint32, excludeIDs []uint) {
+	defer location.lock.Unlock()
+	location.lock.Lock()
+	_, ok := location.locationMap[locationID]
+	if ok {
+		return
 	}
-
+	datas := location.SyncLocation.Get([]uint32{locationID}, excludeIDs)
+	location.add(datas, false)
 }
-func (location *LocationSystem) GetAppIDs(locationIDs []uint32) []uint {
+func (location *LocationSystem) UpdateLocationToAppIDs(locationIDs []uint32, excludeIDs []uint) {
 
 	location.lock.Lock()
 	defer location.lock.Unlock()
 
-	AppIDs := make([]uint, 0)
 	reqIDs := make([]uint32, 0)
 	for _, locationID := range locationIDs {
-		if id, ok := location.locationMap[locationID]; ok {
-			AppIDs = append(AppIDs, id)
-		} else {
+		if _, ok := location.locationMap[locationID]; !ok {
 			reqIDs = append(reqIDs, locationID)
 		}
 	}
 	if len(reqIDs) == 0 {
-		return AppIDs
+		return
 	}
 
-	// defer location.syncUnLock()
-	// location.syncLock()
-
-	datas := location.SyncLocation.Get(reqIDs)
-	for _, v := range datas {
-		location.locationMap[v.LocationID] = v.AppID
-		AppIDs = append(AppIDs, v.AppID)
-	}
-	return AppIDs
+	datas := location.SyncLocation.Get(reqIDs, excludeIDs)
+	location.add(datas, false)
 }
 
 func (location *LocationSystem) Add(entity types.ILocationEntity) {
+	if !gox.AppConf.Location {
+		xlog.Error("没有启动Location的服务器不可以添加实体")
+		return
+	}
 	aid := entity.LocationID()
 	if aid == 0 {
 		xlog.Error("Location没有初始化ID")
 		return
 	}
-	entity.Init(entity)
-	// location.syncLock()
+	go entity.Init(entity)
 	datas := []LocationData{{LocationID: aid, AppID: gox.AppConf.AppID}}
-	location.add(datas)
+	location.add(datas, true)
 	// location.SyncLocation.Add(datas)
-	// location.syncUnLock()
 }
 func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
+	if !gox.AppConf.Location {
+		xlog.Error("没有启动Location的服务器不可以添加实体")
+		return
+	}
 	datas := make([]LocationData, 0)
 	for _, entity := range entitys {
 		aid := entity.LocationID()
@@ -188,31 +175,41 @@ func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
 			xlog.Error("Location没有初始化ID")
 			return
 		}
-		entity.Init(entity)
+		go entity.Init(entity)
 		datas = append(datas, LocationData{LocationID: aid, AppID: gox.AppConf.AppID})
 	}
 	if len(datas) == 0 {
 		return
 	}
-	// location.syncLock()
-	location.add(datas)
+	location.add(datas, true)
 	// location.SyncLocation.Add(datas)
-	// location.syncUnLock()
 }
 func (location *LocationSystem) Del(entity types.ILocationEntity) {
+	if !gox.AppConf.Location {
+		xlog.Error("没有启动Location的服务器不可以删除实体")
+		return
+	}
+	if len(location.locationMap) == 0 {
+		return
+	}
 	aid := entity.LocationID()
 	if aid == 0 {
 		xlog.Error("Location没有初始化ID")
 		return
 	}
-	// location.syncLock()
 	datas := []uint32{aid}
-	location.del(datas)
+	location.del(datas, true)
 	// location.SyncLocation.Remove(datas)
-	// location.syncUnLock()
-	entity.Destroy(entity)
+	go entity.Destroy(entity)
 }
 func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
+	if !gox.AppConf.Location {
+		xlog.Error("没有启动Location的服务器不可以删除实体")
+		return
+	}
+	if len(location.locationMap) == 0 {
+		return
+	}
 	datas := make([]uint32, 0)
 	for _, entity := range entitys {
 		aid := entity.LocationID()
@@ -225,15 +222,16 @@ func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
 	if len(datas) == 0 {
 		return
 	}
-	// location.syncLock()
-	location.del(datas)
+	location.del(datas, true)
 	// location.SyncLocation.Remove(datas)
-	// location.syncUnLock()
 	for _, entity := range entitys {
-		entity.Destroy(entity)
+		go entity.Destroy(entity)
 	}
 }
 func (location *LocationSystem) ServiceClose(appID uint) {
+	if len(location.locationMap) == 0 {
+		return
+	}
 	defer location.lock.Unlock()
 	location.lock.Lock()
 	for k, v := range location.locationMap {
@@ -244,146 +242,148 @@ func (location *LocationSystem) ServiceClose(appID uint) {
 	}
 }
 
-// func (location *LocationSystem) syncLock() {
-// 	location.SyncLocation.Lock()
-// }
-// func (location *LocationSystem) syncUnLock() {
-// 	location.SyncLocation.UnLock()
-// }
-
-func (location *LocationSystem) Send(locationID uint32, msg any) bool {
+func (location *LocationSystem) Send(locationID uint32, require any) {
 	if locationID == 0 {
 		xlog.Error("LocationSend 传入locationID不能为空")
-		return false
+		return
 	}
-	location.lock.Lock()
-	defer location.lock.Unlock()
-	loopCnt := 0
-	cmd := cmdhelper.ToCmd(msg, nil, locationID)
-	for {
-		if id, ok := location.locationMap[locationID]; ok {
-			if session := gox.NetWork.GetSessionByAppID(id); session != nil {
-				if id == gox.AppConf.AppID {
-					if gox.Event.HasBind(cmd) {
-						if _, err := cmdhelper.CallEvt(cmd, gox.Ctx, session, msg); err == nil {
-							return true
-						} else {
-							xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
-							return false
-						}
-					} else {
-						location.del([]uint32{locationID})
-					}
-				} else {
-					msgData, err := session.Codec().Marshal(msg)
-					if err != nil {
-						return false
-					}
 
-					tmpRequire := &LocationForwardRequire{}
-					tmpRequire.CMD = cmd
-					tmpRequire.IsCall = false
-					tmpRequire.Require = msgData
-					tmpResponse := &LocationForwardResponse{}
-					if err := session.CallByCmd(consts.LocationForward, tmpRequire, tmpResponse).Await(); err == nil {
-						if tmpResponse.IsSuc {
-							return true
-						}
-						location.del([]uint32{locationID})
-					} else {
-						return false
-					}
-				}
+	go func() {
+		loopCnt := 0
+		cmd := cmdhelper.ToCmd(require, nil, locationID)
+		excludeIDs := make([]uint, 0)
+		waitFn := func(id uint) {
+			location.del([]uint32{locationID}, true)
+			excludeIDs = append(excludeIDs, id)
+			time.Sleep(time.Millisecond * 300) //等待0.3秒
+		}
+		for {
+			loopCnt++
+			if loopCnt > 3 {
+				return
 			}
-		} else {
-			location.UpdateLocationToAppID(locationID)
-			continue
+			location.lock.RLock()
+			id, ok := location.locationMap[locationID]
+			location.lock.RUnlock()
+			if !ok {
+				location.UpdateLocationToAppID(locationID, excludeIDs)
+				continue
+			}
+			session := gox.NetWork.GetSessionByAppID(id)
+			if session == nil {
+				waitFn(id)
+				continue
+			}
+			if id == gox.AppConf.AppID {
+				if !gox.Event.HasBind(cmd) {
+					waitFn(id)
+					continue
+				}
+				_, err := cmdhelper.CallEvt(cmd, gox.Ctx, session, require)
+				if err != nil {
+					return
+				}
+				xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
+				return
+			}
+
+			msgData, err := session.Codec().Marshal(require)
+			if err != nil {
+				return
+			}
+			tmpRequire := &LocationForwardRequire{}
+			tmpRequire.CMD = cmd
+			tmpRequire.IsCall = false
+			tmpRequire.Require = msgData
+			tmpResponse := &LocationForwardResponse{}
+			err = session.CallByCmd(consts.LocationForward, tmpRequire, tmpResponse)
+			if err != nil {
+				return
+			}
+
+			if !tmpResponse.IsSuc {
+				waitFn(id)
+				continue
+			}
+			return
 		}
-		loopCnt++
-		if loopCnt >= 3 {
-			return false
-		}
-		time.Sleep(time.Millisecond * 500) //等待0.5秒
-	}
+	}()
 }
-func (location *LocationSystem) Call(locationID uint32, require any, response any) types.IRpcx {
+func (location *LocationSystem) Call(locationID uint32, require any, response any) error {
 	if locationID == 0 {
 		xlog.Error("LocationCall传入locationID不能为空")
-		return rpc.NewEmptyRpcx(errors.New("LocationCall:传入locationID不能为空"))
+		return errors.New("LocationCall:传入locationID不能为空")
 	}
-	location.lock.Lock()
-	defer location.lock.Unlock()
+	excludeIDs := make([]uint, 0)
+	waitFn := func(id uint) {
+		location.del([]uint32{locationID}, true)
+		excludeIDs = append(excludeIDs, id)
+		time.Sleep(time.Millisecond * 300) //等待0.3秒
+	}
 
 	loopCnt := 0
 	cmd := cmdhelper.ToCmd(require, response, locationID)
 	for {
 		loopCnt++
 		if loopCnt > 3 {
-			return rpc.NewEmptyRpcx(errors.New("LocationCall:超出尝试发送上限"))
+			return errors.New("LocationCall:超出尝试发送上限")
 		}
-
+		location.lock.RLock()
 		id, ok := location.locationMap[locationID]
+		location.lock.RUnlock()
 		if !ok {
-			location.UpdateLocationToAppID(locationID)
+			location.UpdateLocationToAppID(locationID, excludeIDs)
 			continue
 		}
 		session := gox.NetWork.GetSessionByAppID(id)
 		if session == nil {
-			location.del([]uint32{locationID})
-			time.Sleep(time.Millisecond * 500) //等待0.5秒
+			waitFn(id)
 			continue
 		}
 
 		if id == gox.AppConf.AppID {
 			if !gox.Event.HasBind(cmd) {
-				location.del([]uint32{locationID})
-				time.Sleep(time.Millisecond * 500) //等待0.5秒
+				waitFn(id)
 				continue
 			}
 			resp, err := cmdhelper.CallEvt(cmd, gox.Ctx, session, require)
 			if err != nil {
-				return rpc.NewEmptyRpcx(err)
+				return err
 			}
 			if resp != nil {
 				commonhelper.ReplaceValue(response, resp)
 			}
-			rpcx := rpc.NewEmptyRpcx(nil)
-			defer rpcx.Run(nil)
-			return rpcx
+			return nil
 		}
 
 		msgData, err := session.Codec().Marshal(require)
 		if err != nil {
-			return rpc.NewEmptyRpcx(err)
+			return err
 		}
 		tmpRequire := &LocationForwardRequire{}
 		tmpRequire.CMD = cmd
 		tmpRequire.IsCall = true
 		tmpRequire.Require = msgData
 		tmpResponse := &LocationForwardResponse{}
-		xlog.Debug("LocationForwardRequire %v", tmpRequire)
-		err = session.CallByCmd(consts.LocationForward, tmpRequire, tmpResponse).Await()
-		xlog.Debug("LocationForwardResponse %v", tmpResponse)
+		err = session.CallByCmd(consts.LocationForward, tmpRequire, tmpResponse)
+
 		if err != nil {
-			return rpc.NewEmptyRpcx(err)
+			return err
 		}
 		if !tmpResponse.IsSuc {
-			location.del([]uint32{locationID})
-			time.Sleep(time.Millisecond * 500) //等待0.5秒
+			waitFn(id)
 			continue
 		}
 		if len(tmpResponse.Response) > 0 {
 			if err := session.Codec().Unmarshal(tmpResponse.Response, response); err != nil {
-				return rpc.NewEmptyRpcx(err)
+				return err
 			}
 		}
-		rpcx := rpc.NewEmptyRpcx(nil)
-		defer rpcx.Run(nil)
-		return rpcx
+		return nil
 	}
 }
-func (as *LocationSystem) Broadcast(locationIDs []uint32, msg interface{}) {
+func (as *LocationSystem) Broadcast(locationIDs []uint32, require any) {
 	for _, locationID := range locationIDs {
-		go as.Send(locationID, msg)
+		as.Send(locationID, require)
 	}
 }

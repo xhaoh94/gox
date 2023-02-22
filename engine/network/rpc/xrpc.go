@@ -44,7 +44,7 @@ func NewRpcx(ctx context.Context, rpcID uint32, response interface{}) *Rpcx {
 	rpcx.err = nil
 	return rpcx
 }
-func NewEmptyRpcx(err error) *Rpcx {
+func NewErrorRpcx(err error) *Rpcx {
 	rpcx := pool.Get().(*Rpcx)
 	rpcx.err = err
 	return rpcx

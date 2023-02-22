@@ -13,10 +13,10 @@ type (
 		Dels([]ILocationEntity)
 		//广播
 		Broadcast([]uint32, interface{})
-		//指定发送
-		Send(uint32, interface{}) bool
-		//RPC
-		Call(uint32, interface{}, interface{}) IRpcx
+		//发送
+		Send(uint32, interface{})
+		//阻塞等待发送
+		Call(uint32, interface{}, interface{}) error
 	}
 	ILocationEntity interface {
 		//定位ID 每个实体的ID都是唯一的，且不变的

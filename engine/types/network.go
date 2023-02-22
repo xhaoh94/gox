@@ -41,9 +41,10 @@ type (
 		LocalAddr() string
 		//发送数据
 		Send(uint32, interface{}) bool
-		//RPC请求
-		Call(interface{}, interface{}) IRpcx
-		CallByCmd(uint32, interface{}, interface{}) IRpcx
+		//阻塞等待发送
+		Call(interface{}, interface{}) error
+		//阻塞等待发送
+		CallByCmd(uint32, interface{}, interface{}) error
 		Close()
 	}
 	//信道接口

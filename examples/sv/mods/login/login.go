@@ -79,13 +79,13 @@ func (m *LoginModule) RspToken(ctx context.Context, session types.ISession, req 
 func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req *netpack.C2L_Enter) {
 	sId := req.SceneId
 	backRsp := &netpack.S2L_Enter{}
-	err := gox.Location.Call(uint32(sId), &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() //Actor玩家进入场景
+	err := gox.Location.Call(uint32(sId), &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp)
 
 	enterRsp := &netpack.L2C_Enter{}
 	if err == nil { //玩家进入场景成功
 		rsp := &netpack.S2L_SayHello{}
-		xlog.Debug("玩家发言")
-		err = gox.Location.Call(uint32(req.UnitId), &netpack.L2S_SayHello{Txt: "你好啊，我是机器人:" + strhelper.ValToString(req.UnitId)}, rsp).Await() //Actor 玩家发言
+		err = gox.Location.Call(uint32(req.UnitId),
+			&netpack.L2S_SayHello{Txt: "你好，我是:" + strhelper.ValToString(req.UnitId)}, rsp)
 		if err == nil {
 			xlog.Debug("发言返回:%s", rsp.BackTxt)
 			enterRsp.Code = 0

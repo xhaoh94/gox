@@ -1,6 +1,7 @@
 app_id: 2
 app_type: login
 version: "1.0.0"
+location: true
 interioraddr: "127.0.0.1:20001"
 outsideaddr:  "127.0.0.1:20002"
 log:    
