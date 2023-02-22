@@ -35,7 +35,7 @@ func parseLevel(lvl string) zapcore.Level {
 }
 
 // 创建分割日志的writer
-func newHook(logCfg app.LogConf) *lumberjack.Logger {
+func getWriter(logCfg app.LogConf) *lumberjack.Logger {
 	if err := os.MkdirAll(logCfg.Filename, 0766); err != nil {
 		panic(err)
 	}
@@ -58,7 +58,7 @@ func new(conf app.LogConf) *ZapLog {
 func newZapLogger(logCfg app.LogConf) *zap.Logger {
 	encCfg := zapcore.EncoderConfig{
 		TimeKey:        "time",
-		LevelKey:       "lev",
+		LevelKey:       "level",
 		NameKey:        "app",
 		CallerKey:      "caller",
 		MessageKey:     "msg",
@@ -92,7 +92,7 @@ func newZapLogger(logCfg app.LogConf) *zap.Logger {
 
 	levWriters := []zapcore.WriteSyncer{zapcore.AddSync(os.Stdout)}
 	if logCfg.IsWriteLog {
-		levWriters = append(levWriters, zapcore.AddSync(newHook(logCfg)))
+		levWriters = append(levWriters, zapcore.AddSync(getWriter(logCfg)))
 	}
 	levWriteSyncer := zapcore.NewMultiWriteSyncer(levWriters...)
 	levPriority := zap.LevelEnablerFunc(func(lev zapcore.Level) bool {
@@ -107,7 +107,7 @@ func newZapLogger(logCfg app.LogConf) *zap.Logger {
 	if split {
 		errWriters := []zapcore.WriteSyncer{zapcore.AddSync(os.Stdout)}
 		if logCfg.IsWriteLog {
-			errWriters = append(errWriters, zapcore.AddSync(newHook(logCfg)))
+			errWriters = append(errWriters, zapcore.AddSync(getWriter(logCfg)))
 		}
 		errWriteSyncer := zapcore.NewMultiWriteSyncer(errWriters...)
 		errPriority := zap.LevelEnablerFunc(func(lev zapcore.Level) bool {
