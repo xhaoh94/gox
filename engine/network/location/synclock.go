@@ -48,7 +48,7 @@ type (
 // }
 
 func (lock *SyncLocation) Get(datas []uint32, excludeIDs []uint) []LocationData {
-	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.AppConf.AppID), types.WithLocation(), types.WithExcludeIDs(excludeIDs))
+	entitys := gox.NetWork.GetServiceEntitys(types.WithExcludeID(gox.Config.AppID), types.WithLocation(), types.WithExcludeIDs(excludeIDs))
 	Datas := make([]LocationData, 0)
 	for _, entity := range entitys {
 		if len(datas) == 0 {

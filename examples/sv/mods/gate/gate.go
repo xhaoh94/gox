@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/examples/pb"
 	"github.com/xhaoh94/gox/examples/sv/game"
@@ -31,7 +31,7 @@ func (m *GateModule) OnStart() {
 }
 
 func (m *GateModule) Test(ctx context.Context, session types.ISession, msg *pb.A) {
-	xlog.Debug("test [%v]", msg)
+	logger.Debug().Msgf("test [%v]", msg)
 	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
 }
 func (m *GateModule) Test1(ctx context.Context, session types.ISession) {

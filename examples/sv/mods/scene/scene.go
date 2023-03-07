@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 )
 
@@ -58,7 +58,7 @@ func (s *Scene) OnUnitEnter(ctx context.Context, session types.ISession, req *ne
 	if _, ok := s.units[req.UnitId]; ok {
 		return &netpack.S2L_Enter{Code: 0}, nil
 	}
-	xlog.Debug("有玩家进入unitId:%d", req.UnitId)
+	logger.Debug().Msgf("有玩家进入unitId:%d", req.UnitId)
 	unit := newUnit(req.UnitId) //创建玩家
 	s.units[unit.Id] = unit
 	return &netpack.S2L_Enter{Code: 0}, nil

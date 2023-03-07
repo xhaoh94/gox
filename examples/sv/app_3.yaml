@@ -4,18 +4,7 @@ version: "1.0.0"
 location: true
 interioraddr: "127.0.0.1:30001"
 # outsideaddr:  "127.0.0.1:30002"
-log:    
-    log_file_name: "./log/app_3.log"     #日志文件路径
-    log_write_open: false  #是否写入log文件
-    log_stacktrace: fatal  #记录堆栈的级别
-    log_level: debug       #panic,fatal,error,warn,info,debug
-    log_max_size: 128      #每个日志文件保存的最大尺寸 单位：M
-    log_max_backups: 30    #日志文件最多保存多少个备份
-    log_max_age: 7         #文件最多保存多少天
-    log_development: true  #开发者模式
-    log_console: console   #控制台显示格式 (console、json)
-    log_callerskip: 2      #跳过文件名和行号路径
-    log_split_level: false #是否把error及以上的日志拆分到另一份文件
+# log_config_path: "./log.yaml"
 
 network:
     endian: littleEndian       #大小端

@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xtaci/kcp-go/v5"
 )
 
@@ -28,12 +28,12 @@ func (service *KService) Start() {
 		var err error
 		service.listen, err = kcp.ListenWithOptions(service.GetAddr(), nil, 10, 3)
 		if err != nil {
-			xlog.Fatal("kcp 启动失败 addr:[%s] err:[%v]", service.GetAddr(), err.Error())
+			logger.Fatal().Str("Addr", service.GetAddr()).Err(err).Msg("kcp 启动失败")
 			service.Stop()
 			return
 		}
 	}
-	xlog.Info("kcp[%s] 等待客户端连接...", service.GetAddr())
+	logger.Info().Str("Addr", service.GetAddr()).Msg("kcp 等待客户端连接...")
 	go service.accept()
 }
 
@@ -51,10 +51,10 @@ func (service *KService) accept() {
 				time.Sleep(time.Millisecond)
 				continue
 			}
-			xlog.Error("kcp 收受失败[%v]", err.Error())
+			logger.Fatal().Err(err).Msg("kcp 监听客户端连接失败")
 			break
 		}
-		xlog.Info("kcp 连接成功[%s]", conn.RemoteAddr().String())
+		logger.Info().Str("Addr", conn.RemoteAddr().String()).Msg("kcp 连接成功")
 		go service.connection(conn)
 	}
 }
@@ -76,14 +76,14 @@ func (service *KService) connectChannel(addr string) types.IChannel {
 		if err == nil {
 			return service.addChannel(conn)
 		}
-		if connCount > gox.AppConf.Network.ReConnectMax {
-			xlog.Info("kcp 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
+		if connCount > gox.Config.Network.ReConnectMax {
+			logger.Info().Str("Addr", conn.RemoteAddr().String()).Err(err).Msg("kcp 创建通信信道失败")
 			return nil
 		}
-		if !service.IsRun || gox.AppConf.Network.ReConnectInterval == 0 {
+		if !service.IsRun || gox.Config.Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(gox.AppConf.Network.ReConnectInterval)
+		time.Sleep(gox.Config.Network.ReConnectInterval)
 		connCount++
 		continue
 	}

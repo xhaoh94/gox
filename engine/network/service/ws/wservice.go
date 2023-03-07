@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/types"
 
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/gorilla/websocket"
 )
@@ -32,10 +32,12 @@ func (service *WService) Init(addr string, codec types.ICodec) {
 
 // Start 启动
 func (service *WService) Start() {
-	service.patten = gox.AppConf.WebSocket.WebSocketPattern
-	service.scheme = gox.AppConf.WebSocket.WebSocketScheme
-	service.path = gox.AppConf.WebSocket.WebSocketPath
-	xlog.Debug("patten[%s] scheme[%s] path[%s]", service.patten, service.scheme, service.path)
+	service.patten = gox.Config.WebSocket.WebSocketPattern
+	service.scheme = gox.Config.WebSocket.WebSocketScheme
+	service.path = gox.Config.WebSocket.WebSocketPath
+	logger.Debug().Str("patten", service.patten).
+		Str("scheme", service.scheme).
+		Str("path", service.path).Msg("websocket")
 	mux := http.NewServeMux()
 	mux.HandleFunc(service.patten, service.wsPage)
 	service.sv = &http.Server{Addr: service.GetAddr(), Handler: mux}
@@ -44,7 +46,7 @@ func (service *WService) Start() {
 		// WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
-	xlog.Info("websocket[%s] 等待客户端连接...", service.GetAddr())
+	logger.Info().Str("Addr", service.GetAddr()).Msg("websocket 等待客户端连接...")
 	go service.accept()
 }
 func (service *WService) accept() {
@@ -52,10 +54,10 @@ func (service *WService) accept() {
 	service.IsRun = true
 	service.AcceptWg.Add(1)
 	if ln, err := net.Listen("tcp", service.GetAddr()); err != nil {
-		xlog.Fatal("websocket 启动失败: [%s]", err.Error())
+		logger.Fatal().Err(err).Msg("websocket 启动失败")
 	} else {
-		cf := gox.AppConf.WebSocket.CertFile
-		kf := gox.AppConf.WebSocket.KeyFile
+		cf := gox.Config.WebSocket.CertFile
+		kf := gox.Config.WebSocket.KeyFile
 		if cf != "" && kf != "" {
 			err = service.sv.ServeTLS(ln, cf, kf)
 		} else {
@@ -63,9 +65,9 @@ func (service *WService) accept() {
 		}
 		if err != nil {
 			if err == http.ErrServerClosed {
-				xlog.Info("websocket 关闭")
+				logger.Info().Err(err).Msg("websocket 关闭")
 			} else {
-				xlog.Fatal("websocket 启动失败: [%s]", err.Error())
+				logger.Fatal().Err(err).Msg("websocket 启动失败")
 			}
 		}
 	}
@@ -82,10 +84,10 @@ func (service *WService) accept() {
 func (service *WService) wsPage(w http.ResponseWriter, r *http.Request) {
 	conn, err := service.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		xlog.Error("websocket wsPage: [%s]", err.Error())
+		logger.Error().Err(err).Msg("websocket wsPage")
 		return
 	}
-	xlog.Info("webSocket 连接成功[%s]", conn.RemoteAddr().String())
+	logger.Info().Str("RemoteAddr", conn.RemoteAddr().String()).Msg("websocket 连接成功")
 	go service.connection(conn)
 }
 
@@ -114,14 +116,14 @@ func (service *WService) connectChannel(addr string) types.IChannel {
 		if err == nil {
 			return service.addChannel(conn)
 		}
-		if connCount > gox.AppConf.Network.ReConnectMax {
-			xlog.Info("websocket 创建通信信道失败 addr:[%s] err:[%v]", addr, err)
+		if connCount > gox.Config.Network.ReConnectMax {
+			logger.Info().Str("RemoteAddr", conn.RemoteAddr().String()).Err(err).Msg("websocket 创建通信信道失败")
 			return nil
 		}
-		if !service.IsRun || gox.AppConf.Network.ReConnectInterval == 0 {
+		if !service.IsRun || gox.Config.Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(gox.AppConf.Network.ReConnectInterval)
+		time.Sleep(gox.Config.Network.ReConnectInterval)
 		connCount++
 		continue
 	}

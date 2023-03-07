@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xtaci/kcp-go/v5"
 )
 
@@ -46,25 +46,23 @@ func (channel *KChannel) run() {
 }
 func (channel *KChannel) recvAsync() {
 	defer channel.Wg.Done()
-	readTimeout := gox.AppConf.Network.ReadTimeout
+	readTimeout := gox.Config.Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			xlog.Info("kpc addr[%s] 接受数据超时", channel.RemoteAddr())
-			xlog.Info("err:[%v]", err)
+			logger.Info().Str("Addr", channel.RemoteAddr()).Err(err).Msg("kcp 接受数据超时")
 			channel.Stop()
 		}
 	}
 	for channel.Conn() != nil && channel.IsRun {
 		if stop, err := channel.Read(channel.Conn()); stop {
-			xlog.Info("kpc addr[%s] err:[%v]", channel.RemoteAddr(), err)
+			logger.Info().Str("Addr", channel.RemoteAddr()).Err(err).Send()
 			channel.Stop()
 			break
 		}
 
 		if channel.IsRun && readTimeout > 0 {
 			if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				xlog.Info("kpc addr[%s] 接受数据超时", channel.RemoteAddr())
-				xlog.Info("err:[%v]", err)
+				logger.Info().Str("Addr", channel.RemoteAddr()).Err(err).Msg("kcp 接受数据超时")
 				channel.Stop()
 			}
 		}
@@ -74,7 +72,7 @@ func (channel *KChannel) recvAsync() {
 func (channel *KChannel) write(buf []byte) {
 	_, err := channel.Conn().Write(buf)
 	if err != nil {
-		xlog.Error("kcp addr[%s]信道写入失败err:[%v]", channel.RemoteAddr(), err)
+		logger.Info().Str("Addr", channel.RemoteAddr()).Err(err).Msg("kcp 信道写入失败")
 	}
 }
 

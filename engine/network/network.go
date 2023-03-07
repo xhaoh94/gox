@@ -2,10 +2,10 @@ package network
 
 import (
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 type (
@@ -46,12 +46,12 @@ func (network *NetWork) GetSessionByAddr(addr string) types.ISession {
 func (as *NetWork) GetSessionByAppID(appID uint) types.ISession {
 	serviceEntity := as.GetServiceEntityByID(appID)
 	if serviceEntity == nil {
-		xlog.Error("没有找到注册的服务 AppID:[%s]", appID)
+		logger.Error().Uint("AppID", appID).Msg("没有找到注册的服务")
 		return nil
 	}
 	session := as.GetSessionByAddr(serviceEntity.GetInteriorAddr())
 	if session == nil {
-		xlog.Error("没有找到session[%d]", serviceEntity.GetInteriorAddr())
+		logger.Error().Str("Session InteriorAddr", serviceEntity.GetInteriorAddr()).Msg("没有找到Session")
 		return nil
 	}
 	return session
@@ -63,11 +63,11 @@ func (network *NetWork) Rpc() types.IRPC {
 
 func (network *NetWork) Init() {
 	if network.interior == nil {
-		xlog.Fatal("网络系统: 需要设置InteriorService")
+		logger.Fatal().Msg("网络系统: 需要设置InteriorService")
 		return
 	}
 	if network.__init {
-		xlog.Error("网络系统: 重复初始化")
+		logger.Fatal().Msg("网络系统: 重复初始化")
 		return
 	}
 	network.__init = true
@@ -119,7 +119,7 @@ func (ss *NetWork) GetServiceEntitys(opts ...types.ServiceOptionFunc) []types.IS
 
 // SetOutsideService 设置外部服务类型
 func (network *NetWork) SetOutsideService(ser types.IService, codec types.ICodec) {
-	addr := gox.AppConf.OutsideAddr
+	addr := gox.Config.OutsideAddr
 	if addr == "" {
 		return
 	}
@@ -129,7 +129,7 @@ func (network *NetWork) SetOutsideService(ser types.IService, codec types.ICodec
 
 // SetInteriorService 设置内部服务类型
 func (network *NetWork) SetInteriorService(ser types.IService, codec types.ICodec) {
-	addr := gox.AppConf.InteriorAddr
+	addr := gox.Config.InteriorAddr
 	if addr == "" {
 		return
 	}

@@ -11,8 +11,8 @@ type (
 
 func main() {
 	// ExecuteCmd("run", "sv/main.go", "-appConf", "sv/app_1.yaml")
-	logger.InitLogger("")
-	logger.Log.Debug().Msg("cccccccccc")
+	logger.Init("")
+	logger.Debug().Msg("cccccccccc")
 }
 
 // func ExecuteCmd(args ...string) {

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/app"
+	"github.com/xhaoh94/gox"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
@@ -28,7 +28,6 @@ type (
 	EtcdConf struct {
 		isRun         bool
 		leaseOverdue  bool
-		conf          app.EtcdConf
 		client        *clientv3.Client
 		kv            clientv3.KV
 		lease         clientv3.Lease
@@ -70,10 +69,10 @@ func (component *EtcdComponent) del(kv *mvccpb.KeyValue) {
 }
 
 // 创建etcd
-func NewEtcdConf(conf app.EtcdConf, component IEtcdComponent) (*EtcdConf, error) {
+func NewEtcdConf(component IEtcdComponent) (*EtcdConf, error) {
 	clientConf := clientv3.Config{
-		Endpoints:   conf.EtcdList,
-		DialTimeout: conf.EtcdTimeout,
+		Endpoints:   gox.Config.Etcd.EtcdList,
+		DialTimeout: gox.Config.Etcd.EtcdTimeout,
 	}
 	client, err := clientv3.New(clientConf)
 	if err != nil {
@@ -82,7 +81,6 @@ func NewEtcdConf(conf app.EtcdConf, component IEtcdComponent) (*EtcdConf, error)
 	kv := clientv3.NewKV(client)
 	es := &EtcdConf{
 		isRun:         true,
-		conf:          conf,
 		client:        client,
 		kv:            kv,
 		etcdComponent: component,
@@ -98,7 +96,7 @@ func NewEtcdConf(conf app.EtcdConf, component IEtcdComponent) (*EtcdConf, error)
 func (es *EtcdConf) setLease() error {
 	lease := clientv3.NewLease(es.client)
 	//设置租约时间
-	leaseResp, err := lease.Grant(es.client.Ctx(), es.conf.EtcdLeaseTime)
+	leaseResp, err := lease.Grant(es.client.Ctx(), gox.Config.Etcd.EtcdLeaseTime)
 	if err != nil {
 		return err
 	}

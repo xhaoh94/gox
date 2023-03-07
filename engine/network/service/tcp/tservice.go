@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 // TService TCP服务器
@@ -28,12 +28,12 @@ func (service *TService) Start() {
 		var err error
 		service.listen, err = net.Listen("tcp", service.GetAddr())
 		if err != nil {
-			xlog.Fatal("tcp 启动失败 addr:[%s] err:[%v]", service.GetAddr(), err.Error())
+			logger.Fatal().Err(err).Str("Addr", service.GetAddr()).Msg("tcp 启动失败")
 			service.Stop()
 			return
 		}
 	}
-	xlog.Info("tcp[%s] 等待客户端连接...", service.GetAddr())
+	logger.Info().Str("Addr", service.GetAddr()).Msg("tcp 等待客户端连接...")
 	go service.accept()
 }
 func (service *TService) accept() {
@@ -50,10 +50,10 @@ func (service *TService) accept() {
 				time.Sleep(time.Millisecond)
 				continue
 			}
-			xlog.Error("tcp 收受失败[%v]", err.Error())
+			logger.Fatal().Err(err).Msg("tcp 监听客户端连接失败")
 			break
 		}
-		xlog.Info("tcp 连接成功[%s]", conn.RemoteAddr().String())
+		logger.Info().Str("Addr", conn.RemoteAddr().String()).Msg("tcp 连接成功")
 		go service.connection(&conn)
 	}
 }
@@ -71,18 +71,18 @@ func (service *TService) addChannel(conn *net.Conn) *TChannel {
 func (service *TService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
-		conn, err := net.DialTimeout("tcp", addr, gox.AppConf.Network.ConnectTimeout)
+		conn, err := net.DialTimeout("tcp", addr, gox.Config.Network.ConnectTimeout)
 		if err == nil {
 			return service.addChannel(&conn)
 		}
-		if connCount > gox.AppConf.Network.ReConnectMax {
-			xlog.Info("tcp 创建通信信道 addr:[%s] err:[%v]", addr, err)
+		if connCount > gox.Config.Network.ReConnectMax {
+			logger.Error().Str("Addr", addr).Err(err).Msg("tcp 创建通信信道失败")
 			return nil
 		}
-		if !service.IsRun || gox.AppConf.Network.ReConnectInterval == 0 {
+		if !service.IsRun || gox.Config.Network.ReConnectInterval == 0 {
 			return nil
 		}
-		time.Sleep(gox.AppConf.Network.ReConnectInterval)
+		time.Sleep(gox.Config.Network.ReConnectInterval)
 		connCount++
 		continue
 	}

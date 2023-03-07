@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/engine/logger"
 )
 
 // Rpcx 自定义rpcdata
@@ -62,13 +62,13 @@ func (rpcx *Rpcx) Await() error {
 	if rpcx.err == nil {
 		select {
 		case <-rpcx.ctx.Done():
-			rpcx.err = errors.New("rpcx Context Done")
+			rpcx.err = errors.New("rpx Context Done")
 			break
 		case rpcx.err = <-rpcx.errChan:
 			break
 		case <-time.After(time.Second * 3):
-			rpcx.err = errors.New("rpcx 超时")
-			xlog.Error("rpcx 超时")
+			rpcx.err = errors.New("rpx 超时")
+			logger.Error().Msg("rpx 超时")
 			break
 		}
 	}

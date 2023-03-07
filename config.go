@@ -1,4 +1,4 @@
-package app
+package gox
 
 import (
 	"encoding/binary"
@@ -14,24 +14,11 @@ type (
 		OutsideAddr  string        `yaml:"outsideaddr"`
 		RpcAddr      string        `yaml:"rpcaddr"`
 		Location     bool          `yaml:"location"`
-		Log          LogConf       `yaml:"log"`
+		LogConfPath  string        `yaml:"log_config_path"`
 		Db           DbConf        `yaml:"db"`
 		Network      NetworkConf   `yaml:"network"`
 		WebSocket    WebSocketConf `yaml:"webSocket"`
 		Etcd         EtcdConf      `yaml:"etcd"`
-	}
-	LogConf struct {
-		Filename    string `yaml:"log_file_name"`
-		IsWriteLog  bool   `yaml:"log_write_open"`
-		Stacktrace  string `yaml:"log_stacktrace"`
-		LogLevel    string `yaml:"log_level"`
-		LogMaxSize  int    `yaml:"log_max_size"`
-		MaxBackups  int    `yaml:"log_max_backups"`
-		LogMaxAge   int    `yaml:"log_max_age"`
-		Development bool   `yaml:"log_development"`
-		Console     string `yaml:"log_console"`
-		Skip        int    `yaml:"log_callerskip"`
-		Split       bool   `yaml:"log_split_level"`
 	}
 	DbConf struct {
 		Url      string `yaml:"url"`

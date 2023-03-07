@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/engine/logger"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -35,14 +35,14 @@ func (db *MgoDb) ApplyURI(url string) {
 	var err error
 	db.client, err = mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		xlog.Fatal("MongoDB 连接失败[%v]", err)
+		logger.Fatal().Err(err).Msg("MongoDB 连接失败")
 	}
 	// 检查连接
 	err = db.client.Ping(context.TODO(), nil)
 	if err != nil {
-		xlog.Fatal("MongoDB 连接失败[%v]", err)
+		logger.Fatal().Err(err).Msg("MongoDB 连接失败")
 	}
-	xlog.Info("成功连接 MongoDB! -> [%s]", url)
+	logger.Info().Str("Url", url).Msg("MongoDB 连接成功")
 }
 
 // GetClient 获取mongo客户端
@@ -69,7 +69,7 @@ func (db *MgoDb) CountDocuments(cctn *mongo.Collection, filter interface{}) int6
 func (db *MgoDb) PushOne(cctn *mongo.Collection, doc interface{}) string {
 	rs, err := cctn.InsertOne(context.TODO(), doc)
 	if err != nil {
-		xlog.Error("MongoDB 添加单个错误[%v] 对象[%v]", err, doc)
+		logger.Error().Err(err).Interface("对象", doc).Msg("MongoDB 添加单个错误")
 		return ""
 	}
 	return (rs.InsertedID.(primitive.ObjectID)).Hex()
@@ -79,7 +79,7 @@ func (db *MgoDb) PushOne(cctn *mongo.Collection, doc interface{}) string {
 func (db *MgoDb) PushMany(cctn *mongo.Collection, docs []interface{}) []string {
 	rs, err := cctn.InsertMany(context.TODO(), docs)
 	if err != nil {
-		xlog.Error("MongoDB 添加多个错误[%v] 对象[%v]", err, docs)
+		logger.Error().Err(err).Interface("对象", docs).Msg("MongoDB 添加多个错误")
 		return nil
 	}
 	result := make([]string, 0)
@@ -94,12 +94,12 @@ func (db *MgoDb) PushMany(cctn *mongo.Collection, docs []interface{}) []string {
 func (db *MgoDb) GetOne(cctn *mongo.Collection, filter interface{}, out interface{}) bool {
 	t := reflect.TypeOf(out)
 	if t.Kind() != reflect.Ptr {
-		xlog.Error("MongoDB 查询对象需要指针类型[%v]", out)
+		logger.Error().Interface("对象", out).Msg("MongoDB 查询对象需要指针类型")
 		return false
 	}
 	err := cctn.FindOne(context.TODO(), filter).Decode(out)
 	if err != nil {
-		xlog.Error("MongoDB 查询单个错误[%v]", err)
+		logger.Error().Err(err).Msg("MongoDB 查询单个错误")
 		return false
 	}
 	return true
@@ -109,23 +109,23 @@ func (db *MgoDb) GetOne(cctn *mongo.Collection, filter interface{}, out interfac
 func (db *MgoDb) GetMany(cctn *mongo.Collection, filter interface{}, out interface{}, findOptions *options.FindOptions) {
 	t := reflect.TypeOf(out)
 	if t.Kind() != reflect.Ptr {
-		xlog.Error("MongoDB 查询对象需要指针类型[%v]", out)
+		logger.Error().Interface("对象", out).Msg("MongoDB 查询对象需要指针类型")
 		return
 	}
 	t1 := t.Elem()
 	if t1.Kind() != reflect.Slice {
-		xlog.Error("MongoDB 查询多个对象out参数必须是切片")
+		logger.Error().Interface("对象", out).Msg("MongoDB 查询多个对象out参数必须是切片")
 		return
 	}
 	childType := t1.Elem()
 	if childType == nil {
-		xlog.Error("MongoDB 查询多个对象切片子类型不可为空")
+		logger.Error().Interface("对象", out).Msg("MongoDB 查询多个对象切片子类型不可为空")
 		return
 	}
 
 	cur, err := cctn.Find(context.TODO(), filter, findOptions)
 	if err != nil {
-		xlog.Error("MongoDB 查询多个错误[%v]", err)
+		logger.Error().Err(err).Msg("MongoDB 查询多个错误")
 		return
 	}
 
@@ -139,13 +139,13 @@ func (db *MgoDb) GetMany(cctn *mongo.Collection, filter interface{}, out interfa
 		elem := commonhelper.RTypeToInterface(childType)
 		err := cur.Decode(elem)
 		if err != nil {
-			xlog.Error("MongoDB 查询多个错误[%v]", err)
+			logger.Error().Err(err).Msg("MongoDB 查询多个错误")
 			continue
 		}
 		r = append(r, reflect.ValueOf(elem))
 	}
 	if err := cur.Err(); err != nil {
-		xlog.Error("MongoDB 查询多个错误[%v]", err)
+		logger.Error().Err(err).Msg("MongoDB 查询多个错误")
 	}
 	// 完成后关闭游标
 	cur.Close(context.TODO())
@@ -158,7 +158,7 @@ func (db *MgoDb) DelOne(cctn *mongo.Collection, filter interface{}) int64 {
 	// 删除名字是小黄的那个
 	rs, err := cctn.DeleteOne(context.TODO(), filter)
 	if err != nil {
-		xlog.Error("MongoDB 删除单个错误[%v]", err)
+		logger.Error().Err(err).Msg("MongoDB 删除单个错误")
 		return 0
 	}
 	return rs.DeletedCount
@@ -168,7 +168,7 @@ func (db *MgoDb) DelOne(cctn *mongo.Collection, filter interface{}) int64 {
 func (db *MgoDb) DelMany(cctn *mongo.Collection, filter interface{}, delOptions *options.DeleteOptions) int64 {
 	rs, err := cctn.DeleteMany(context.TODO(), filter, delOptions)
 	if err != nil {
-		xlog.Error("MongoDB 删除多个错误[%v]", err)
+		logger.Error().Err(err).Msg("MongoDB 删除多个错误")
 		return 0
 	}
 	return rs.DeletedCount
@@ -178,7 +178,7 @@ func (db *MgoDb) DelMany(cctn *mongo.Collection, filter interface{}, delOptions 
 func (db *MgoDb) UpdateOne(cctn *mongo.Collection, filter interface{}, update interface{}) (int64, int64, int64, interface{}) {
 	rs, err := cctn.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		xlog.Error("MongoDB 更新单个错误[%v]", err)
+		logger.Error().Err(err).Msg("MongoDB 更新单个错误")
 		return 0, 0, 0, nil
 	}
 	return rs.MatchedCount, rs.ModifiedCount, rs.UpsertedCount, rs.UpsertedID
@@ -188,7 +188,7 @@ func (db *MgoDb) UpdateOne(cctn *mongo.Collection, filter interface{}, update in
 func (db *MgoDb) UpdateMany(cctn *mongo.Collection, filter interface{}, update interface{}) (int64, int64, int64, interface{}) {
 	rs, err := cctn.UpdateMany(context.TODO(), filter, update)
 	if err != nil {
-		xlog.Error("MongoDB 更新多个错误[%v]", err)
+		logger.Error().Err(err).Msg("MongoDB 更新多个错误")
 		return 0, 0, 0, nil
 	}
 	return rs.MatchedCount, rs.ModifiedCount, rs.UpsertedCount, rs.UpsertedID

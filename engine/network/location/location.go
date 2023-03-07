@@ -10,9 +10,9 @@ import (
 	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 type (
@@ -99,7 +99,7 @@ func (location *LocationSystem) add(Datas []LocationData, isLock bool) {
 			location.lock.Lock()
 		}
 		for _, v := range Datas {
-			xlog.Debug("新增LocationID:%d,AppID:%d", v.LocationID, v.AppID)
+			logger.Debug().Uint32("LocationID", v.LocationID).Uint("AppID", v.AppID).Msg("新增Location")
 			location.locationMap[v.LocationID] = v.AppID
 		}
 	}
@@ -113,7 +113,7 @@ func (location *LocationSystem) del(Datas []uint32, isLock bool) {
 		for _, v := range Datas {
 			if _, ok := location.locationMap[v]; ok {
 				delete(location.locationMap, v)
-				xlog.Debug("删除LocationID:%d", v)
+				logger.Debug().Uint32("LocationID", v).Msg("删除Location")
 			}
 		}
 	}
@@ -149,34 +149,34 @@ func (location *LocationSystem) UpdateLocationToAppIDs(locationIDs []uint32, exc
 }
 
 func (location *LocationSystem) Add(entity types.ILocationEntity) {
-	if !gox.AppConf.Location {
-		xlog.Error("没有启动Location的服务器不可以添加实体")
+	if !gox.Config.Location {
+		logger.Error().Msg("没有启动Location的服务器不可以添加实体")
 		return
 	}
 	aid := entity.LocationID()
 	if aid == 0 {
-		xlog.Error("Location没有初始化ID")
+		logger.Error().Msg("Location没有初始化ID")
 		return
 	}
 	go entity.Init(entity)
-	datas := []LocationData{{LocationID: aid, AppID: gox.AppConf.AppID}}
+	datas := []LocationData{{LocationID: aid, AppID: gox.Config.AppID}}
 	location.add(datas, true)
 	// location.SyncLocation.Add(datas)
 }
 func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
-	if !gox.AppConf.Location {
-		xlog.Error("没有启动Location的服务器不可以添加实体")
+	if !gox.Config.Location {
+		logger.Error().Msg("没有启动Location的服务器不可以添加实体")
 		return
 	}
 	datas := make([]LocationData, 0)
 	for _, entity := range entitys {
 		aid := entity.LocationID()
 		if aid == 0 {
-			xlog.Error("Location没有初始化ID")
+			logger.Error().Msg("Location没有初始化ID")
 			return
 		}
 		go entity.Init(entity)
-		datas = append(datas, LocationData{LocationID: aid, AppID: gox.AppConf.AppID})
+		datas = append(datas, LocationData{LocationID: aid, AppID: gox.Config.AppID})
 	}
 	if len(datas) == 0 {
 		return
@@ -185,8 +185,8 @@ func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
 	// location.SyncLocation.Add(datas)
 }
 func (location *LocationSystem) Del(entity types.ILocationEntity) {
-	if !gox.AppConf.Location {
-		xlog.Error("没有启动Location的服务器不可以删除实体")
+	if !gox.Config.Location {
+		logger.Error().Msg("没有启动Location的服务器不可以删除实体")
 		return
 	}
 	if len(location.locationMap) == 0 {
@@ -194,7 +194,7 @@ func (location *LocationSystem) Del(entity types.ILocationEntity) {
 	}
 	aid := entity.LocationID()
 	if aid == 0 {
-		xlog.Error("Location没有初始化ID")
+		logger.Error().Msg("Location没有初始化ID")
 		return
 	}
 	datas := []uint32{aid}
@@ -203,8 +203,8 @@ func (location *LocationSystem) Del(entity types.ILocationEntity) {
 	go entity.Destroy(entity)
 }
 func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
-	if !gox.AppConf.Location {
-		xlog.Error("没有启动Location的服务器不可以删除实体")
+	if !gox.Config.Location {
+		logger.Error().Msg("没有启动Location的服务器不可以删除实体")
 		return
 	}
 	if len(location.locationMap) == 0 {
@@ -214,7 +214,7 @@ func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
 	for _, entity := range entitys {
 		aid := entity.LocationID()
 		if aid == 0 {
-			xlog.Error("Location没有初始化ID")
+			logger.Error().Msg("Location没有初始化ID")
 			return
 		}
 		datas = append(datas, aid)
@@ -236,7 +236,7 @@ func (location *LocationSystem) ServiceClose(appID uint) {
 	location.lock.Lock()
 	for k, v := range location.locationMap {
 		if v == appID {
-			xlog.Debug("删除Location:%d", k)
+			logger.Debug().Uint32("LocationID", k).Msg("删除Location")
 			delete(location.locationMap, k)
 		}
 	}
@@ -244,7 +244,7 @@ func (location *LocationSystem) ServiceClose(appID uint) {
 
 func (location *LocationSystem) Send(locationID uint32, require any) {
 	if locationID == 0 {
-		xlog.Error("LocationSend 传入locationID不能为空")
+		logger.Error().Msg("LocationSend LocationID不能为空")
 		return
 	}
 
@@ -274,7 +274,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 				waitFn(id)
 				continue
 			}
-			if id == gox.AppConf.AppID {
+			if id == gox.Config.AppID {
 				if !gox.Event.HasBind(cmd) {
 					waitFn(id)
 					continue
@@ -283,7 +283,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 				if err != nil {
 					return
 				}
-				xlog.Warn("发送消息失败cmd:[%d] err:[%v]", cmd, err)
+				logger.Warn().Err(err).Uint32("CMD", cmd).Msg("LocationSend 发送消息失败")
 				return
 			}
 
@@ -311,8 +311,8 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 }
 func (location *LocationSystem) Call(locationID uint32, require any, response any) error {
 	if locationID == 0 {
-		xlog.Error("LocationCall传入locationID不能为空")
-		return errors.New("LocationCall:传入locationID不能为空")
+		logger.Error().Msg("LocationCall LocationID不能为空")
+		return errors.New("LocationCall LocationID不能为空")
 	}
 	excludeIDs := make([]uint, 0)
 	waitFn := func(id uint) {
@@ -341,7 +341,7 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 			continue
 		}
 
-		if id == gox.AppConf.AppID {
+		if id == gox.Config.AppID {
 			if !gox.Event.HasBind(cmd) {
 				waitFn(id)
 				continue

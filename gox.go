@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/xhaoh94/gox/engine/app"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xevent"
-	"github.com/xhaoh94/gox/engine/xlog"
+
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -19,7 +19,7 @@ var (
 	__start     bool
 	Ctx         context.Context
 	ctxCancelFn context.CancelFunc
-	AppConf     app.AppConf
+	Config      AppConf
 	Event       types.IEvent
 
 	//网络服务
@@ -37,16 +37,16 @@ func Init(appConfPath string) {
 	__init = true
 	Ctx, ctxCancelFn = context.WithCancel(context.Background())
 	Event = xevent.New()
-	AppConf = loadConf(appConfPath)
-	if AppConf.AppID == 0 {
+	Config = loadConf(appConfPath)
+	if Config.AppID == 0 {
 		log.Printf("gox: AppID 必须大于0")
 		return
 	}
-	xlog.Init(AppConf.Log)
+	logger.Init(Config.LogConfPath)
 }
 
-func loadConf(appConfPath string) app.AppConf {
-	AppCfg := app.AppConf{}
+func loadConf(appConfPath string) AppConf {
+	AppCfg := AppConf{}
 	bytes, err := os.ReadFile(appConfPath)
 	if err != nil {
 		log.Fatalf("LoadAppConfig err:[%v] path:[%s]", err, appConfPath)
@@ -67,11 +67,11 @@ func Run() {
 	}
 	__start = true
 	if mainModule == nil {
-		xlog.Fatal("gox: 没有设置主模块")
+		logger.Fatal().Msg("gox: 没有设置主模块")
 		return
 	}
-	xlog.Info("服务启动[sid:%d,type:%s,ver:%s]", AppConf.AppID, AppConf.AppType, AppConf.Version)
-	xlog.Info("[ByteOrder:%s]", AppConf.Network.Endian)
+	logger.Info().Uint("ID", Config.AppID).Str("Type", Config.AppType).Str("Version", Config.Version).Msg("服务启动")
+	logger.Info().Msgf("[ByteOrder:%s]", Config.Network.Endian)
 	NetWork.Init()
 	mainModule.Init(mainModule)
 	NetWork.Start()
@@ -90,8 +90,7 @@ func shutdown() {
 	ctxCancelFn()
 	mainModule.Destroy(mainModule)
 	NetWork.Destroy()
-	xlog.Info("服务退出[sid:%d]", AppConf.AppID)
-	xlog.Destroy()
+	logger.Info().Msgf("服务退出[sid:%d]", Config.AppID)
 }
 
 ////////////////////////////////////////////////////////////////

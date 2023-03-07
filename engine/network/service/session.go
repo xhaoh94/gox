@@ -9,6 +9,7 @@ import (
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/consts"
+	"github.com/xhaoh94/gox/engine/logger"
 
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
@@ -16,7 +17,6 @@ import (
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 type (
@@ -167,7 +167,7 @@ func (session *Session) onHeartbeat() {
 		select {
 		case <-session.ctx.Done():
 			goto end
-		case <-time.After(gox.AppConf.Network.Heartbeat):
+		case <-time.After(gox.Config.Network.Heartbeat):
 			session.sendHeartbeat(H_B_S) //发送空的心跳包
 		}
 	}
@@ -195,13 +195,13 @@ func (session *Session) parseReader(r io.Reader) (bool, error) {
 	}
 	msgLen := codechelper.BytesTo[uint16](header, session.endian())
 	if msgLen == 0 {
-		xlog.Error("读取到网络空包 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
+		logger.Error().Str("Remote", session.RemoteAddr()).Str("Local", session.LocalAddr()).Err(err).Msg("读取到网络空包")
 		return true, consts.Error_6
 	}
 
-	readMaxLen := gox.AppConf.Network.ReadMsgMaxLen
+	readMaxLen := gox.Config.Network.ReadMsgMaxLen
 	if readMaxLen > 0 && int(msgLen) > readMaxLen {
-		xlog.Error("网络包体超出界限 local:[%s] remote:[%s]", session.LocalAddr(), session.RemoteAddr())
+		logger.Error().Str("Remote", session.RemoteAddr()).Str("Local", session.LocalAddr()).Err(err).Msg("网络包体超出界限")
 		return true, consts.Error_7
 	}
 	buf := make([]byte, msgLen)
@@ -236,11 +236,11 @@ func (session *Session) parseMsg(buf []byte) {
 		}
 		require := protoreg.GetRequireByCmd(cmd)
 		if require == nil {
-			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
+			logger.Error().Uint32("CMD", cmd).Msg("没有找到注册此协议的结构体")
 			return
 		}
 		if err := pkt.ReadMessage(require, session.codec(cmd)); err != nil {
-			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
+			logger.Error().Uint32("CMD", cmd).Err(err).Msg("解析网络包体失败")
 			return
 		}
 		go session.emitMessage(cmd, require, 0)
@@ -256,12 +256,12 @@ func (session *Session) parseMsg(buf []byte) {
 		}
 		require := protoreg.GetRequireByCmd(cmd)
 		if require == nil {
-			xlog.Error("没有找到注册此协议的结构体 cmd:[%d]", cmd)
+			logger.Error().Uint32("CMD", cmd).Msg("没有找到注册此协议的结构体")
 			go session.reply(cmd, nil, rpcID)
 			return
 		}
 		if err := pkt.ReadMessage(require, session.codec(cmd)); err != nil {
-			xlog.Error("解析网络包体失败 cmd:[%d] err:[%v]", cmd, err)
+			logger.Error().Uint32("CMD", cmd).Err(err).Msg("解析网络包体失败")
 			go session.reply(cmd, nil, rpcID)
 			return
 		}
@@ -284,7 +284,7 @@ func (session *Session) parseMsg(buf []byte) {
 			}
 
 			if err := pkt.ReadMessage(response, session.codec(cmd)); err != nil {
-				xlog.Error("解析网络包体失败 err:[%v]", err)
+				logger.Error().Err(err).Msg("解析网络包体失败")
 				rpcx.Run(err)
 				return
 			}
@@ -316,7 +316,7 @@ func (session *Session) codec(cmd uint32) types.ICodec {
 	return session.Codec()
 }
 func (session *Session) endian() binary.ByteOrder {
-	return gox.AppConf.Network.Endian
+	return gox.Config.Network.Endian
 }
 
 func (session *Session) emitMessage(cmd uint32, require any, rpcID uint32) {
@@ -325,13 +325,15 @@ func (session *Session) emitMessage(cmd uint32, require any, rpcID uint32) {
 			session.reply(cmd, response, rpcID)
 		}
 	} else {
-		xlog.Warn("session->emitMessage: 发送消息失败 err:[%v]", err)
+		logger.Warn().Err(err).Msg("Session EmitMessage: 发送消息失败")
 	}
 }
 
 // release 回收session
 func (session *Session) release() {
-	xlog.Info("session 断开 id:[%d] remote:[%s] local:[%s] tag:[%s]", session.id, session.RemoteAddr(), session.LocalAddr(), session.GetTagName())
+	logger.Debug().Uint32("ID", session.id).
+		Str("Remote", session.RemoteAddr()).Str("Local", session.LocalAddr()).
+		Str("Tag", session.GetTagName()).Msg("Session 断开")
 	session.ctxCancelFunc()
 	session.service.delSession(session)
 	session.ctx = nil

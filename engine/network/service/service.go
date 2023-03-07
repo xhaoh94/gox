@@ -4,8 +4,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 type (
@@ -81,7 +81,7 @@ func (service *Service) GetSessionByAddr(addr string) types.ISession {
 	}
 	session := service.onConnect(addr)
 	if session == nil {
-		xlog.Error("创建session失败 addr:[%s]", addr)
+		logger.Error().Str("Addr", addr).Msg("创建Session失败")
 		return nil
 	}
 	service.idMutex.Lock()

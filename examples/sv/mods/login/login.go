@@ -8,9 +8,9 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 )
 
@@ -69,7 +69,7 @@ func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req 
 
 func (m *LoginModule) RspToken(ctx context.Context, session types.ISession, req *netpack.G2L_Login) (*netpack.L2G_Login, error) {
 	token := commonhelper.NewUUID() //创建user对应的token
-	xlog.Debug("创建user[%s]对应的token[%s]", req.User, token)
+	logger.Debug().Msgf("创建user[%s]对应的token[%s]", req.User, token)
 	m.mux.Lock()
 	m.user2Token[req.User] = UserToken{user: req.User, token: token, time: time.Now()} //将user、token保存
 	m.mux.Unlock()
@@ -87,14 +87,14 @@ func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req 
 		err = gox.Location.Call(uint32(req.UnitId),
 			&netpack.L2S_SayHello{Txt: "你好，我是:" + strhelper.ValToString(req.UnitId)}, rsp)
 		if err == nil {
-			xlog.Debug("发言返回:%s", rsp.BackTxt)
+			logger.Debug().Msgf("发言返回:%s", rsp.BackTxt)
 			enterRsp.Code = 0
 		} else {
 			enterRsp.Code = 2
 		}
 	} else {
 		enterRsp.Code = 1
-		xlog.Error("进入场景错误,%v", err)
+		logger.Error().Err(err).Msgf("进入场景错误")
 	}
 	session.Send(netpack.CMD_L2C_Enter, enterRsp)
 }

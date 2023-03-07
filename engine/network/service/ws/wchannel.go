@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/gorilla/websocket"
 )
@@ -47,11 +47,10 @@ func (channel *WChannel) run() {
 }
 func (channel *WChannel) recvAsync() {
 	defer channel.Wg.Done()
-	readTimeout := gox.AppConf.Network.ReadTimeout
+	readTimeout := gox.Config.Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
-			xlog.Info("websocket addr[%s] 接受数据超时", channel.RemoteAddr())
-			xlog.Info("err:[%v]", err)
+			logger.Info().Str("RemoteAddr", channel.RemoteAddr()).Err(err).Msg("websocket 接受数据超时")
 			channel.Stop() //超时断开链接
 		}
 	}
@@ -59,20 +58,19 @@ func (channel *WChannel) recvAsync() {
 	for channel.Conn() != nil && channel.IsRun {
 		_, r, err := channel.Conn().NextReader()
 		if err != nil {
-			xlog.Info("websocket addr[%s] err:[%v]", channel.RemoteAddr(), err)
+			logger.Info().Str("RemoteAddr", channel.RemoteAddr()).Err(err).Send()
 			channel.Stop()
 			break
 		}
 
 		if stop, err = channel.Read(r); stop {
-			xlog.Info("websocket addr[%s] err:[%v]", channel.RemoteAddr(), err)
+			logger.Info().Str("RemoteAddr", channel.RemoteAddr()).Err(err).Send()
 			channel.Stop()
 			break
 		}
 		if channel.IsRun && readTimeout > 0 {
 			if err = channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
-				xlog.Info("websocket addr[%s] 接受数据超时", channel.RemoteAddr())
-				xlog.Info("err:[%v]", err)
+				logger.Info().Str("RemoteAddr", channel.RemoteAddr()).Err(err).Msg("websocket 接受数据超时")
 				channel.Stop() //超时断开链接
 			}
 		}
@@ -80,9 +78,9 @@ func (channel *WChannel) recvAsync() {
 }
 
 func (channel *WChannel) write(buf []byte) {
-	err := channel.Conn().WriteMessage(gox.AppConf.WebSocket.WebSocketMessageType, buf)
+	err := channel.Conn().WriteMessage(gox.Config.WebSocket.WebSocketMessageType, buf)
 	if err != nil {
-		xlog.Error("websocket addr[%s]信道写入失败err:[%v]", channel.RemoteAddr(), err)
+		logger.Info().Str("RemoteAddr", channel.RemoteAddr()).Err(err).Msg("websocket 信道写入失败")
 	}
 }
 

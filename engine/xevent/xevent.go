@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/engine/logger"
 )
 
 // Event 事件
@@ -38,8 +38,7 @@ func (evt *Event) On(event interface{}, task interface{}) {
 	defer evt.onLock.Unlock()
 	f := reflect.ValueOf(task)
 	if f.Type().Kind() != reflect.Func {
-		tip := fmt.Sprintf("监听事件对象不是方法 event:[%v]", event)
-		xlog.Error(tip)
+		logger.Error().Interface("Event", event).Interface("Task", task).Msg("监听事件对象不是方法")
 		return
 	}
 	key := getKeyName(event, f)
@@ -56,8 +55,7 @@ func (evt *Event) Off(event interface{}, task interface{}) {
 
 	f := reflect.ValueOf(task)
 	if f.Type().Kind() != reflect.Func {
-		tip := fmt.Sprintf("取消监听事件对象不是方法 event:[%v]", event)
-		xlog.Error(tip)
+		logger.Error().Interface("Event", event).Interface("Task", task).Msg("监听事件对象不是方法")
 		return
 	}
 
@@ -111,8 +109,7 @@ func (evt *Event) Has(event interface{}, task interface{}) bool {
 	defer evt.onLock.RUnlock()
 	f := reflect.ValueOf(task)
 	if f.Type().Kind() != reflect.Func {
-		tip := fmt.Sprintf("监听事件对象不是方法 event:[%v]", event)
-		xlog.Error(tip)
+		logger.Error().Interface("Event", event).Interface("Task", task).Msg("监听事件对象不是方法")
 		return false
 	}
 
@@ -130,15 +127,13 @@ func (evt *Event) Bind(event interface{}, task interface{}) error {
 	evt.bingLock.Lock()
 	defer evt.bingLock.Unlock()
 	if _, ok := evt.bingFnMap[event]; ok {
-		tip := fmt.Sprintf("重复监听事件 event:[%v]", event)
-		xlog.Error(tip)
-		return errors.New(tip)
+		logger.Error().Interface("Event", event).Interface("Task", task).Msg("重复监听事件")
+		return fmt.Errorf("重复监听事件 event:[%v]", event)
 	}
 	f := reflect.ValueOf(task)
 	if f.Type().Kind() != reflect.Func {
-		tip := fmt.Sprintf("监听事件对象不是方法 event:[%v]", event)
-		xlog.Error(tip)
-		return errors.New(tip)
+		logger.Error().Interface("Event", event).Interface("Task", task).Msg("监听事件对象不是方法")
+		return fmt.Errorf("监听事件对象不是方法 event:[%v]", event)
 	}
 	evt.bingFnMap[event] = f
 	return nil

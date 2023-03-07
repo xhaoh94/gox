@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/service"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 var channelPool *sync.Pool = &sync.Pool{New: func() interface{} { return &TChannel{} }}
@@ -46,24 +46,22 @@ func (channel *TChannel) run() {
 }
 func (channel *TChannel) recvAsync() {
 	defer channel.Wg.Done()
-	readTimeout := gox.AppConf.Network.ReadTimeout
+	readTimeout := gox.Config.Network.ReadTimeout
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			xlog.Info("tcp addr[%s] 接受数据超时", channel.RemoteAddr())
-			xlog.Info("err:[%v]", err)
+			logger.Error().Str("Addr", channel.RemoteAddr()).Err(err).Msg("tcp 接受数据超时")
 			channel.Stop()
 		}
 	}
 	for channel.Conn() != nil && channel.IsRun {
 		if stop, err := channel.Read(channel.Conn()); stop {
-			xlog.Info("tcp addr[%s] err:[%v]", channel.RemoteAddr(), err)
+			logger.Info().Str("Addr", channel.RemoteAddr()).Err(err).Send()
 			channel.Stop()
 			break
 		}
 		if channel.IsRun && readTimeout > 0 {
 			if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				xlog.Info("tcp addr[%s] 接受数据超时", channel.RemoteAddr())
-				xlog.Info("err:[%v]", err)
+				logger.Error().Str("Addr", channel.RemoteAddr()).Err(err).Msg("tcp 接受数据超时")
 				channel.Stop()
 			}
 		}
@@ -73,7 +71,7 @@ func (channel *TChannel) recvAsync() {
 func (channel *TChannel) write(buf []byte) {
 	_, err := channel.Conn().Write(buf)
 	if err != nil {
-		xlog.Error("tcp addr[%s]信道写入失败err:[%v]", channel.RemoteAddr(), err)
+		logger.Error().Str("Addr", channel.RemoteAddr()).Err(err).Msg("tcp 信道写入失败")
 	}
 }
 

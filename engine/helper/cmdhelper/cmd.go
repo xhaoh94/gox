@@ -7,7 +7,7 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/engine/logger"
 )
 
 var (
@@ -19,14 +19,14 @@ func ToCmdByRtype(in reflect.Type, out reflect.Type, locationID uint32) uint32 {
 	var key string
 	if in != nil {
 		if in.Kind() != reflect.Ptr {
-			xlog.Error("ToCmdByRtype:参数需要是指针类型")
+			logger.Error().Interface("In", in).Msg("ToCmdByRtype:参数需要是指针类型")
 			return 0
 		}
 		key = in.Elem().Name()
 	}
 	if out != nil {
 		if out.Kind() != reflect.Ptr {
-			xlog.Error("ToCmdByRtype:参数需要是指针类型")
+			logger.Error().Interface("Out", out).Msg("ToCmdByRtype:参数需要是指针类型")
 			return 0
 		}
 		key = key + out.Elem().Name()

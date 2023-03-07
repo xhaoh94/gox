@@ -24,7 +24,7 @@ type (
 )
 
 var (
-	Log zerolog.Logger
+	Logger zerolog.Logger
 	// LogSampled zerolog.Logger
 )
 
@@ -36,14 +36,13 @@ func init() {
 	zerolog.LevelFieldName = "L"
 	zerolog.MessageFieldName = "M"
 	zerolog.ErrorFieldName = "E"
-	zerolog.CallerFieldName = "F"
+	zerolog.CallerFieldName = "C"
 	zerolog.ErrorStackFieldName = "S"
 	zerolog.DurationFieldInteger = true
 }
 
-// InitLogger 配置热加载等场景调用, 重载日志环境
-func InitLogger(path string) error {
-
+// 配置热加载等场景调用, 重载日志环境
+func Init(path string) error {
 	if err := LogConfig(path); err != nil {
 		return err
 	}
@@ -74,7 +73,7 @@ func LogConfig(path string) error {
 			LogMaxSize:  100,
 			MaxBackups:  30,
 			LogMaxAge:   7,
-			Console:     false,
+			Console:     true,
 			Skip:        2,
 		}
 	} else {
@@ -90,7 +89,10 @@ func LogConfig(path string) error {
 			return err
 		}
 	}
-	zerolog.CallerMarshalFunc = func(file string, line int) string {
+	if logCfg.LogLevel == "" {
+		log.Fatal().Str("path", path).Msg("日志等级为空")
+	}
+	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
 		return filepath.Base(file) + ":" + strconv.Itoa(line)
 	}
 	var (
@@ -112,8 +114,8 @@ func LogConfig(path string) error {
 	} else {
 		writers = append(writers, newLevelWriter(lv))
 	}
-	Log = zerolog.New(zerolog.MultiLevelWriter(writers...)).With().
-		Timestamp().Caller().Logger().Level(lv)
+	Logger = zerolog.New(zerolog.MultiLevelWriter(writers...)).Level(lv).With().Timestamp().
+		Caller().Logger()
 
 	return nil
 }

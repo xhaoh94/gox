@@ -8,9 +8,9 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/etcd"
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 )
@@ -99,9 +99,9 @@ func newServiceConfig(val []byte) (ServiceEntity, error) {
 }
 
 func (ss *ServiceSystem) Start() {
-	appConf := gox.AppConf
+	appConf := gox.Config
 	if len(appConf.Etcd.EtcdList) == 0 {
-		xlog.Error("EtcdList 为空，无法启动服务注册")
+		logger.Error().Msg("EtcdList 为空，无法启动服务注册")
 		return
 	}
 	ss.EtcdComponent.OnPut = ss.onPut
@@ -118,10 +118,10 @@ func (ss *ServiceSystem) Start() {
 	timeoutCtx, timeoutCancelFunc := context.WithCancel(ss.context)
 	go ss.checkTimeout(timeoutCtx)
 	var err error
-	ss.es, err = etcd.NewEtcdConf(gox.AppConf.Etcd, ss)
+	ss.es, err = etcd.NewEtcdConf(ss)
 	timeoutCancelFunc()
 	if err != nil {
-		xlog.Fatal("服务注册失败 [%v]", err)
+		logger.Fatal().Err(err).Msg("EtcdList 服务注册失败")
 		return
 	}
 	key := convertKey(ss.curService)
@@ -144,7 +144,7 @@ func (ss *ServiceSystem) checkTimeout(ctx context.Context) {
 		// 被取消，直接返回
 		return
 	case <-time.After(time.Second * 5):
-		xlog.Fatal("请检查你的etcd服务是否有开启")
+		logger.Fatal().Msg("请检查你的etcd服务是否有开启")
 	}
 }
 
@@ -188,12 +188,12 @@ func (ss *ServiceSystem) onPut(kv *mvccpb.KeyValue) {
 	key := string(kv.Key)
 	service, err := newServiceConfig(kv.Value)
 	if err != nil {
-		xlog.Error("解析服务注册配置错误[%v]", err)
+		logger.Error().Err(err).Msg("解析服务注册配置错误")
 		return
 	}
 	ss.idToService[service.AppID] = service
 	ss.keyToService[key] = service
-	xlog.Info("服务注册发现 sid:[%d] type:[%s] version:[%s]", service.AppID, service.AppType, service.Version)
+	logger.Info().Uint("AppID", service.AppID).Str("Type", service.AppType).Str("Version", service.Version).Msg("服务注册")
 }
 func (ss *ServiceSystem) onDel(kv *mvccpb.KeyValue) {
 	key := string(kv.Key)
@@ -201,6 +201,6 @@ func (ss *ServiceSystem) onDel(kv *mvccpb.KeyValue) {
 		delete(ss.keyToService, key)
 		delete(ss.idToService, service.AppID)
 		gox.Location.(*location.LocationSystem).ServiceClose(service.AppID)
-		xlog.Info("服务注销 sid:[%d] type:[%s]", service.AppID, service.AppType)
+		logger.Info().Uint("AppID", service.AppID).Str("Type", service.AppType).Str("Version", service.Version).Msg("服务注销")
 	}
 }

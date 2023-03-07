@@ -8,8 +8,8 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 )
 
 var (
@@ -24,7 +24,7 @@ func registerRType(cmd uint32, protoType reflect.Type) {
 	defer cmdLock.Unlock()
 	cmdLock.Lock()
 	if _, ok := cmdType[cmd]; ok {
-		xlog.Error("重复注册协议 cmd[%s]", cmd)
+		logger.Error().Uint32("CMD", cmd).Msg("重复注册协议")
 		return
 	}
 	cmdType[cmd] = protoType
@@ -54,12 +54,12 @@ func Register[T func(context.Context, types.ISession, V), V any](cmd uint32, fn 
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	if tFun.Kind() != reflect.Func {
-		xlog.Error("协议回调函数不是方法 cmd:[%d]", cmd)
+		logger.Error().Uint32("CMD", cmd).Msg("协议回调函数不是方法")
 		return
 	}
 	in := tFun.In(2)
 	if in.Kind() != reflect.Ptr {
-		xlog.Error("协议回调函数参数需要是指针类型 cmd[%d]", cmd)
+		logger.Error().Interface("In", in).Uint32("CMD", cmd).Msg("协议回调函数参数需要是指针类型")
 		return
 	}
 	registerRType(cmd, in)
@@ -73,13 +73,13 @@ func RegisterRpcCmd[T func(context.Context, types.ISession, V1) (V2, error), V1 
 	tFun := tVlaue.Type()
 	out := tFun.Out(0)
 	if out.Kind() != reflect.Ptr {
-		xlog.Error("RPC函数参数需要是指针类型")
+		logger.Error().Interface("Out", out).Msg("RPC函数参数需要是指针类型")
 		return
 	}
 
 	in := tFun.In(2)
 	if in.Kind() != reflect.Ptr {
-		xlog.Error("RPC函数参数需要是指针类型")
+		logger.Error().Interface("In", in).Msg("RPC函数参数需要是指针类型")
 		return
 	}
 	registerRType(cmd, in)

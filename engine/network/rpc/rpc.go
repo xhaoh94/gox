@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/xlog"
+	"github.com/xhaoh94/gox/engine/logger"
 
 	"google.golang.org/grpc"
 )
@@ -57,7 +57,7 @@ func (rpc *RPC) Serve() {
 
 // 开启服务
 func (rpc *RPC) Start() {
-	rpcAddr := gox.AppConf.RpcAddr
+	rpcAddr := gox.Config.RpcAddr
 	if rpcAddr != "" {
 		rpc.grpc = &GRPC{rpcAddr: rpcAddr}
 		rpc.grpc.start()
@@ -96,10 +96,10 @@ func (rpc *GRPC) start() {
 		var err error
 		rpc.listen, err = net.Listen("tcp", rpc.rpcAddr)
 		if err != nil {
-			xlog.Fatal("gprc 监听失败: %v", err)
+			logger.Fatal().Err(err).Msg("gprc 监听失败")
 		}
 		rpc.server = grpc.NewServer()
-		xlog.Info("grpc[%s] 等待客户端连接...", rpc.rpcAddr)
+		logger.Info().Str("RpcAddr", rpc.rpcAddr).Msg("gprc 等待客户端连接...")
 	}
 }
 
@@ -121,7 +121,7 @@ func (rpc *GRPC) getConnByAddr(addr string) *grpc.ClientConn {
 	var err error
 	conn, err = grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
-		xlog.Fatal("获取grpc客户端失败err:[%v]", err)
+		logger.Fatal().Err(err).Msg("获取grpc客户端失败")
 	}
 	rpc.addr2Conn[addr] = conn
 	return conn

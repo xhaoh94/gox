@@ -43,7 +43,7 @@ func (channel *Channel) Send(data []byte) {
 	if !channel.IsRun {
 		return
 	}
-	sendMax := gox.AppConf.Network.SendMsgMaxLen
+	sendMax := gox.Config.Network.SendMsgMaxLen
 	if sendMax > 0 { //分片发送
 		DLen := len(data)
 		pos := 0
