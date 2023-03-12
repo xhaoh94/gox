@@ -55,7 +55,7 @@ func (channel *TChannel) recvAsync() {
 	}
 	for channel.Conn() != nil && channel.IsRun {
 		if stop, err := channel.Read(channel.Conn()); stop {
-			logger.Info().Str("Addr", channel.RemoteAddr()).Err(err).Send()
+			logger.Error().Str("Addr", channel.RemoteAddr()).Err(err).Send()
 			channel.Stop()
 			break
 		}

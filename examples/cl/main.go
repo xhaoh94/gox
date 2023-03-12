@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/network/codec"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/network/service/ws"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/engine/xlog"
 	"github.com/xhaoh94/gox/examples/netpack"
 )
 
@@ -33,7 +33,7 @@ func (m *MainModule) OnInit() {
 
 // OnStart
 func (m *MainModule) OnStart() {
-	xlog.Debug("test")
+	logger.Debug().Msg("test")
 	time.Sleep(1 * time.Second)
 	// session := gox.NetWork.GetSessionByAddr("127.0.0.1:10002") //向gate服务器请求token
 	// session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
@@ -50,21 +50,21 @@ func (m *MainModule) RspToken(ctx context.Context, session types.ISession, rsp *
 		return
 	}
 	defer session.Close() //老的session已经没用了，可以关闭掉
-	xlog.Debug("返回数据:%v", rsp)
+	logger.Debug().Msgf("返回数据:%v", rsp)
 	loginSession := gox.NetWork.GetSessionByAddr(rsp.Addr)                                          //创建session连接login服务器
 	loginSession.Send(netpack.CMD_C2L_Login, &netpack.C2L_Login{User: "xhaoh94", Token: rsp.Token}) //向login服务器请求登录
 	m.session = loginSession                                                                        //保存新的session
 }
 
 func (m *MainModule) RspLogin(ctx context.Context, session types.ISession, rsp *netpack.L2C_Login) {
-	xlog.Debug("登录结果返回Code:%d", rsp.Code)
+	logger.Debug().Msgf("登录结果返回Code:%d", rsp.Code)
 	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 100})
 	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 1, UnitId: 200})
 	session.Send(netpack.CMD_C2L_Enter, &netpack.C2L_Enter{SceneId: 2, UnitId: 300})
 }
 
 func (m *MainModule) RspEnter(ctx context.Context, session types.ISession, rsp *netpack.L2C_Enter) {
-	xlog.Debug("进入结果返回Code:%d", rsp.Code)
+	logger.Debug().Msgf("进入结果返回Code:%d", rsp.Code)
 }
 
 // 模拟客户端发数据

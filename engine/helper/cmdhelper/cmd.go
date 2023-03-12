@@ -1,11 +1,11 @@
 package cmdhelper
 
 import (
+	"errors"
 	"reflect"
 	"sync"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
 	"github.com/xhaoh94/gox/engine/logger"
 )
@@ -83,6 +83,6 @@ func CallEvt(event uint32, params ...any) (any, error) {
 		}
 		return values[0].Interface(), nil
 	default:
-		return nil, consts.Error_3
+		return nil, errors.New("返回参数错误")
 	}
 }

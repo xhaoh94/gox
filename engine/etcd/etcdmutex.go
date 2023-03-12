@@ -2,8 +2,7 @@ package etcd
 
 import (
 	"context"
-
-	"github.com/xhaoh94/gox/engine/consts"
+	"errors"
 
 	"go.etcd.io/etcd/clientv3"
 )
@@ -60,7 +59,7 @@ func (em *EtcdMutex) Lock() error {
 		return err
 	}
 	if !txnResp.Succeeded { //判断txn.if条件是否成立
-		return consts.Error_1
+		return errors.New("etcd 锁失败")
 	}
 	return nil
 }

@@ -1,8 +1,9 @@
 package location
 
 import (
+	"errors"
+
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/types"
 )
@@ -55,7 +56,7 @@ func (lock *SyncLocation) Get(datas []uint32, excludeIDs []uint) []LocationData 
 			break
 		}
 		response := &LocationGetResponse{}
-		err := lock.call(entity, consts.LocationGet, &LocationGetRequire{IDs: datas}, response)
+		err := lock.call(entity, LocationGet, &LocationGetRequire{IDs: datas}, response)
 		if err == nil && response.Datas != nil && len(response.Datas) > 0 {
 			for _, v := range response.Datas {
 				datas = commonhelper.DeleteSlice(datas, v.LocationID)
@@ -77,7 +78,7 @@ func (lock *SyncLocation) Get(datas []uint32, excludeIDs []uint) []LocationData 
 func (lock *SyncLocation) call(entity types.IServiceEntity, cmd uint32, msg any, response any) error {
 	session := gox.NetWork.GetSessionByAddr(entity.GetInteriorAddr())
 	if session == nil {
-		return consts.Error_4
+		return errors.New("session is nil")
 	}
 	return session.CallByCmd(cmd, msg, response)
 }

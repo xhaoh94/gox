@@ -1,11 +1,11 @@
 package service
 
 import (
+	"errors"
 	"io"
 	"sync"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/types"
 )
 
@@ -85,8 +85,19 @@ func (channel *Channel) Init(wfn func([]byte), remoteAddr string, localAddr stri
 
 // Read
 func (channel *Channel) Read(r io.Reader) (bool, error) {
+	// var buf [1024 * 4]byte
+	// bufreader := bufio.NewReader(r)
+	// n, err := bufreader.Read(buf[:])
+	// if err != nil {
+	// 	return true, err
+	// }
+	// recvbuf := buf[:n]
+	// if channel.Session != nil {
+	// 	return channel.Session.parseReader1(recvbuf)
+	// }
+
 	if channel.Session != nil {
 		return channel.Session.parseReader(r)
 	}
-	return true, consts.Error_4
+	return true, errors.New("session is nil")
 }

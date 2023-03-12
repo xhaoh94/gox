@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/logger"
 
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
 	"github.com/xhaoh94/gox/engine/network/codec"
+	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
@@ -125,10 +125,10 @@ func (session *Session) CallByCmd(cmd uint32, require any, response any) error {
 	if err := pkt.AppendMessage(require, session.codec(cmd)); err != nil {
 		return err
 	}
-	rpcx := rpc.NewRpcx(session.ctx, rpcID, response)
-	session.rpc().Put(rpcx)
+	rpx := rpc.NewRpx(session.ctx, rpcID, response)
+	session.rpc().Put(rpx)
 	session.sendData(pkt.Data())
-	err := rpcx.Await()
+	err := rpx.Await()
 	return err
 }
 
@@ -168,45 +168,46 @@ func (session *Session) onHeartbeat() {
 		case <-session.ctx.Done():
 			goto end
 		case <-time.After(gox.Config.Network.Heartbeat):
-			session.sendHeartbeat(H_B_S) //发送空的心跳包
+			session.sendHeartbeat(H_B_S, 0) //发送空的心跳包
 		}
 	}
 end:
 }
-func (session *Session) sendHeartbeat(t byte) {
+func (session *Session) sendHeartbeat(t byte, l uint32) {
 	if !session.isAct() {
 		return
 	}
 	pkt := NewByteArray(make([]byte, 0), session.endian())
 	defer pkt.Release()
-	// pkt.AppendBytes(KEY)
 	pkt.AppendByte(t)
+	if l > 0 {
+		logger.Debug().Int64("time", time.Now().UnixMilli()).Msg("H_B_S")
+		pkt.AppendInt64(time.Now().UnixMilli())
+	}
 	session.sendData(pkt.Data())
 }
 
 func (session *Session) parseReader(r io.Reader) (bool, error) {
 	if !session.isAct() {
-		return true, consts.Error_5
+		return true, errors.New("Session已关闭")
 	}
 	header := make([]byte, 2)
 	_, err := io.ReadFull(r, header)
 	if err != nil {
 		return true, err
 	}
-	msgLen := codechelper.BytesTo[uint16](header, session.endian())
-	if msgLen == 0 {
-		logger.Error().Str("Remote", session.RemoteAddr()).Str("Local", session.LocalAddr()).Err(err).Msg("读取到网络空包")
-		return true, consts.Error_6
+	msglen := codechelper.BytesTo[uint16](header, session.endian())
+	if msglen == 0 {
+		return true, errors.New("读取到网络空包")
 	}
 
 	readMaxLen := gox.Config.Network.ReadMsgMaxLen
-	if readMaxLen > 0 && int(msgLen) > readMaxLen {
-		logger.Error().Str("Remote", session.RemoteAddr()).Str("Local", session.LocalAddr()).Err(err).Msg("网络包体超出界限")
-		return true, consts.Error_7
+	if readMaxLen > 0 && int(msglen) > readMaxLen {
+		return true, errors.New("网络包体超出界限")
 	}
-	buf := make([]byte, msgLen)
-	_, err = io.ReadFull(r, buf)
 
+	buf := make([]byte, msglen)
+	_, err = io.ReadFull(r, buf)
 	if err != nil {
 		return true, err
 	}
@@ -222,10 +223,10 @@ func (session *Session) parseMsg(buf []byte) {
 	pkt := NewByteArray(buf, session.endian())
 	defer pkt.Release()
 	// pkt.ReadBytes(8) //8位预留的字节
-
+	// logger.Debug().Bytes("buf", buf).Send()
 	switch pkt.ReadOneByte() {
 	case H_B_S:
-		go session.sendHeartbeat(H_B_R)
+		go session.sendHeartbeat(H_B_R, pkt.RemainLength())
 		return
 	case C_S_C:
 		cmd := pkt.ReadUint32()
@@ -270,25 +271,25 @@ func (session *Session) parseMsg(buf []byte) {
 	case RPC_RESPONSE:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
-		rpcx := session.rpc().Get(rpcID)
-		if rpcx != nil {
+		rpx := session.rpc().Get(rpcID)
+		if rpx != nil {
 			msgLen := pkt.RemainLength()
 			if msgLen == 0 {
-				rpcx.Run(errors.New("response len == 0"))
+				rpx.Run(errors.New("response len == 0"))
 				return
 			}
-			response := rpcx.GetResponse()
+			response := rpx.GetResponse()
 			if response == nil {
-				rpcx.Run(nil)
+				rpx.Run(nil)
 				return
 			}
 
 			if err := pkt.ReadMessage(response, session.codec(cmd)); err != nil {
 				logger.Error().Err(err).Msg("解析网络包体失败")
-				rpcx.Run(err)
+				rpx.Run(err)
 				return
 			}
-			rpcx.Run(nil)
+			rpx.Run(nil)
 		}
 		return
 	}
@@ -302,15 +303,9 @@ func (session *Session) rpc() *rpc.RPC {
 }
 func (session *Session) codec(cmd uint32) types.ICodec {
 	switch cmd {
-	// case consts.LocationLock:
-	// 	return codec.MsgPack
-	// case consts.LocationAdd:
-	// 	return codec.MsgPack
-	// case consts.LocationRemove:
-	// 	return codec.MsgPack
-	case consts.LocationGet:
+	case location.LocationGet:
 		return codec.MsgPack
-	case consts.LocationForward:
+	case location.LocationForward:
 		return codec.MsgPack
 	}
 	return session.Codec()

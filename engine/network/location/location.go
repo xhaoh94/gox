@@ -7,12 +7,16 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/consts"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
+)
+
+const (
+	LocationGet     uint32 = 220129
+	LocationForward uint32 = 220306
 )
 
 type (
@@ -33,8 +37,8 @@ func New() *LocationSystem {
 func (location *LocationSystem) Init() {
 	location.locationMap = make(map[uint32]uint, 0)
 	// protoreg.RegisterRpcCmd(consts.LocationLock, location.LockHandler)
-	protoreg.RegisterRpcCmd(consts.LocationForward, location.ForwardHandler)
-	protoreg.RegisterRpcCmd(consts.LocationGet, location.GetHandler)
+	protoreg.RegisterRpcCmd(LocationForward, location.ForwardHandler)
+	protoreg.RegisterRpcCmd(LocationGet, location.GetHandler)
 	// protoreg.RegisterRpcCmd(consts.LocationAdd, location.AddHandler)
 	// protoreg.RegisterRpcCmd(consts.LocationRemove, location.RemoveHandler)
 
@@ -296,7 +300,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 			tmpRequire.IsCall = false
 			tmpRequire.Require = msgData
 			tmpResponse := &LocationForwardResponse{}
-			err = session.CallByCmd(consts.LocationForward, tmpRequire, tmpResponse)
+			err = session.CallByCmd(LocationForward, tmpRequire, tmpResponse)
 			if err != nil {
 				return
 			}
@@ -365,7 +369,7 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 		tmpRequire.IsCall = true
 		tmpRequire.Require = msgData
 		tmpResponse := &LocationForwardResponse{}
-		err = session.CallByCmd(consts.LocationForward, tmpRequire, tmpResponse)
+		err = session.CallByCmd(LocationForward, tmpRequire, tmpResponse)
 
 		if err != nil {
 			return err

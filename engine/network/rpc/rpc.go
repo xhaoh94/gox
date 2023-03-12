@@ -13,7 +13,7 @@ import (
 type (
 	RPC struct {
 		grpc   *GRPC    //谷歌的grpc框架
-		rpcMap sync.Map //内部自带的rpc存储器
+		rpxMap sync.Map //内部自带的rpc存储器
 	}
 	GRPC struct {
 		addr2Conn map[string]*grpc.ClientConn
@@ -25,23 +25,23 @@ type (
 )
 
 // 添加rpc
-func (rpc *RPC) Put(rpcx *Rpcx) {
-	rpcx.del = rpc.del
-	rpc.rpcMap.Store(rpcx.RID(), rpcx)
+func (rpc *RPC) Put(rpx *Rpx) {
+	rpx.del = rpc.del
+	rpc.rpxMap.Store(rpx.RID(), rpx)
 }
 
 // 获取RPC
-func (rpc *RPC) Get(id uint32) *Rpcx {
-	if dr, ok := rpc.rpcMap.Load(id); ok {
-		return dr.(*Rpcx)
+func (rpc *RPC) Get(id uint32) *Rpx {
+	if dr, ok := rpc.rpxMap.Load(id); ok {
+		return dr.(*Rpx)
 	}
 	return nil
 }
 
 // 删除rpc
 func (rpc *RPC) del(id uint32) {
-	if dr, ok := rpc.rpcMap.LoadAndDelete(id); ok {
-		dr.(*Rpcx).release()
+	if dr, ok := rpc.rpxMap.LoadAndDelete(id); ok {
+		dr.(*Rpx).release()
 	}
 }
 

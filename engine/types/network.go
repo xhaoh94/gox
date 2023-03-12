@@ -65,7 +65,7 @@ type (
 		GetClientConnByAddr(string) *grpc.ClientConn
 	}
 	//内部rpc
-	IRpcx interface {
+	IRpx interface {
 		Await() error
 	}
 )

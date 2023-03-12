@@ -21,22 +21,27 @@ type (
 
 // OnInit 初始化
 func (m *GateModule) OnInit() {
-	protoreg.Register(netpack.CMD_C2G_Login, m.RspLogin)
-	protoreg.Register(100, m.Test)
-	// protoreg.Register1(100, m.Test)
+	// protoreg.Register(netpack.CMD_C2G_Login, m.RspLogin)
+	protoreg.Register(1000, m.Test)
+	protoreg.RegisterRpcCmd(2000, m.TestRPC)
 	// protoreg.Register1(100, m.Test1)
 }
 
 func (m *GateModule) OnStart() {
 }
 
-func (m *GateModule) Test(ctx context.Context, session types.ISession, msg *pb.A) {
+func (m *GateModule) Test(ctx context.Context, session types.ISession, msg *pb.C2S_LoginGame) {
 	logger.Debug().Msgf("test [%v]", msg)
-	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
+	session.Send(1000, &pb.S2C_LoginGame{Error: pb.ErrCode_PasswordError})
 }
-func (m *GateModule) Test1(ctx context.Context, session types.ISession) {
-	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
+func (m *GateModule) TestRPC(ctx context.Context, session types.ISession, msg *pb.C2S_LoginGame) (*pb.S2C_LoginGame, error) {
+	logger.Debug().Msgf("testrpc [%v]", msg)
+	return &pb.S2C_LoginGame{Error: pb.ErrCode_Success}, nil
 }
+
+// func (m *GateModule) Test1(ctx context.Context, session types.ISession) {
+// 	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
+// }
 
 func (m *GateModule) RspLogin(ctx context.Context, session types.ISession, msg *netpack.C2G_Login) {
 
