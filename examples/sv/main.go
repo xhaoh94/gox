@@ -8,7 +8,6 @@ import (
 	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/network/codec"
 	"github.com/xhaoh94/gox/engine/network/service/kcp"
-	"github.com/xhaoh94/gox/engine/network/service/tcp"
 	"github.com/xhaoh94/gox/examples/sv/mods"
 )
 
@@ -30,8 +29,9 @@ func main() {
 	gox.Init(appConfPath)
 	network := network.New()
 	network.SetInteriorService(new(kcp.KService), codec.Json)
-	network.SetOutsideService(new(tcp.TService), codec.Protobuf)
+	// network.SetOutsideService(new(tcp.TService), codec.Protobuf)
 	// network.SetOutsideService(new(ws.WService), codec.Protobuf)
+	network.SetOutsideService(new(kcp.KService), codec.Protobuf)
 
 	gox.SetNetWork(network)
 	gox.SetModule(new(mods.MainModule))

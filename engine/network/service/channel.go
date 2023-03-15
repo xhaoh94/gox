@@ -85,17 +85,6 @@ func (channel *Channel) Init(wfn func([]byte), remoteAddr string, localAddr stri
 
 // Read
 func (channel *Channel) Read(r io.Reader) (bool, error) {
-	// var buf [1024 * 4]byte
-	// bufreader := bufio.NewReader(r)
-	// n, err := bufreader.Read(buf[:])
-	// if err != nil {
-	// 	return true, err
-	// }
-	// recvbuf := buf[:n]
-	// if channel.Session != nil {
-	// 	return channel.Session.parseReader1(recvbuf)
-	// }
-
 	if channel.Session != nil {
 		return channel.Session.parseReader(r)
 	}

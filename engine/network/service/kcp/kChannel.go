@@ -22,6 +22,9 @@ type (
 )
 
 func (channel *KChannel) init(conn *kcp.UDPSession) {
+	conn.SetNoDelay(1, 10, 2, 1)
+	conn.SetWindowSize(256, 256)
+	// conn.SetMtu(512);
 	channel.conn = conn
 	channel.Init(channel.write, channel.Conn().RemoteAddr().String(), channel.Conn().LocalAddr().String())
 }
