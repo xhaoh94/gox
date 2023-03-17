@@ -26,7 +26,7 @@ func (service *KService) Start() {
 	//初始化socket
 	if service.listen == nil {
 		var err error
-		service.listen, err = kcp.ListenWithOptions(service.GetAddr(), nil, 10, 3)
+		service.listen, err = kcp.ListenWithOptions(service.GetAddr(), nil, 0, 0)
 		if err != nil {
 			logger.Fatal().Str("Addr", service.GetAddr()).Err(err).Msg("kcp 启动失败")
 			service.Stop()
@@ -47,7 +47,7 @@ func (service *KService) accept() {
 			break
 		}
 		if err != nil {
-			if nerr, ok := err.(net.Error); ok && nerr.Temporary() {
+			if _, ok := err.(net.Error); ok {
 				time.Sleep(time.Millisecond)
 				continue
 			}
@@ -72,7 +72,7 @@ func (service *KService) addChannel(conn *kcp.UDPSession) *KChannel {
 func (service *KService) connectChannel(addr string) types.IChannel {
 	var connCount int
 	for {
-		conn, err := kcp.DialWithOptions(addr, nil, 10, 3)
+		conn, err := kcp.DialWithOptions(addr, nil, 0, 0)
 		if err == nil {
 			return service.addChannel(conn)
 		}
