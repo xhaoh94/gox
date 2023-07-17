@@ -76,7 +76,7 @@ func Run() {
 	mainModule.Init(mainModule)
 	NetWork.Start()
 	mainModule.Start(mainModule)
-
+	logger.Info().Msg("服务启动成功")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
