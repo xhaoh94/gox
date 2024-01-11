@@ -7,7 +7,7 @@ import (
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/network"
 	"github.com/xhaoh94/gox/engine/network/codec"
-	"github.com/xhaoh94/gox/engine/network/service/kcp"
+	"github.com/xhaoh94/gox/engine/network/service/tcp"
 	"github.com/xhaoh94/gox/examples/sv/mods"
 )
 
@@ -21,17 +21,18 @@ func main() {
 	// flag.StringVar(&oAddr, "oAddr", "127.0.0.1:10002", "服务地址")
 
 	var appConfPath string
-	flag.StringVar(&appConfPath, "appConf", "app_1.yaml", "启动配置")
+	flag.StringVar(&appConfPath, "appConf", "app_2.yaml", "启动配置")
 	flag.Parse()
 	if appConfPath == "" {
 		log.Fatalf("需要启动配置文件路径")
 	}
 	gox.Init(appConfPath)
 	network := network.New()
-	network.SetInteriorService(new(kcp.KService), codec.Json)
-	// network.SetOutsideService(new(tcp.TService), codec.Protobuf)
+	network.SetInteriorService(new(tcp.TService), codec.Protobuf)
+
+	network.SetOutsideService(new(tcp.TService), codec.Protobuf)
 	// network.SetOutsideService(new(ws.WService), codec.Protobuf)
-	network.SetOutsideService(new(kcp.KService), codec.Protobuf)
+	// network.SetOutsideService(new(kcp.KService), codec.Protobuf)
 
 	gox.SetNetWork(network)
 	gox.SetModule(new(mods.MainModule))

@@ -2,99 +2,42 @@ package login
 
 import (
 	"context"
-	"sync"
-	"time"
 
 	"github.com/xhaoh94/gox"
-	"github.com/xhaoh94/gox/engine/helper/commonhelper"
-	"github.com/xhaoh94/gox/engine/helper/strhelper"
 	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/examples/netpack"
+	"github.com/xhaoh94/gox/examples/pb"
+	"github.com/xhaoh94/gox/examples/sv/game"
 )
 
 type (
-	//LoginModule 登录模块
+	//LoginModule Gate模块
 	LoginModule struct {
 		gox.Module
-		mux        sync.RWMutex
-		user2Token map[string]UserToken
-	}
-	UserToken struct {
-		user  string
-		token string
-		time  time.Time
 	}
 )
 
 // OnInit 初始化
 func (m *LoginModule) OnInit() {
-	m.user2Token = make(map[string]UserToken)
-	protoreg.RegisterRpc(m.RspToken)
-	protoreg.Register(netpack.CMD_C2L_Login, m.RspLogin)
-	protoreg.Register(netpack.CMD_C2L_Enter, m.RspEnter)
+	protoreg.Register(pb.CMD_C2S_LoginGame, m.LoginGame)
 }
 
 func (m *LoginModule) OnStart() {
 
 }
 
-func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req *netpack.C2L_Login) {
-	m.mux.RLock()
-	ut, ok := m.user2Token[req.User]
-	m.mux.RUnlock()
-	if !ok {
-		session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 1}) //没有找到对应的token
+func (m *LoginModule) LoginGame(ctx context.Context, session types.ISession, req *pb.C2S_LoginGame) {
+
+	cfgs := gox.NetWork.GetServiceEntitys(types.WithType(game.Gate)) //获取Gate服务器配置
+	gateCfg := cfgs[0]
+	logger.Info().Msgf("[Rpcaddr:%s]", gateCfg.GetRpcAddr())
+	conn := gox.NetWork.Rpc().GetClientConnByAddr(gateCfg.GetRpcAddr()) //创建session连接Gate服务器
+	loginSession := pb.NewILoginGameClient(conn)
+	resp, err := loginSession.LoginGame(ctx, req) //向Gate服务器请求token
+	if err != nil {
+		session.Send(pb.CMD_S2C_LoginGame, &pb.S2C_LoginGame{Error: pb.ErrCode_UnKnown})
 		return
 	}
-	if ut.token != req.Token {
-		session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 2}) //token不一致
-		return
-	}
-	defer func() {
-		m.mux.Lock()
-		delete(m.user2Token, req.User)
-		m.mux.Unlock()
-	}()
-
-	t := time.Now().Sub(ut.time)
-	if t.Seconds() > 5 {
-		session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 3}) //token已过期
-		return
-	}
-
-	session.Send(netpack.CMD_L2C_Login, &netpack.L2C_Login{Code: 0}) //返回客户端结果
-}
-
-func (m *LoginModule) RspToken(ctx context.Context, session types.ISession, req *netpack.G2L_Login) (*netpack.L2G_Login, error) {
-	token := commonhelper.NewUUID() //创建user对应的token
-	logger.Debug().Msgf("创建user[%s]对应的token[%s]", req.User, token)
-	m.mux.Lock()
-	m.user2Token[req.User] = UserToken{user: req.User, token: token, time: time.Now()} //将user、token保存
-	m.mux.Unlock()
-	return &netpack.L2G_Login{Token: token}, nil
-}
-
-func (m *LoginModule) RspEnter(ctx context.Context, session types.ISession, req *netpack.C2L_Enter) {
-	sId := req.SceneId
-	backRsp := &netpack.S2L_Enter{}
-	err := gox.Location.Call(uint32(sId), &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp)
-
-	enterRsp := &netpack.L2C_Enter{}
-	if err == nil { //玩家进入场景成功
-		rsp := &netpack.S2L_SayHello{}
-		err = gox.Location.Call(uint32(req.UnitId),
-			&netpack.L2S_SayHello{Txt: "你好，我是:" + strhelper.ValToString(req.UnitId)}, rsp)
-		if err == nil {
-			logger.Debug().Msgf("发言返回:%s", rsp.BackTxt)
-			enterRsp.Code = 0
-		} else {
-			enterRsp.Code = 2
-		}
-	} else {
-		enterRsp.Code = 1
-		logger.Error().Err(err).Msgf("进入场景错误")
-	}
-	session.Send(netpack.CMD_L2C_Enter, enterRsp)
+	session.Send(pb.CMD_S2C_LoginGame, resp) //结果返回客户端
 }

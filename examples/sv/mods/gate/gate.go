@@ -2,63 +2,161 @@ package gate
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
-	"github.com/xhaoh94/gox/examples/netpack"
 	"github.com/xhaoh94/gox/examples/pb"
-	"github.com/xhaoh94/gox/examples/sv/game"
 )
 
 type (
-	//GateModule Gate模块
+	//GateModule 网关
 	GateModule struct {
 		gox.Module
+		muxToken    sync.RWMutex
+		userToken   map[string]UserToken
+		muxSession  sync.RWMutex
+		roleSession map[uint32]uint32
+		sessionRole map[uint32]uint32
+	}
+	UserToken struct {
+		user  string
+		token string
+		time  time.Time
 	}
 )
 
 // OnInit 初始化
 func (m *GateModule) OnInit() {
-	// protoreg.Register(netpack.CMD_C2G_Login, m.RspLogin)
-	protoreg.Register(1000, m.Test)
-	protoreg.RegisterRpcCmd(2000, m.TestRPC)
-	// protoreg.Register1(100, m.Test1)
+	m.userToken = make(map[string]UserToken)
+	m.roleSession = make(map[uint32]uint32)
+	m.sessionRole = make(map[uint32]uint32)
+	pb.RegisterILoginGameServer(gox.NetWork.Rpc().GRpcServer(), m)
+	protoreg.RegisterRpcCmd(pb.CMD_C2S_EnterMap, m.EnterGame)
+	protoreg.Register(pb.CMD_C2S_Move, m.Move)
+
+	protoreg.Register(pb.CMD_Interior_EnterVision, m.InteriorEnterVision)
+	protoreg.Register(pb.CMD_Interior_LeaveVision, m.InteriorLeaveVision)
+	protoreg.Register(pb.CMD_Interior_Move, m.InteriorMove)
+
+	gox.NetWork.Outside().LinstenByDelSession(m.OnSessionStop)
 }
-
-func (m *GateModule) OnStart() {
-}
-
-func (m *GateModule) Test(ctx context.Context, session types.ISession, msg *pb.C2S_LoginGame) {
-	logger.Debug().Msgf("test [%v]", msg)
-	session.Send(1000, &pb.S2C_LoginGame{Error: pb.ErrCode_PasswordError})
-}
-func (m *GateModule) TestRPC(ctx context.Context, session types.ISession, msg *pb.C2S_LoginGame) (*pb.S2C_LoginGame, error) {
-	logger.Debug().Msgf("testrpc [%v]", msg)
-	return &pb.S2C_LoginGame{Error: pb.ErrCode_Success}, nil
-}
-
-// func (m *GateModule) Test1(ctx context.Context, session types.ISession) {
-// 	session.Send(100, &pb.B{Id: "test", Etype: 1, Position: &pb.Vector3{X: 0, Y: 1, Z: 2}})
-// }
-
-func (m *GateModule) RspLogin(ctx context.Context, session types.ISession, msg *netpack.C2G_Login) {
-
-	//TODO 验证账号密码是否正确
-	cfgs := gox.NetWork.GetServiceEntitys(types.WithType(game.Login)) //获取login服务器配置
-	loginCfg := cfgs[0]
-	loginSession := gox.NetWork.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
-	Rsp_L2G_Login := &netpack.L2G_Login{}
-	err := loginSession.Call(&netpack.G2L_Login{User: msg.User}, Rsp_L2G_Login) //向login服务器请求token
-
-	Rsp_G2C_Login := &netpack.G2C_Login{}
-	if err == nil {
-		Rsp_G2C_Login.Code = 0
-		Rsp_G2C_Login.Addr = loginCfg.GetOutsideAddr()
-		Rsp_G2C_Login.Token = Rsp_L2G_Login.Token
-	} else {
-		Rsp_G2C_Login.Code = 1
+func (m *GateModule) OnSessionStop(sid uint32) {
+	m.muxSession.Lock()
+	if rid, ok := m.sessionRole[sid]; ok {
+		delete(m.sessionRole, sid)
+		delete(m.roleSession, rid)
+		gox.Location.Send(rid, &pb.C2S_LeaveMap{RoleId: rid})
 	}
-	session.Send(netpack.CMD_G2C_Login, Rsp_G2C_Login) //结果返回客户端
+	m.muxSession.Unlock()
+}
+
+func (m *GateModule) LoginGame(ctx context.Context, req *pb.C2S_LoginGame) (*pb.S2C_LoginGame, error) {
+	token := commonhelper.NewUUID() //创建user对应的token
+	logger.Debug().Msgf("创建user[%s]对应的token[%s]", req.Account, token)
+	m.muxToken.Lock()
+	m.userToken[req.Account] = UserToken{user: req.Account, token: token, time: time.Now()} //将user、token保存
+	m.muxToken.Unlock()
+
+	return &pb.S2C_LoginGame{Token: token, Addr: gox.Config.OutsideAddr}, nil
+}
+
+func (m *GateModule) EnterGame(ctx context.Context, session types.ISession, req *pb.C2S_EnterMap) (*pb.S2C_EnterMap, error) {
+	m.muxToken.RLock()
+	ut, ok := m.userToken[req.Account]
+	m.muxToken.RUnlock()
+	resp := &pb.S2C_EnterMap{}
+	if !ok {
+		resp.Error = pb.ErrCode_UnKnown //没有找到对应的token
+		return resp, nil
+	}
+	if ut.token != req.Token {
+		resp.Error = pb.ErrCode_UnKnown //token 不一致
+		return resp, nil
+	}
+	defer func() {
+		m.muxToken.Lock()
+		delete(m.userToken, req.Account)
+		m.muxToken.Unlock()
+	}()
+	t := time.Now().Sub(ut.time)
+	if t.Seconds() > 5 {
+		resp.Error = pb.ErrCode_UnKnown ///token已过期
+		return resp, nil
+	}
+
+	err := gox.Location.Call(uint32(req.Mapid), req, resp)
+
+	if err != nil {
+		logger.Info().Err(err)
+		resp.Error = pb.ErrCode_UnKnown
+		logger.Err(err)
+	} else {
+		logger.Info().Msgf("返回进入地图:%d", resp.Self.RoleId)
+		m.muxSession.Lock()
+		m.roleSession[resp.Self.RoleId] = session.ID()
+		m.sessionRole[session.ID()] = resp.Self.RoleId
+		m.muxSession.Unlock()
+	}
+	return resp, nil
+}
+
+func (m *GateModule) Move(ctx context.Context, session types.ISession, req *pb.C2S_Move) {
+	m.muxSession.RLock()
+	defer m.muxSession.RUnlock()
+	if rid, ok := m.sessionRole[session.ID()]; ok {
+		logger.Debug().Msgf("玩家移动roleID:%d", rid)
+		gox.Location.Send(rid, req)
+	}
+}
+
+func (m *GateModule) InteriorEnterVision(ctx context.Context, session types.ISession, req *pb.Interior_EnterVision) {
+
+	defer m.muxSession.RUnlock()
+	m.muxSession.RLock()
+	logger.Debug().Msgf("广播进入视野:%d", req.Role.RoleId)
+	bcstResp := &pb.Bcst_EnterMap{
+		Role: req.Role,
+	}
+	for _, roleId := range req.Roles {
+		if sid, ok := m.roleSession[roleId]; ok {
+			_session := gox.NetWork.GetSessionById(sid)
+			_session.Send(pb.CMD_Bcst_EnterMap, bcstResp)
+		}
+	}
+
+}
+func (m *GateModule) InteriorLeaveVision(ctx context.Context, session types.ISession, req *pb.Interior_LeaveVision) {
+
+	defer m.muxSession.RUnlock()
+	m.muxSession.RLock()
+	logger.Debug().Msgf("广播离开视野:%d", req.RoleId)
+	bcstResp := &pb.Bcst_LeaveMap{
+		RoleId: req.RoleId,
+	}
+	for _, roleId := range req.Roles {
+		if sid, ok := m.roleSession[roleId]; ok {
+			_session := gox.NetWork.GetSessionById(sid)
+			_session.Send(pb.CMD_Bcst_LeaveMap, bcstResp)
+		}
+	}
+}
+func (m *GateModule) InteriorMove(ctx context.Context, session types.ISession, req *pb.Interior_Move) {
+	defer m.muxSession.RUnlock()
+	m.muxSession.RLock()
+	logger.Debug().Msgf("广播移动:%d", req.RoleId)
+	bcstResp := &pb.Bcst_Move{
+		RoleId: req.RoleId,
+		Points: req.Points,
+	}
+	for _, roleId := range req.Roles {
+		if sid, ok := m.roleSession[roleId]; ok {
+			_session := gox.NetWork.GetSessionById(sid)
+			_session.Send(pb.CMD_Bcst_Move, bcstResp)
+		}
+	}
 }

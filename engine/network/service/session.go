@@ -211,6 +211,21 @@ func (session *Session) parseReader(r io.Reader) (bool, error) {
 	if err != nil {
 		return true, err
 	}
+
+	// str := "["
+	// for i, v := range header {
+	// 	if i > 0 {
+	// 		str += ","
+	// 	}
+	// 	str += strhelper.ValToString(v)
+	// }
+	// for _, v := range buf {
+	// 	str += ","
+	// 	str += strhelper.ValToString(v)
+	// }
+	// str += "]"
+	// logger.Debug().Msg(str)
+
 	go session.parseMsg(buf)
 	return false, nil
 }
@@ -220,6 +235,7 @@ func (session *Session) parseMsg(buf []byte) {
 	if !session.isAct() {
 		return
 	}
+
 	pkt := NewByteArray(buf, session.endian())
 	defer pkt.Release()
 	// pkt.ReadBytes(8) //8位预留的字节
@@ -305,7 +321,7 @@ func (session *Session) codec(cmd uint32) types.ICodec {
 	switch cmd {
 	case location.LocationGet:
 		return codec.MsgPack
-	case location.LocationForward:
+	case location.LocationRelay:
 		return codec.MsgPack
 	}
 	return session.Codec()

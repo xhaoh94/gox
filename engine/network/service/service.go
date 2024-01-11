@@ -16,16 +16,17 @@ type (
 		AcceptWg           sync.WaitGroup
 		IsRun              bool
 
-		addr          string
-		idToSession   map[uint32]*Session //Accept Map
-		idMutex       sync.Mutex
-		addrToSession map[string]*Session //Connect Map
-		addrMutex     sync.Mutex
-		sessionWg     sync.WaitGroup
-		sessionOps    uint32
+		addr           string
+		idToSession    map[uint32]*Session //Accept Map
+		idMutex        sync.Mutex
+		addrToSession  map[string]*Session //Connect Map
+		addrMutex      sync.Mutex
+		sessionWg      sync.WaitGroup
+		delSessionFunc func(uint32)
 	}
 )
 
+var sessionOps uint32
 var sessionPool *sync.Pool = &sync.Pool{
 	New: func() interface{} {
 		return &Session{}
@@ -94,6 +95,7 @@ func (service *Service) GetSessionByAddr(addr string) types.ISession {
 
 // Stop 停止服务
 func (service *Service) Stop() {
+	service.delSessionFunc = nil
 	service.idMutex.Lock()
 	for k := range service.idToSession {
 		service.idToSession[k].stop()
@@ -102,8 +104,15 @@ func (service *Service) Stop() {
 	service.sessionWg.Wait()
 }
 
+func (service *Service) LinstenByDelSession(callback func(uint32)) {
+	service.delSessionFunc = callback
+}
+
 func (service *Service) delSession(session types.ISession) {
 	if service.delSessionByID(session.ID()) && service.delSessionByAddr(session.RemoteAddr()) {
+		if service.delSessionFunc != nil {
+			go service.delSessionFunc(session.ID())
+		}
 		service.sessionWg.Done()
 	}
 }
@@ -137,7 +146,7 @@ func (service *Service) onConnect(addr string) *Session {
 }
 
 func (service *Service) createSession(channel types.IChannel, tag Tag) *Session {
-	sid := atomic.AddUint32(&service.sessionOps, 1)
+	sid := atomic.AddUint32(&sessionOps, 1)
 	session := sessionPool.Get().(*Session)
 	session.init(sid, service, channel, tag)
 	if session != nil {

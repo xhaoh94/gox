@@ -10,6 +10,8 @@ type (
 		Init()
 		Start()
 		Destroy()
+		Outside() IService
+		Interior() IService
 		//通过Id获取通信Session
 		GetSessionById(uint32) ISession
 		//通过地址获取通信Session
@@ -32,6 +34,7 @@ type (
 		GetAddr() string
 		GetSessionByAddr(string) ISession
 		GetSessionById(uint32) ISession
+		LinstenByDelSession(callback func(uint32))
 	}
 	//会话接口
 	ISession interface {

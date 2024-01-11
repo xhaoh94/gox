@@ -20,92 +20,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type C2S_RegisterAccount struct {
-	Account              string   `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`
-	Password             string   `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *C2S_RegisterAccount) Reset()         { *m = C2S_RegisterAccount{} }
-func (m *C2S_RegisterAccount) String() string { return proto.CompactTextString(m) }
-func (*C2S_RegisterAccount) ProtoMessage()    {}
-func (*C2S_RegisterAccount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{0}
-}
-
-func (m *C2S_RegisterAccount) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_C2S_RegisterAccount.Unmarshal(m, b)
-}
-func (m *C2S_RegisterAccount) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_C2S_RegisterAccount.Marshal(b, m, deterministic)
-}
-func (m *C2S_RegisterAccount) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_C2S_RegisterAccount.Merge(m, src)
-}
-func (m *C2S_RegisterAccount) XXX_Size() int {
-	return xxx_messageInfo_C2S_RegisterAccount.Size(m)
-}
-func (m *C2S_RegisterAccount) XXX_DiscardUnknown() {
-	xxx_messageInfo_C2S_RegisterAccount.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_C2S_RegisterAccount proto.InternalMessageInfo
-
-func (m *C2S_RegisterAccount) GetAccount() string {
-	if m != nil {
-		return m.Account
-	}
-	return ""
-}
-
-func (m *C2S_RegisterAccount) GetPassword() string {
-	if m != nil {
-		return m.Password
-	}
-	return ""
-}
-
-type S2C_RegisterAccount struct {
-	Error                ErrCode  `protobuf:"varint,1,opt,name=error,proto3,enum=ErrCode" json:"error,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *S2C_RegisterAccount) Reset()         { *m = S2C_RegisterAccount{} }
-func (m *S2C_RegisterAccount) String() string { return proto.CompactTextString(m) }
-func (*S2C_RegisterAccount) ProtoMessage()    {}
-func (*S2C_RegisterAccount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{1}
-}
-
-func (m *S2C_RegisterAccount) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_S2C_RegisterAccount.Unmarshal(m, b)
-}
-func (m *S2C_RegisterAccount) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_S2C_RegisterAccount.Marshal(b, m, deterministic)
-}
-func (m *S2C_RegisterAccount) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_S2C_RegisterAccount.Merge(m, src)
-}
-func (m *S2C_RegisterAccount) XXX_Size() int {
-	return xxx_messageInfo_S2C_RegisterAccount.Size(m)
-}
-func (m *S2C_RegisterAccount) XXX_DiscardUnknown() {
-	xxx_messageInfo_S2C_RegisterAccount.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_S2C_RegisterAccount proto.InternalMessageInfo
-
-func (m *S2C_RegisterAccount) GetError() ErrCode {
-	if m != nil {
-		return m.Error
-	}
-	return ErrCode_Success
-}
-
+//cs=100100001
 type C2S_LoginGame struct {
 	Account              string   `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`
 	Password             string   `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
@@ -118,7 +33,7 @@ func (m *C2S_LoginGame) Reset()         { *m = C2S_LoginGame{} }
 func (m *C2S_LoginGame) String() string { return proto.CompactTextString(m) }
 func (*C2S_LoginGame) ProtoMessage()    {}
 func (*C2S_LoginGame) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{2}
+	return fileDescriptor_6fe61ab550dd3bc4, []int{0}
 }
 
 func (m *C2S_LoginGame) XXX_Unmarshal(b []byte) error {
@@ -153,8 +68,11 @@ func (m *C2S_LoginGame) GetPassword() string {
 	return ""
 }
 
+//sc=100100001
 type S2C_LoginGame struct {
 	Error                ErrCode  `protobuf:"varint,1,opt,name=error,proto3,enum=ErrCode" json:"error,omitempty"`
+	Addr                 string   `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+	Token                string   `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -164,7 +82,7 @@ func (m *S2C_LoginGame) Reset()         { *m = S2C_LoginGame{} }
 func (m *S2C_LoginGame) String() string { return proto.CompactTextString(m) }
 func (*S2C_LoginGame) ProtoMessage()    {}
 func (*S2C_LoginGame) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{3}
+	return fileDescriptor_6fe61ab550dd3bc4, []int{1}
 }
 
 func (m *S2C_LoginGame) XXX_Unmarshal(b []byte) error {
@@ -192,202 +110,40 @@ func (m *S2C_LoginGame) GetError() ErrCode {
 	return ErrCode_Success
 }
 
-type C2S_RoleList struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *C2S_RoleList) Reset()         { *m = C2S_RoleList{} }
-func (m *C2S_RoleList) String() string { return proto.CompactTextString(m) }
-func (*C2S_RoleList) ProtoMessage()    {}
-func (*C2S_RoleList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{4}
-}
-
-func (m *C2S_RoleList) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_C2S_RoleList.Unmarshal(m, b)
-}
-func (m *C2S_RoleList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_C2S_RoleList.Marshal(b, m, deterministic)
-}
-func (m *C2S_RoleList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_C2S_RoleList.Merge(m, src)
-}
-func (m *C2S_RoleList) XXX_Size() int {
-	return xxx_messageInfo_C2S_RoleList.Size(m)
-}
-func (m *C2S_RoleList) XXX_DiscardUnknown() {
-	xxx_messageInfo_C2S_RoleList.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_C2S_RoleList proto.InternalMessageInfo
-
-type S2C_RoleList struct {
-	Error                ErrCode   `protobuf:"varint,1,opt,name=error,proto3,enum=ErrCode" json:"error,omitempty"`
-	RoleList             []*Entity `protobuf:"bytes,2,rep,name=role_list,json=roleList,proto3" json:"role_list,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
-}
-
-func (m *S2C_RoleList) Reset()         { *m = S2C_RoleList{} }
-func (m *S2C_RoleList) String() string { return proto.CompactTextString(m) }
-func (*S2C_RoleList) ProtoMessage()    {}
-func (*S2C_RoleList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{5}
-}
-
-func (m *S2C_RoleList) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_S2C_RoleList.Unmarshal(m, b)
-}
-func (m *S2C_RoleList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_S2C_RoleList.Marshal(b, m, deterministic)
-}
-func (m *S2C_RoleList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_S2C_RoleList.Merge(m, src)
-}
-func (m *S2C_RoleList) XXX_Size() int {
-	return xxx_messageInfo_S2C_RoleList.Size(m)
-}
-func (m *S2C_RoleList) XXX_DiscardUnknown() {
-	xxx_messageInfo_S2C_RoleList.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_S2C_RoleList proto.InternalMessageInfo
-
-func (m *S2C_RoleList) GetError() ErrCode {
+func (m *S2C_LoginGame) GetAddr() string {
 	if m != nil {
-		return m.Error
-	}
-	return ErrCode_Success
-}
-
-func (m *S2C_RoleList) GetRoleList() []*Entity {
-	if m != nil {
-		return m.RoleList
-	}
-	return nil
-}
-
-type C2S_CreateRole struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *C2S_CreateRole) Reset()         { *m = C2S_CreateRole{} }
-func (m *C2S_CreateRole) String() string { return proto.CompactTextString(m) }
-func (*C2S_CreateRole) ProtoMessage()    {}
-func (*C2S_CreateRole) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{6}
-}
-
-func (m *C2S_CreateRole) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_C2S_CreateRole.Unmarshal(m, b)
-}
-func (m *C2S_CreateRole) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_C2S_CreateRole.Marshal(b, m, deterministic)
-}
-func (m *C2S_CreateRole) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_C2S_CreateRole.Merge(m, src)
-}
-func (m *C2S_CreateRole) XXX_Size() int {
-	return xxx_messageInfo_C2S_CreateRole.Size(m)
-}
-func (m *C2S_CreateRole) XXX_DiscardUnknown() {
-	xxx_messageInfo_C2S_CreateRole.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_C2S_CreateRole proto.InternalMessageInfo
-
-func (m *C2S_CreateRole) GetName() string {
-	if m != nil {
-		return m.Name
+		return m.Addr
 	}
 	return ""
 }
 
-type S2C_CreateRole struct {
-	Error                ErrCode  `protobuf:"varint,1,opt,name=error,proto3,enum=ErrCode" json:"error,omitempty"`
-	Role                 *Entity  `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *S2C_CreateRole) Reset()         { *m = S2C_CreateRole{} }
-func (m *S2C_CreateRole) String() string { return proto.CompactTextString(m) }
-func (*S2C_CreateRole) ProtoMessage()    {}
-func (*S2C_CreateRole) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6fe61ab550dd3bc4, []int{7}
-}
-
-func (m *S2C_CreateRole) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_S2C_CreateRole.Unmarshal(m, b)
-}
-func (m *S2C_CreateRole) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_S2C_CreateRole.Marshal(b, m, deterministic)
-}
-func (m *S2C_CreateRole) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_S2C_CreateRole.Merge(m, src)
-}
-func (m *S2C_CreateRole) XXX_Size() int {
-	return xxx_messageInfo_S2C_CreateRole.Size(m)
-}
-func (m *S2C_CreateRole) XXX_DiscardUnknown() {
-	xxx_messageInfo_S2C_CreateRole.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_S2C_CreateRole proto.InternalMessageInfo
-
-func (m *S2C_CreateRole) GetError() ErrCode {
+func (m *S2C_LoginGame) GetToken() string {
 	if m != nil {
-		return m.Error
+		return m.Token
 	}
-	return ErrCode_Success
-}
-
-func (m *S2C_CreateRole) GetRole() *Entity {
-	if m != nil {
-		return m.Role
-	}
-	return nil
+	return ""
 }
 
 func init() {
-	proto.RegisterType((*C2S_RegisterAccount)(nil), "C2S_RegisterAccount")
-	proto.RegisterType((*S2C_RegisterAccount)(nil), "S2C_RegisterAccount")
 	proto.RegisterType((*C2S_LoginGame)(nil), "C2S_LoginGame")
 	proto.RegisterType((*S2C_LoginGame)(nil), "S2C_LoginGame")
-	proto.RegisterType((*C2S_RoleList)(nil), "C2S_RoleList")
-	proto.RegisterType((*S2C_RoleList)(nil), "S2C_RoleList")
-	proto.RegisterType((*C2S_CreateRole)(nil), "C2S_CreateRole")
-	proto.RegisterType((*S2C_CreateRole)(nil), "S2C_CreateRole")
 }
 
 func init() { proto.RegisterFile("login/login.proto", fileDescriptor_6fe61ab550dd3bc4) }
 
 var fileDescriptor_6fe61ab550dd3bc4 = []byte{
-	// 293 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x91, 0x4f, 0x4b, 0xc3, 0x40,
-	0x10, 0xc5, 0x69, 0xac, 0x36, 0x9d, 0xb6, 0x01, 0x13, 0x0f, 0xa1, 0x82, 0x94, 0xd0, 0x43, 0x4f,
-	0x09, 0x44, 0x3c, 0x79, 0xd2, 0x10, 0x3c, 0x58, 0x2f, 0xa9, 0x27, 0x2f, 0x25, 0x7f, 0x86, 0x12,
-	0x48, 0x32, 0x61, 0x76, 0x45, 0xfc, 0x4a, 0x7e, 0x4a, 0xd9, 0x4d, 0xaa, 0x05, 0x0f, 0x01, 0x2f,
-	0xc9, 0xcc, 0xdb, 0xdd, 0xf7, 0x9b, 0xb7, 0x0b, 0x97, 0x15, 0x1d, 0xca, 0x26, 0xd0, 0x5f, 0xbf,
-	0x65, 0x92, 0xb4, 0x74, 0x72, 0xaa, 0x6b, 0x6a, 0x82, 0xee, 0xd7, 0x8b, 0x57, 0xbd, 0x88, 0xcc,
-	0x39, 0x15, 0xd8, 0xa9, 0xde, 0x33, 0x38, 0x51, 0xb8, 0xdb, 0x27, 0x78, 0x28, 0x85, 0x44, 0x7e,
-	0xc8, 0x73, 0x7a, 0x6f, 0xa4, 0xed, 0xc2, 0x24, 0xed, 0x4a, 0x77, 0xb4, 0x1a, 0x6d, 0xa6, 0xc9,
-	0xb1, 0xb5, 0x97, 0x60, 0xb6, 0xa9, 0x10, 0x1f, 0xc4, 0x85, 0x6b, 0xe8, 0xa5, 0x9f, 0xde, 0xbb,
-	0x03, 0x67, 0x17, 0x46, 0x7f, 0xcc, 0x6e, 0xe0, 0x1c, 0x99, 0x89, 0xb5, 0x95, 0x15, 0x9a, 0x7e,
-	0xcc, 0x1c, 0x51, 0x81, 0x49, 0x27, 0x7b, 0x31, 0x2c, 0xd4, 0x0c, 0x5b, 0x95, 0xe0, 0x29, 0xad,
-	0xf1, 0x9f, 0xf4, 0x00, 0x16, 0x8a, 0xfe, 0x6b, 0x33, 0xc4, 0xb5, 0x60, 0xae, 0xb3, 0x53, 0x85,
-	0xdb, 0x52, 0x48, 0xef, 0x15, 0xe6, 0x7a, 0xfc, 0xbe, 0x1f, 0x3a, 0x6f, 0xaf, 0x61, 0xca, 0x54,
-	0xe1, 0xbe, 0x2a, 0x85, 0x74, 0x8d, 0xd5, 0xd9, 0x66, 0x16, 0x4e, 0xfc, 0xb8, 0x91, 0xa5, 0xfc,
-	0x4c, 0x4c, 0x3e, 0xba, 0xae, 0xc1, 0x52, 0x94, 0x88, 0x31, 0x95, 0xa8, 0xbc, 0x6d, 0x1b, 0xc6,
-	0x4d, 0x5a, 0x63, 0x9f, 0x4d, 0xd7, 0xde, 0x0b, 0x58, 0x8a, 0x7d, 0xb2, 0x6b, 0x88, 0x7e, 0x0d,
-	0x63, 0xc5, 0xd0, 0xd7, 0x70, 0x02, 0xd6, 0xe2, 0xe3, 0xec, 0x6d, 0xec, 0xdf, 0xb7, 0xd9, 0x97,
-	0x61, 0xb4, 0x59, 0x76, 0xa1, 0x9f, 0xfa, 0xf6, 0x3b, 0x00, 0x00, 0xff, 0xff, 0x8b, 0x1a, 0x9a,
-	0x4e, 0x2a, 0x02, 0x00, 0x00,
+	// 194 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xcc, 0xc9, 0x4f, 0xcf,
+	0xcc, 0xd3, 0x07, 0x93, 0x7a, 0x05, 0x45, 0xf9, 0x25, 0xf9, 0x52, 0xc2, 0xc9, 0xf9, 0xb9, 0xb9,
+	0xf9, 0x79, 0xfa, 0x10, 0x0a, 0x2a, 0x28, 0x02, 0x15, 0x4c, 0x2d, 0x2a, 0x4a, 0xce, 0x4f, 0x49,
+	0x85, 0x88, 0x2a, 0xb9, 0x72, 0xf1, 0x3a, 0x1b, 0x05, 0xc7, 0xfb, 0x80, 0x74, 0xbb, 0x27, 0xe6,
+	0xa6, 0x0a, 0x49, 0x70, 0xb1, 0x27, 0x26, 0x27, 0xe7, 0x97, 0xe6, 0x95, 0x48, 0x30, 0x2a, 0x30,
+	0x6a, 0x70, 0x06, 0xc1, 0xb8, 0x42, 0x52, 0x5c, 0x1c, 0x05, 0x89, 0xc5, 0xc5, 0xe5, 0xf9, 0x45,
+	0x29, 0x12, 0x4c, 0x60, 0x29, 0x38, 0x5f, 0x29, 0x92, 0x8b, 0x37, 0xd8, 0xc8, 0x19, 0xc9, 0x18,
+	0x39, 0x2e, 0xd6, 0xd4, 0xa2, 0xa2, 0xfc, 0x22, 0xb0, 0x21, 0x7c, 0x46, 0x1c, 0x7a, 0xae, 0x45,
+	0x45, 0xce, 0xf9, 0x29, 0xa9, 0x41, 0x10, 0x61, 0x21, 0x21, 0x2e, 0x96, 0xc4, 0x94, 0x94, 0x22,
+	0xa8, 0x41, 0x60, 0xb6, 0x90, 0x08, 0x17, 0x6b, 0x49, 0x7e, 0x76, 0x6a, 0x9e, 0x04, 0x33, 0x58,
+	0x10, 0xc2, 0x71, 0xe2, 0x8e, 0x62, 0xd1, 0xb3, 0x2e, 0x48, 0x5a, 0xc5, 0xc4, 0x14, 0x90, 0x94,
+	0xc4, 0x06, 0x76, 0xb5, 0x31, 0x20, 0x00, 0x00, 0xff, 0xff, 0xc4, 0xb8, 0x08, 0xbf, 0xf5, 0x00,
+	0x00, 0x00,
 }

@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	LocationGet     uint32 = 220129
-	LocationForward uint32 = 220306
+	LocationGet   uint32 = 220129
+	LocationRelay uint32 = 220306
 )
 
 type (
@@ -36,11 +36,8 @@ func New() *LocationSystem {
 }
 func (location *LocationSystem) Init() {
 	location.locationMap = make(map[uint32]uint, 0)
-	// protoreg.RegisterRpcCmd(consts.LocationLock, location.LockHandler)
-	protoreg.RegisterRpcCmd(LocationForward, location.ForwardHandler)
+	protoreg.RegisterRpcCmd(LocationRelay, location.RelayHandler)
 	protoreg.RegisterRpcCmd(LocationGet, location.GetHandler)
-	// protoreg.RegisterRpcCmd(consts.LocationAdd, location.AddHandler)
-	// protoreg.RegisterRpcCmd(consts.LocationRemove, location.RemoveHandler)
 
 }
 func (location *LocationSystem) Start() {
@@ -49,8 +46,8 @@ func (location *LocationSystem) Start() {
 func (location *LocationSystem) Stop() {
 }
 
-func (location *LocationSystem) ForwardHandler(ctx context.Context, session types.ISession, req *LocationForwardRequire) (*LocationForwardResponse, error) {
-	forwardResponse := &LocationForwardResponse{}
+func (location *LocationSystem) RelayHandler(ctx context.Context, session types.ISession, req *LocationRelayRequire) (*LocationRelayResponse, error) {
+	forwardResponse := &LocationRelayResponse{}
 	cmd := req.CMD
 	forwardResponse.IsSuc = gox.Event.HasBind(cmd)
 	if forwardResponse.IsSuc {
@@ -81,20 +78,6 @@ func (location *LocationSystem) GetHandler(ctx context.Context, session types.IS
 	}
 	return &LocationGetResponse{Datas: datas}, nil
 }
-
-//	func (location *LocationSystem) AddHandler(ctx context.Context, session types.ISession, req *LocationAddRequire) (*LocationAddResponse, error) {
-//		if req != nil && req.Datas != nil {
-//			location.add(req.Datas)
-//		}
-//		return &LocationAddResponse{}, nil
-//	}
-//
-//	func (location *LocationSystem) RemoveHandler(ctx context.Context, session types.ISession, req *LocationRemoveRequire) (*LocationRemoveResponse, error) {
-//		if req != nil && req.IDs != nil {
-//			location.del(req.IDs)
-//		}
-//		return &LocationRemoveResponse{}, nil
-//	}
 
 func (location *LocationSystem) add(Datas []LocationData, isLock bool) {
 	if len(Datas) > 0 {
@@ -130,7 +113,7 @@ func (location *LocationSystem) UpdateLocationToAppID(locationID uint32, exclude
 	if ok {
 		return
 	}
-	datas := location.SyncLocation.Get([]uint32{locationID}, excludeIDs)
+	datas := location.SyncLocation.get([]uint32{locationID}, excludeIDs)
 	location.add(datas, false)
 }
 func (location *LocationSystem) UpdateLocationToAppIDs(locationIDs []uint32, excludeIDs []uint) {
@@ -148,11 +131,11 @@ func (location *LocationSystem) UpdateLocationToAppIDs(locationIDs []uint32, exc
 		return
 	}
 
-	datas := location.SyncLocation.Get(reqIDs, excludeIDs)
+	datas := location.SyncLocation.get(reqIDs, excludeIDs)
 	location.add(datas, false)
 }
 
-func (location *LocationSystem) Add(entity types.ILocationEntity) {
+func (location *LocationSystem) Add(entity types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以添加实体")
 		return
@@ -167,7 +150,7 @@ func (location *LocationSystem) Add(entity types.ILocationEntity) {
 	location.add(datas, true)
 	// location.SyncLocation.Add(datas)
 }
-func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
+func (location *LocationSystem) Adds(entitys []types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以添加实体")
 		return
@@ -188,7 +171,7 @@ func (location *LocationSystem) Adds(entitys []types.ILocationEntity) {
 	location.add(datas, true)
 	// location.SyncLocation.Add(datas)
 }
-func (location *LocationSystem) Del(entity types.ILocationEntity) {
+func (location *LocationSystem) Del(entity types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以删除实体")
 		return
@@ -206,7 +189,7 @@ func (location *LocationSystem) Del(entity types.ILocationEntity) {
 	// location.SyncLocation.Remove(datas)
 	go entity.Destroy(entity)
 }
-func (location *LocationSystem) Dels(entitys []types.ILocationEntity) {
+func (location *LocationSystem) Dels(entitys []types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以删除实体")
 		return
@@ -259,11 +242,12 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 		waitFn := func(id uint) {
 			location.del([]uint32{locationID}, true)
 			excludeIDs = append(excludeIDs, id)
-			time.Sleep(time.Millisecond * 300) //等待0.3秒
+			time.Sleep(time.Millisecond * 200) //等待0.2秒
 		}
 		for {
 			loopCnt++
 			if loopCnt > 3 {
+				logger.Error().Msg("LocationSend:超出尝试发送上限")
 				return
 			}
 			location.lock.RLock()
@@ -295,12 +279,12 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 			if err != nil {
 				return
 			}
-			tmpRequire := &LocationForwardRequire{}
+			tmpRequire := &LocationRelayRequire{}
 			tmpRequire.CMD = cmd
 			tmpRequire.IsCall = false
 			tmpRequire.Require = msgData
-			tmpResponse := &LocationForwardResponse{}
-			err = session.CallByCmd(LocationForward, tmpRequire, tmpResponse)
+			tmpResponse := &LocationRelayResponse{}
+			err = session.CallByCmd(LocationRelay, tmpRequire, tmpResponse)
 			if err != nil {
 				return
 			}
@@ -315,14 +299,13 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 }
 func (location *LocationSystem) Call(locationID uint32, require any, response any) error {
 	if locationID == 0 {
-		logger.Error().Msg("LocationCall LocationID不能为空")
 		return errors.New("LocationCall LocationID不能为空")
 	}
 	excludeIDs := make([]uint, 0)
 	waitFn := func(id uint) {
 		location.del([]uint32{locationID}, true)
 		excludeIDs = append(excludeIDs, id)
-		time.Sleep(time.Millisecond * 300) //等待0.3秒
+		time.Sleep(time.Millisecond * 200) //等待0.2秒
 	}
 
 	loopCnt := 0
@@ -364,12 +347,12 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 		if err != nil {
 			return err
 		}
-		tmpRequire := &LocationForwardRequire{}
+		tmpRequire := &LocationRelayRequire{}
 		tmpRequire.CMD = cmd
 		tmpRequire.IsCall = true
 		tmpRequire.Require = msgData
-		tmpResponse := &LocationForwardResponse{}
-		err = session.CallByCmd(LocationForward, tmpRequire, tmpResponse)
+		tmpResponse := &LocationRelayResponse{}
+		err = session.CallByCmd(LocationRelay, tmpRequire, tmpResponse)
 
 		if err != nil {
 			return err

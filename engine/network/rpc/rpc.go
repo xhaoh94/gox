@@ -17,7 +17,6 @@ type (
 	}
 	GRPC struct {
 		addr2Conn map[string]*grpc.ClientConn
-		rpcAddr   string
 		addrMutex sync.Mutex
 		server    *grpc.Server
 		listen    net.Listener
@@ -25,96 +24,98 @@ type (
 )
 
 // 添加rpc
-func (rpc *RPC) Put(rpx *Rpx) {
-	rpx.del = rpc.del
-	rpc.rpxMap.Store(rpx.RID(), rpx)
+func (rx *RPC) Put(rpx *Rpx) {
+	rpx.del = rx.del
+	rx.rpxMap.Store(rpx.RID(), rpx)
 }
 
 // 获取RPC
-func (rpc *RPC) Get(id uint32) *Rpx {
-	if dr, ok := rpc.rpxMap.Load(id); ok {
+func (rx *RPC) Get(id uint32) *Rpx {
+	if dr, ok := rx.rpxMap.Load(id); ok {
 		return dr.(*Rpx)
 	}
 	return nil
 }
 
 // 删除rpc
-func (rpc *RPC) del(id uint32) {
-	if dr, ok := rpc.rpxMap.LoadAndDelete(id); ok {
+func (rx *RPC) del(id uint32) {
+	if dr, ok := rx.rpxMap.LoadAndDelete(id); ok {
 		dr.(*Rpx).release()
 	}
 }
 
-func (rpc *RPC) SetAddr(addr string) {
+func (rx *RPC) SetAddr(addr string) {
 
 }
 
-func (rpc *RPC) Serve() {
-	if rpc.grpc != nil && rpc.grpc.listen != nil {
-		go rpc.grpc.server.Serve(rpc.grpc.listen)
+func (rx *RPC) Serve() {
+	if rx.grpc != nil && rx.grpc.listen != nil {
+		go rx.grpc.server.Serve(rx.grpc.listen)
 	}
 }
 
 // 开启服务
-func (rpc *RPC) Start() {
+func (rx *RPC) Start() {
 	rpcAddr := gox.Config.RpcAddr
 	if rpcAddr != "" {
-		rpc.grpc = &GRPC{rpcAddr: rpcAddr}
-		rpc.grpc.start()
+		rx.grpc.start(rpcAddr)
 	}
 }
 
 // 停止服务
-func (rpc *RPC) Stop() {
-	if rpc.grpc != nil {
-		rpc.grpc.stop()
+func (rx *RPC) Stop() {
+	if rx.grpc != nil {
+		rx.grpc.stop()
 	}
 }
 
 // 获取grpc 服务端
-func (rpc *RPC) GRpcServer() *grpc.Server {
-	if rpc.grpc != nil {
-		return rpc.grpc.server
+func (rx *RPC) GRpcServer() *grpc.Server {
+	if rx.grpc != nil {
+		return rx.grpc.server
 	}
 	return nil
 }
 
 // 获取grpc客户端
-func (rpc *RPC) GetClientConnByAddr(addr string) *grpc.ClientConn {
-	return rpc.grpc.getConnByAddr(addr)
+func (rx *RPC) GetClientConnByAddr(addr string) *grpc.ClientConn {
+	return rx.grpc.getConnByAddr(addr)
 }
 
 // 初始化
 func New() *RPC {
-	return &RPC{}
+	return &RPC{
+		grpc: &GRPC{
+			addr2Conn: make(map[string]*grpc.ClientConn),
+		},
+	}
 }
 
 // start 开启服务
-func (rpc *GRPC) start() {
-	rpc.addr2Conn = make(map[string]*grpc.ClientConn)
-	if rpc.listen == nil {
+func (grx *GRPC) start(addr string) {
+	if grx.listen == nil {
 		var err error
-		rpc.listen, err = net.Listen("tcp", rpc.rpcAddr)
+		grx.listen, err = net.Listen("tcp", addr)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("gprc 监听失败")
 		}
-		rpc.server = grpc.NewServer()
-		logger.Info().Str("RpcAddr", rpc.rpcAddr).Msg("gprc 等待客户端连接...")
+		grx.server = grpc.NewServer()
+		logger.Info().Str("RpcAddr", addr).Msg("gprc 等待客户端连接...")
 	}
 }
 
 // stop 停止服务
-func (rpc *GRPC) stop() {
-	if rpc.listen != nil {
-		rpc.listen.Close()
+func (grx *GRPC) stop() {
+	if grx.listen != nil {
+		grx.listen.Close()
 	}
 }
 
 // getConnByAddr 获取grpc客户端
-func (rpc *GRPC) getConnByAddr(addr string) *grpc.ClientConn {
-	defer rpc.addrMutex.Unlock()
-	rpc.addrMutex.Lock()
-	conn, ok := rpc.addr2Conn[addr]
+func (grx *GRPC) getConnByAddr(addr string) *grpc.ClientConn {
+	grx.addrMutex.Lock()
+	defer grx.addrMutex.Unlock()
+	conn, ok := grx.addr2Conn[addr]
 	if ok {
 		return conn
 	}
@@ -123,6 +124,6 @@ func (rpc *GRPC) getConnByAddr(addr string) *grpc.ClientConn {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("获取grpc客户端失败")
 	}
-	rpc.addr2Conn[addr] = conn
+	grx.addr2Conn[addr] = conn
 	return conn
 }

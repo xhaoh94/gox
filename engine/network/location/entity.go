@@ -6,13 +6,13 @@ import (
 )
 
 type (
-	Entity struct {
+	Location struct {
 	}
 )
 
-func (*Entity) Init(entity types.ILocationEntity) {
+func (*Location) Init(entity types.ILocation) {
 	entity.OnInit()
 }
-func (*Entity) Destroy(entity types.ILocationEntity) {
+func (*Location) Destroy(entity types.ILocation) {
 	protoreg.RemoveLocation(entity)
 }

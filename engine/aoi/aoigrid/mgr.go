@@ -120,14 +120,14 @@ func (m *AOIGridManager) getSurroundGridsByGid(gID int) (grids []*AOIGrid) {
 	}
 	idx := gID % m.cntsX
 	idy := gID / m.cntsX
-	for y := idy - m.Distance; y <= idy+m.Distance; y++ {
-		if y < 0 || y >= m.cntsY {
-			continue
-		}
-		for x := idx - m.Distance; x <= idx+m.Distance; x++ {
-			if x < 0 || x >= m.cntsX {
-				continue
-			}
+	minx := max(idx-m.Distance, 0)
+	maxx := min(idx+m.Distance, m.cntsX-1)
+
+	miny := max(idy-m.Distance, 0)
+	maxy := min(idy+m.Distance, m.cntsY-1)
+
+	for y := miny; y <= maxy; y++ {
+		for x := minx; x <= maxx; x++ {
 			id := gID + (x - idx) + ((y - idy) * m.cntsX)
 			grids = append(grids, m.grids[id])
 		}

@@ -8,33 +8,15 @@ type (
 		Datas []LocationData
 	}
 
-	LocationForwardRequire struct {
+	LocationRelayRequire struct {
 		CMD     uint32
 		Require []byte
 		IsCall  bool
 	}
-	LocationForwardResponse struct {
+	LocationRelayResponse struct {
 		IsSuc    bool
 		Response []byte
 	}
-
-	// LocationAddRequire struct {
-	// 	Datas []LocationData
-	// }
-	// LocationAddResponse struct {
-	// }
-
-	// LocationRemoveRequire struct {
-	// 	IDs []uint32
-	// }
-	// LocationRemoveResponse struct {
-	// }
-
-	// LocationLockRequire struct {
-	// 	Lock bool
-	// }
-	// LocationLockResponse struct {
-	// }
 
 	LocationData struct {
 		LocationID uint32

@@ -28,6 +28,14 @@ func New() *NetWork {
 	}
 }
 
+func (network *NetWork) Outside() types.IService {
+	return network.outside
+}
+
+func (network *NetWork) Interior() types.IService {
+	return network.interior
+}
+
 // 通过id获取Session
 func (network *NetWork) GetSessionById(sid uint32) types.ISession {
 	session := network.interior.GetSessionById(sid)

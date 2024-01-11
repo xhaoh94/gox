@@ -98,7 +98,7 @@ func RegisterRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any
 }
 
 // 注册定位消息
-func AddLocation[T func(context.Context, types.ISession, V), V any](entity types.ILocationEntity, fn T) {
+func AddLocation[T func(context.Context, types.ISession, V), V any](entity types.ILocation, fn T) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	in := tFun.In(2)
@@ -116,7 +116,7 @@ func AddLocation[T func(context.Context, types.ISession, V), V any](entity types
 }
 
 // 注册定位RPC消息
-func AddLocationRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](entity types.ILocationEntity, fn T) {
+func AddLocationRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](entity types.ILocation, fn T) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	out := tFun.Out(0)
@@ -138,7 +138,7 @@ func AddLocationRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 
 }
 
 // 注销定位消息
-func RemoveLocation(entity types.ILocationEntity) {
+func RemoveLocation(entity types.ILocation) {
 	defer locationLock.Unlock()
 	locationLock.Lock()
 	locationID := entity.LocationID()
