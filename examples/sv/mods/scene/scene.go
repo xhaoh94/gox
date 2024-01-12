@@ -69,7 +69,7 @@ func (s *Scene) OnEnterMap(ctx context.Context, session types.ISession, req *pb.
 		Position: &pb.Vector3{X: 0, Y: 0, Z: 0},
 	}
 	unit := newUnit(entity, session, s) //创建玩家
-	others := make([]*pb.Entity, len(s.units))
+	others := make([]*pb.Entity, 0)
 	for _, v := range s.units {
 		others = append(others, v.Entity)
 	}
@@ -95,8 +95,7 @@ func (s *Scene) interiorEnterVision(entity *pb.Entity) {
 			roles = append(roles, v.Entity.RoleId)
 			tem[v.GateSession] = roles
 		} else {
-			roles = make([]uint32, 0)
-			roles = append(roles, v.Entity.RoleId)
+			roles = []uint32{v.Entity.RoleId}
 			tem[v.GateSession] = roles
 		}
 	}
@@ -127,8 +126,7 @@ func (s *Scene) interiorLeaveVision(entity *pb.Entity) {
 			roles = append(roles, v.Entity.RoleId)
 			tem[v.GateSession] = roles
 		} else {
-			roles = make([]uint32, 0)
-			roles = append(roles, v.Entity.RoleId)
+			roles = []uint32{v.Entity.RoleId}
 			tem[v.GateSession] = roles
 		}
 	}
@@ -151,8 +149,7 @@ func (s *Scene) interiorMove(entity *pb.Entity, points []*pb.Vector3) {
 			roles = append(roles, v.Entity.RoleId)
 			tem[v.GateSession] = roles
 		} else {
-			roles = make([]uint32, 0)
-			roles = append(roles, v.Entity.RoleId)
+			roles = []uint32{v.Entity.RoleId}
 			tem[v.GateSession] = roles
 		}
 	}
