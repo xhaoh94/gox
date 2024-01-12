@@ -318,10 +318,7 @@ func (session *Session) rpc() *rpc.RPC {
 	return gox.NetWork.Rpc().(*rpc.RPC)
 }
 func (session *Session) codec(cmd uint32) types.ICodec {
-	switch cmd {
-	case location.LocationGet:
-		return codec.MsgPack
-	case location.LocationRelay:
+	if location.IsLocationCMD(cmd) {
 		return codec.MsgPack
 	}
 	return session.Codec()
@@ -331,7 +328,7 @@ func (session *Session) endian() binary.ByteOrder {
 }
 
 func (session *Session) emitMessage(cmd uint32, require any, rpcID uint32) {
-	if response, err := cmdhelper.CallEvt(cmd, session.ctx, session, require); err == nil {
+	if response, err := protoreg.Call(cmd, session.ctx, session, require); err == nil {
 		if rpcID > 0 {
 			session.reply(cmd, response, rpcID)
 		}

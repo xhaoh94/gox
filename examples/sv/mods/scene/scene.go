@@ -41,7 +41,7 @@ func (m *SceneModule) OnStart() {
 
 func newScene(id uint) *Scene {
 	scene := &Scene{Id: id, units: make(map[uint32]*Unit)}
-	gox.Location.Add(scene) //把场景添加进Actor
+	gox.Location.Register(scene) //把场景添加进Actor
 	return scene
 }
 

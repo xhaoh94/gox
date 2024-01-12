@@ -1,5 +1,7 @@
 package types
 
+import "context"
+
 type (
 	//模块接口
 	IModule interface {
@@ -13,5 +15,9 @@ type (
 		OnStart()
 		//模块销毁
 		OnDestroy()
+	}
+
+	ProtoFn[V any] interface {
+		func(context.Context, ISession, V)
 	}
 )

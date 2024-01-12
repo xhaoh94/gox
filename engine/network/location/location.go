@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	LocationGet   uint32 = 220129
-	LocationRelay uint32 = 220306
+	waitTime time.Duration = 200
 )
 
 type (
@@ -24,8 +23,13 @@ type (
 		SyncLocation
 
 		// lockWg      sync.WaitGroup
-		lock        sync.RWMutex
-		locationMap map[uint32]uint
+		lockOther sync.RWMutex
+		//缓存非本服务器的实体对应的服务器ID（这里的数据是有可能存在偏差的，例如某个实体已经转移到其他服务器上面去，这里记录的还是上一个服务器的ID）
+		otherLocationMap map[uint32]uint
+
+		lockSelf sync.RWMutex
+		//注册在本服务器的实体
+		slefLocationMap map[uint32]uint
 	}
 )
 
@@ -35,10 +39,13 @@ func New() *LocationSystem {
 	return locationSystem
 }
 func (location *LocationSystem) Init() {
-	location.locationMap = make(map[uint32]uint, 0)
-	protoreg.RegisterRpcCmd(LocationRelay, location.RelayHandler)
-	protoreg.RegisterRpcCmd(LocationGet, location.GetHandler)
-
+	location.otherLocationMap = make(map[uint32]uint, 0)
+	location.slefLocationMap = make(map[uint32]uint, 0)
+	if gox.Config.Location {
+		protoreg.RegisterRpcCmd(LocationRelay, location.RelayHandler)
+		protoreg.RegisterRpcCmd(LocationGet, location.GetHandler)
+		protoreg.Register(LocationRegister, location.RegisterHandler)
+	}
 }
 func (location *LocationSystem) Start() {
 }
@@ -47,184 +54,182 @@ func (location *LocationSystem) Stop() {
 }
 
 func (location *LocationSystem) RelayHandler(ctx context.Context, session types.ISession, req *LocationRelayRequire) (*LocationRelayResponse, error) {
-	forwardResponse := &LocationRelayResponse{}
-	cmd := req.CMD
-	forwardResponse.IsSuc = gox.Event.HasBind(cmd)
-	if forwardResponse.IsSuc {
+
+	location.lockSelf.RLock()
+	_, ok := location.slefLocationMap[req.LocationID]
+	location.lockSelf.RUnlock()
+	relayResponse := &LocationRelayResponse{IsSuc: ok}
+	if ok { //如果此实体注册在本服务器，那么进行逻辑处理，不然直接返回
+		cmd := req.CMD
 		require := protoreg.GetRequireByCmd(cmd)
 		if err := session.Codec().Unmarshal(req.Require, require); err != nil {
-			return forwardResponse, nil
+			return relayResponse, nil
 		}
-		response, err := cmdhelper.CallEvt(cmd, ctx, session, require)
+		response, err := protoreg.Call(cmd, ctx, session, require)
 		if err != nil || !req.IsCall {
-			return forwardResponse, nil
+			return relayResponse, nil
 		}
 		if msgData, err := session.Codec().Marshal(response); err == nil {
-			forwardResponse.Response = msgData
+			relayResponse.Response = msgData
 		}
 	}
-	return forwardResponse, nil
+	return relayResponse, nil
 }
 func (location *LocationSystem) GetHandler(ctx context.Context, session types.ISession, req *LocationGetRequire) (*LocationGetResponse, error) {
 	datas := make([]LocationData, 0)
-	if len(location.locationMap) > 0 && len(req.IDs) > 0 {
-		defer location.lock.RUnlock()
-		location.lock.RLock()
+	if len(location.slefLocationMap) > 0 && len(req.IDs) > 0 {
+		defer location.lockSelf.RUnlock()
+		location.lockSelf.RLock()
 		for _, k := range req.IDs {
-			if v, ok := location.locationMap[k]; ok {
+			if v, ok := location.slefLocationMap[k]; ok {
 				datas = append(datas, LocationData{LocationID: k, AppID: v})
 			}
 		}
 	}
 	return &LocationGetResponse{Datas: datas}, nil
 }
-
-func (location *LocationSystem) add(Datas []LocationData, isLock bool) {
-	if len(Datas) > 0 {
-		if isLock {
-			defer location.lock.Unlock()
-			location.lock.Lock()
-		}
-		for _, v := range Datas {
-			logger.Debug().Uint32("LocationID", v.LocationID).Uint("AppID", v.AppID).Msg("新增Location")
-			location.locationMap[v.LocationID] = v.AppID
-		}
-	}
-}
-func (location *LocationSystem) del(Datas []uint32, isLock bool) {
-	if len(Datas) > 0 && len(location.locationMap) > 0 {
-		if isLock {
-			defer location.lock.Unlock()
-			location.lock.Lock()
-		}
-		for _, v := range Datas {
-			if _, ok := location.locationMap[v]; ok {
-				delete(location.locationMap, v)
-				logger.Debug().Uint32("LocationID", v).Msg("删除Location")
+func (location *LocationSystem) RegisterHandler(ctx context.Context, session types.ISession, req *LocationRegisterRequire) {
+	if req.AppID > 0 && req.AppID != gox.Config.AppID && len(req.LocationIDs) > 0 {
+		location.lockOther.Lock()
+		for _, locationID := range req.LocationIDs {
+			if req.IsRegister {
+				location.otherLocationMap[locationID] = req.AppID
+			} else {
+				delete(location.otherLocationMap, locationID)
 			}
 		}
+		location.lockOther.Unlock()
 	}
 }
 
-func (location *LocationSystem) UpdateLocationToAppID(locationID uint32, excludeIDs []uint) {
-	defer location.lock.Unlock()
-	location.lock.Lock()
-	_, ok := location.locationMap[locationID]
-	if ok {
-		return
-	}
-	datas := location.SyncLocation.get([]uint32{locationID}, excludeIDs)
-	location.add(datas, false)
-}
-func (location *LocationSystem) UpdateLocationToAppIDs(locationIDs []uint32, excludeIDs []uint) {
-
-	location.lock.Lock()
-	defer location.lock.Unlock()
-
-	reqIDs := make([]uint32, 0)
-	for _, locationID := range locationIDs {
-		if _, ok := location.locationMap[locationID]; !ok {
-			reqIDs = append(reqIDs, locationID)
+func (location *LocationSystem) add(Datas []LocationData) {
+	if len(Datas) > 0 {
+		location.lockOther.Lock()
+		for _, v := range Datas {
+			location.otherLocationMap[v.LocationID] = v.AppID
 		}
+		location.lockOther.Unlock()
 	}
-	if len(reqIDs) == 0 {
-		return
+}
+func (location *LocationSystem) del(Datas []uint32) {
+	if len(Datas) > 0 && len(location.otherLocationMap) > 0 {
+		location.lockOther.Lock()
+		for _, v := range Datas {
+			delete(location.otherLocationMap, v)
+		}
+		location.lockOther.Unlock()
 	}
-
-	datas := location.SyncLocation.get(reqIDs, excludeIDs)
-	location.add(datas, false)
 }
 
-func (location *LocationSystem) Add(entity types.ILocation) {
+// 更新location所在的服务器，
+// excludeIDs 排除的服务器列表
+func (location *LocationSystem) updateLocationToAppID(locationID uint32, excludeServiceIDs []uint) {
+	datas := location.SyncLocation.get([]uint32{locationID}, excludeServiceIDs)
+	location.add(datas)
+}
+
+func (location *LocationSystem) Register(entity types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以添加实体")
 		return
 	}
-	aid := entity.LocationID()
-	if aid == 0 {
+	locationID := entity.LocationID()
+	if locationID == 0 {
 		logger.Error().Msg("Location没有初始化ID")
 		return
 	}
 	go entity.Init(entity)
-	datas := []LocationData{{LocationID: aid, AppID: gox.Config.AppID}}
-	location.add(datas, true)
-	// location.SyncLocation.Add(datas)
+
+	location.lockSelf.Lock()
+	location.slefLocationMap[locationID] = gox.Config.AppID
+	logger.Debug().Uint32("LocationID", locationID).Uint("AppID", gox.Config.AppID).Msg("注册Location")
+	location.lockSelf.Unlock()
+
+	location.SyncLocation.register(true, []uint32{locationID})
 }
-func (location *LocationSystem) Adds(entitys []types.ILocation) {
+func (location *LocationSystem) Registers(entitys []types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以添加实体")
 		return
 	}
-	datas := make([]LocationData, 0)
+	datas := make([]uint32, 0)
+	location.lockSelf.Lock()
 	for _, entity := range entitys {
-		aid := entity.LocationID()
-		if aid == 0 {
+		locationID := entity.LocationID()
+		if locationID == 0 {
 			logger.Error().Msg("Location没有初始化ID")
-			return
+			continue
 		}
 		go entity.Init(entity)
-		datas = append(datas, LocationData{LocationID: aid, AppID: gox.Config.AppID})
+		location.slefLocationMap[locationID] = gox.Config.AppID
+		logger.Debug().Uint32("LocationID", locationID).Uint("AppID", gox.Config.AppID).Msg("注册Location")
+		datas = append(datas, locationID)
 	}
-	if len(datas) == 0 {
-		return
-	}
-	location.add(datas, true)
-	// location.SyncLocation.Add(datas)
+	location.lockSelf.Unlock()
+
+	location.SyncLocation.register(true, datas)
 }
-func (location *LocationSystem) Del(entity types.ILocation) {
+func (location *LocationSystem) UnRegister(entity types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以删除实体")
 		return
 	}
-	if len(location.locationMap) == 0 {
+	if len(location.slefLocationMap) == 0 {
 		return
 	}
-	aid := entity.LocationID()
-	if aid == 0 {
+	locationID := entity.LocationID()
+	if locationID == 0 {
 		logger.Error().Msg("Location没有初始化ID")
 		return
 	}
-	datas := []uint32{aid}
-	location.del(datas, true)
-	// location.SyncLocation.Remove(datas)
+	location.lockSelf.Lock()
+	delete(location.slefLocationMap, locationID)
+	logger.Debug().Uint32("LocationID", locationID).Msg("移除Location")
+	location.lockSelf.Unlock()
+	location.SyncLocation.register(false, []uint32{locationID})
 	go entity.Destroy(entity)
 }
-func (location *LocationSystem) Dels(entitys []types.ILocation) {
+func (location *LocationSystem) UnRegisters(entitys []types.ILocation) {
 	if !gox.Config.Location {
 		logger.Error().Msg("没有启动Location的服务器不可以删除实体")
 		return
 	}
-	if len(location.locationMap) == 0 {
+	if len(location.otherLocationMap) == 0 {
 		return
 	}
 	datas := make([]uint32, 0)
+	location.lockSelf.Lock()
 	for _, entity := range entitys {
-		aid := entity.LocationID()
-		if aid == 0 {
+		locationID := entity.LocationID()
+		if locationID == 0 {
 			logger.Error().Msg("Location没有初始化ID")
-			return
+			continue
 		}
-		datas = append(datas, aid)
+		delete(location.slefLocationMap, locationID)
+		logger.Debug().Uint32("LocationID", locationID).Msg("移除Location")
+		datas = append(datas, locationID)
 	}
-	if len(datas) == 0 {
-		return
-	}
-	location.del(datas, true)
-	// location.SyncLocation.Remove(datas)
+	location.lockSelf.Unlock()
+
+	location.SyncLocation.register(false, datas)
+
 	for _, entity := range entitys {
 		go entity.Destroy(entity)
 	}
 }
 func (location *LocationSystem) ServiceClose(appID uint) {
-	if len(location.locationMap) == 0 {
+	if appID == gox.Config.AppID {
+		clear(location.slefLocationMap)
 		return
 	}
-	defer location.lock.Unlock()
-	location.lock.Lock()
-	for k, v := range location.locationMap {
+	if len(location.otherLocationMap) == 0 {
+		return
+	}
+	defer location.lockOther.Unlock()
+	location.lockOther.Lock()
+	for k, v := range location.otherLocationMap {
 		if v == appID {
-			logger.Debug().Uint32("LocationID", k).Msg("删除Location")
-			delete(location.locationMap, k)
+			delete(location.otherLocationMap, k)
 		}
 	}
 }
@@ -240,9 +245,9 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 		cmd := cmdhelper.ToCmd(require, nil, locationID)
 		excludeIDs := make([]uint, 0)
 		waitFn := func(id uint) {
-			location.del([]uint32{locationID}, true)
+			location.del([]uint32{locationID})
 			excludeIDs = append(excludeIDs, id)
-			time.Sleep(time.Millisecond * 200) //等待0.2秒
+			time.Sleep(time.Millisecond * waitTime) //等待0.2秒
 		}
 		for {
 			loopCnt++
@@ -250,11 +255,28 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 				logger.Error().Msg("LocationSend:超出尝试发送上限")
 				return
 			}
-			location.lock.RLock()
-			id, ok := location.locationMap[locationID]
-			location.lock.RUnlock()
+			location.lockSelf.RLock()
+			_, ok := location.slefLocationMap[locationID]
+			location.lockSelf.RUnlock()
+
+			if ok {
+				if !protoreg.HasBind(cmd) { //可能实体转移到其他服务器了，等待一下，再重新请求
+					logger.Warn().Uint32("CMD", cmd).Msg("LocationSend 发送消息,找不到对应的CMD处理方法")
+					continue
+				}
+				session := gox.NetWork.GetSessionByAppID(gox.Config.AppID)
+				_, err := protoreg.Call(cmd, gox.Ctx, session, require)
+				if err != nil {
+					logger.Warn().Err(err).Uint32("CMD", cmd).Msg("LocationSend 发送消息失败")
+				}
+				return
+			}
+
+			location.lockOther.RLock()
+			id, ok := location.otherLocationMap[locationID]
+			location.lockOther.RUnlock()
 			if !ok {
-				location.UpdateLocationToAppID(locationID, excludeIDs)
+				location.updateLocationToAppID(locationID, excludeIDs)
 				continue
 			}
 			session := gox.NetWork.GetSessionByAppID(id)
@@ -262,34 +284,17 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 				waitFn(id)
 				continue
 			}
-			if id == gox.Config.AppID {
-				if !gox.Event.HasBind(cmd) {
-					waitFn(id)
-					continue
-				}
-				_, err := cmdhelper.CallEvt(cmd, gox.Ctx, session, require)
-				if err != nil {
-					return
-				}
-				logger.Warn().Err(err).Uint32("CMD", cmd).Msg("LocationSend 发送消息失败")
-				return
-			}
 
 			msgData, err := session.Codec().Marshal(require)
 			if err != nil {
+				logger.Warn().Err(err).Uint32("CMD", cmd).Msg("LocationSend 序列化失败")
 				return
 			}
-			tmpRequire := &LocationRelayRequire{}
-			tmpRequire.CMD = cmd
-			tmpRequire.IsCall = false
-			tmpRequire.Require = msgData
-			tmpResponse := &LocationRelayResponse{}
-			err = session.CallByCmd(LocationRelay, tmpRequire, tmpResponse)
-			if err != nil {
+			tmpResponse := location.relay(session, cmd, locationID, false, msgData)
+			if tmpResponse == nil {
 				return
 			}
-
-			if !tmpResponse.IsSuc {
+			if !tmpResponse.IsSuc { //可能实体转移到其他服务器了，等待一下，再重新请求
 				waitFn(id)
 				continue
 			}
@@ -303,9 +308,9 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 	}
 	excludeIDs := make([]uint, 0)
 	waitFn := func(id uint) {
-		location.del([]uint32{locationID}, true)
+		location.del([]uint32{locationID})
 		excludeIDs = append(excludeIDs, id)
-		time.Sleep(time.Millisecond * 200) //等待0.2秒
+		time.Sleep(time.Millisecond * waitTime) //等待一下
 	}
 
 	loopCnt := 0
@@ -315,25 +320,18 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 		if loopCnt > 3 {
 			return errors.New("LocationCall:超出尝试发送上限")
 		}
-		location.lock.RLock()
-		id, ok := location.locationMap[locationID]
-		location.lock.RUnlock()
-		if !ok {
-			location.UpdateLocationToAppID(locationID, excludeIDs)
-			continue
-		}
-		session := gox.NetWork.GetSessionByAppID(id)
-		if session == nil {
-			waitFn(id)
-			continue
-		}
 
-		if id == gox.Config.AppID {
-			if !gox.Event.HasBind(cmd) {
-				waitFn(id)
+		location.lockSelf.RLock()
+		_, ok := location.slefLocationMap[locationID]
+		location.lockSelf.RUnlock()
+
+		if ok {
+			if !protoreg.HasBind(cmd) {
+				logger.Warn().Uint32("CMD", cmd).Msg("LocationCall 发送消息,找不到对应的CMD处理方法")
 				continue
 			}
-			resp, err := cmdhelper.CallEvt(cmd, gox.Ctx, session, require)
+			session := gox.NetWork.GetSessionByAppID(gox.Config.AppID)
+			resp, err := protoreg.Call(cmd, gox.Ctx, session, require)
 			if err != nil {
 				return err
 			}
@@ -343,21 +341,32 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 			return nil
 		}
 
+		location.lockOther.RLock()
+		id, ok := location.otherLocationMap[locationID]
+		location.lockOther.RUnlock()
+		if !ok {
+			location.updateLocationToAppID(locationID, excludeIDs)
+			continue
+		}
+		session := gox.NetWork.GetSessionByAppID(id)
+		if session == nil {
+			waitFn(id)
+			continue
+		}
+
 		msgData, err := session.Codec().Marshal(require)
 		if err != nil {
 			return err
 		}
-		tmpRequire := &LocationRelayRequire{}
-		tmpRequire.CMD = cmd
-		tmpRequire.IsCall = true
-		tmpRequire.Require = msgData
-		tmpResponse := &LocationRelayResponse{}
-		err = session.CallByCmd(LocationRelay, tmpRequire, tmpResponse)
 
+		tmpResponse := location.relay(session, cmd, locationID, true, msgData)
+		if tmpResponse == nil {
+			return errors.New("转发消息失败")
+		}
 		if err != nil {
 			return err
 		}
-		if !tmpResponse.IsSuc {
+		if !tmpResponse.IsSuc { //可能实体转移到其他服务器了，等待一下，再重新请求
 			waitFn(id)
 			continue
 		}
@@ -369,8 +378,8 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 		return nil
 	}
 }
-func (as *LocationSystem) Broadcast(locationIDs []uint32, require any) {
+func (location *LocationSystem) Broadcast(locationIDs []uint32, require any) {
 	for _, locationID := range locationIDs {
-		as.Send(locationID, require)
+		location.Send(locationID, require)
 	}
 }

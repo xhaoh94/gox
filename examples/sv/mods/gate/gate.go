@@ -57,7 +57,7 @@ func (m *GateModule) OnSessionStop(sid uint32) {
 
 func (m *GateModule) LoginGame(ctx context.Context, req *pb.C2S_LoginGame) (*pb.S2C_LoginGame, error) {
 	token := commonhelper.NewUUID() //创建user对应的token
-	logger.Debug().Msgf("创建user[%s]对应的token[%s]", req.Account, token)
+	logger.Debug().Msgf("创建账号[%s]对应的token[%s]", req.Account, token)
 	m.muxToken.Lock()
 	m.userToken[req.Account] = UserToken{user: req.Account, token: token, time: time.Now()} //将user、token保存
 	m.muxToken.Unlock()
@@ -109,7 +109,6 @@ func (m *GateModule) Move(ctx context.Context, session types.ISession, req *pb.C
 	m.muxSession.RLock()
 	defer m.muxSession.RUnlock()
 	if rid, ok := m.sessionRole[session.ID()]; ok {
-		logger.Debug().Msgf("玩家移动roleID:%d", rid)
 		gox.Location.Send(rid, req)
 	}
 }
@@ -128,7 +127,6 @@ func (m *GateModule) InteriorEnterVision(ctx context.Context, session types.ISes
 			_session.Send(pb.CMD_Bcst_EnterMap, bcstResp)
 		}
 	}
-
 }
 func (m *GateModule) InteriorLeaveVision(ctx context.Context, session types.ISession, req *pb.Interior_LeaveVision) {
 

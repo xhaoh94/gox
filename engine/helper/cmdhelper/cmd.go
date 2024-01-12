@@ -1,11 +1,9 @@
 package cmdhelper
 
 import (
-	"errors"
 	"reflect"
 	"sync"
 
-	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
 	"github.com/xhaoh94/gox/engine/logger"
 )
@@ -59,30 +57,4 @@ func ToCmd(in interface{}, out interface{}, actorId uint32) uint32 {
 		rspT = reflect.TypeOf(out)
 	}
 	return ToCmdByRtype(reqT, rspT, actorId)
-}
-
-// 触发
-func CallEvt(event uint32, params ...any) (any, error) {
-	values, err := gox.Event.Call(event, params...)
-	if err != nil {
-		return nil, err
-	}
-	switch len(values) {
-	case 0:
-		return nil, nil
-	case 1:
-		return values[0].Interface(), nil
-	case 2:
-		var v1 = values[1]
-		if v1.IsNil() {
-			return values[0].Interface(), nil
-		}
-		typeOfError := reflect.TypeOf((*error)(nil)).Elem()
-		if v1.Type().Implements(typeOfError) {
-			return values[0].Interface(), v1.Interface().(error)
-		}
-		return values[0].Interface(), nil
-	default:
-		return nil, errors.New("返回参数错误")
-	}
 }

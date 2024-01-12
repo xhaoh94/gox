@@ -20,6 +20,9 @@ type (
 // 获取指定类型的服务器
 func WithType(t string) ServiceOptionFunc {
 	return func(entity IServiceEntity) bool {
+		if t == "" || t == "All" || t == "all" {
+			return true
+		}
 		return entity.GetType() == t
 	}
 }

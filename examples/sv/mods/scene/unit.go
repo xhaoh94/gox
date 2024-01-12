@@ -22,7 +22,7 @@ type (
 
 func newUnit(entity *pb.Entity, gateSession types.ISession, scene *Scene) *Unit {
 	unit := &Unit{Entity: entity, GateSession: gateSession, Scene: scene}
-	gox.Location.Add(unit) //添加到Location
+	gox.Location.Register(unit) //添加到Location
 	return unit
 }
 
@@ -36,7 +36,7 @@ func (unit *Unit) OnInit() {
 }
 
 func (unit *Unit) LevaeMap(ctx context.Context, session types.ISession, req *pb.C2S_LeaveMap) {
-	protoreg.RemoveLocation(unit)
+	gox.Location.UnRegister(unit)
 	logger.Debug().Msgf("玩家离开roleID:%d", unit.Entity.RoleId)
 	unit.Scene.interiorLeaveVision(unit.Entity)
 }
