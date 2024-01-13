@@ -67,7 +67,7 @@ func (session *Session) init(id uint32, service *Service, channel types.IChannel
 // 启动
 func (session *Session) start() {
 	session.channel.Start()
-	if session.IsConnector() { //如果是连接者 启动心跳发送
+	if session.IsConnector() && !gox.Config.Development { //如果是连接者 启动心跳发送
 		go session.onHeartbeat()
 	}
 }
@@ -97,7 +97,6 @@ func (session *Session) Send(cmd uint32, require any) bool {
 	if err := pkt.AppendMessage(require, session.codec(cmd)); err != nil {
 		return false
 	}
-
 	session.sendData(pkt.Data())
 	return true
 }

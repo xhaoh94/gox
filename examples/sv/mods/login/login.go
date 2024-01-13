@@ -27,6 +27,25 @@ func (m *LoginModule) OnStart() {
 
 }
 
+// func (m *LoginModule) LoginGame(ctx context.Context, session types.ISession, req *pb.C2S_LoginGame) {
+
+// 	cfgs := gox.NetWork.GetServiceEntitys(types.WithType(game.Gate)) //获取Gate服务器配置
+// 	if len(cfgs) == 0 {
+// 		logger.Error().Msgf("没获取到[%s]对应的服务器配置", game.Gate)
+// 		return
+// 	}
+// 	gateCfg := cfgs[0]
+// 	logger.Info().Msgf("[Rpcaddr:%s]", gateCfg.GetRpcAddr())
+// 	loginSession := gox.NetWork.GetSessionByAddr(gateCfg.GetInteriorAddr()) //创建session连接Gate服务器
+// 	for i := 0; i < 5; i++ {
+// 		temReq := &pb.C2S_LoginGame{
+// 			Account:  strhelper.ValToString(i),
+// 			Password: "x",
+// 		}
+// 		loginSession.Send(111, temReq)
+// 	}
+// }
+
 func (m *LoginModule) LoginGame(ctx context.Context, session types.ISession, req *pb.C2S_LoginGame) {
 
 	cfgs := gox.NetWork.GetServiceEntitys(types.WithType(game.Gate)) //获取Gate服务器配置

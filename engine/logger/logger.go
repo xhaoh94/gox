@@ -13,18 +13,18 @@ import (
 
 type (
 	logConf struct {
-		Development bool   `yaml:"log_development"`
-		LogLevel    string `yaml:"log_level"`
-		LogMaxSize  int    `yaml:"log_max_size"`
-		MaxBackups  int    `yaml:"log_max_backups"`
-		LogMaxAge   int    `yaml:"log_max_age"`
-		Console     bool   `yaml:"log_console"`
-		Skip        int    `yaml:"log_callerskip"`
+		LogLevel   string `yaml:"log_level"`
+		LogMaxSize int    `yaml:"log_max_size"`
+		MaxBackups int    `yaml:"log_max_backups"`
+		LogMaxAge  int    `yaml:"log_max_age"`
+		Console    bool   `yaml:"log_console"`
+		Skip       int    `yaml:"log_callerskip"`
 	}
 )
 
 var (
-	Logger zerolog.Logger
+	development bool
+	Logger      zerolog.Logger
 	// LogSampled zerolog.Logger
 )
 
@@ -42,7 +42,8 @@ func init() {
 }
 
 // 配置热加载等场景调用, 重载日志环境
-func Init(path string) error {
+func Init(path string, dev bool) error {
+	development = dev
 	if err := LogConfig(path); err != nil {
 		return err
 	}
@@ -68,13 +69,12 @@ func LogConfig(path string) error {
 	var logCfg logConf
 	if path == "" {
 		logCfg = logConf{
-			Development: true,
-			LogLevel:    "debug",
-			LogMaxSize:  100,
-			MaxBackups:  30,
-			LogMaxAge:   7,
-			Console:     true,
-			Skip:        2,
+			LogLevel:   "debug",
+			LogMaxSize: 100,
+			MaxBackups: 30,
+			LogMaxAge:  7,
+			Console:    true,
+			Skip:       2,
 		}
 	} else {
 		bytes, err := os.ReadFile(path)
@@ -100,7 +100,7 @@ func LogConfig(path string) error {
 	)
 	lv := parseLevel(logCfg.LogLevel)
 
-	if !logCfg.Development {
+	if !development {
 		// 2. 生产环境时, 日志输出到文件
 		for i := zerolog.DebugLevel; i < zerolog.PanicLevel; i++ {
 			if i >= lv {
@@ -110,7 +110,7 @@ func LogConfig(path string) error {
 	}
 	if logCfg.Console {
 		// 1. 开发环境时, 日志高亮输出到控制台
-		writers = []io.Writer{newConsoleWriter(lv, !logCfg.Development, "2006-01-02 15:04:05")}
+		writers = []io.Writer{newConsoleWriter(lv, !development, "2006-01-02 15:04:05")}
 	} else {
 		writers = append(writers, newLevelWriter(lv))
 	}

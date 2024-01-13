@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/service"
 	"github.com/xtaci/kcp-go/v5"
@@ -49,7 +48,7 @@ func (channel *KChannel) run() {
 }
 func (channel *KChannel) recvAsync() {
 	defer channel.Wg.Done()
-	readTimeout := gox.Config.Network.ReadTimeout
+	readTimeout := channel.ReadTimeout()
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
 			logger.Info().Str("Addr", channel.RemoteAddr()).Err(err).Msg("kcp 接受数据超时")

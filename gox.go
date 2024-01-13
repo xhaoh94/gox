@@ -42,7 +42,7 @@ func Init(appConfPath string) {
 		log.Printf("gox: AppID 必须大于0")
 		return
 	}
-	logger.Init(Config.LogConfPath)
+	logger.Init(Config.LogConfPath, Config.Development)
 }
 
 func loadConf(appConfPath string) AppConf {

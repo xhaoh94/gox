@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/types"
@@ -25,6 +26,13 @@ type (
 		IsRun bool
 	}
 )
+
+func (channel *Channel) ReadTimeout() time.Duration {
+	if gox.Config.Development {
+		return 0
+	}
+	return gox.Config.Network.ReadTimeout
+}
 
 // RemoteAddr 获取连接地址
 func (channel *Channel) RemoteAddr() string {

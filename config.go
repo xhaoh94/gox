@@ -7,6 +7,7 @@ import (
 
 type (
 	AppConf struct {
+		Development  bool          `yaml:"development"`
 		AppID        uint          `yaml:"app_id"`
 		AppType      string        `yaml:"app_type"`
 		Version      string        `yaml:"version"`

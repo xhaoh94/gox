@@ -47,7 +47,7 @@ func (channel *WChannel) run() {
 }
 func (channel *WChannel) recvAsync() {
 	defer channel.Wg.Done()
-	readTimeout := gox.Config.Network.ReadTimeout
+	readTimeout := channel.ReadTimeout()
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil { // timeout
 			logger.Info().Str("RemoteAddr", channel.RemoteAddr()).Err(err).Msg("websocket 接受数据超时")

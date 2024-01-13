@@ -240,12 +240,12 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 		return
 	}
 
-	go func() {
+	go func(_locationID uint32, _require any) {
 		loopCnt := 0
-		cmd := cmdhelper.ToCmd(require, nil, locationID)
+		cmd := cmdhelper.ToCmd(_require, nil, _locationID)
 		excludeIDs := make([]uint, 0)
 		waitFn := func(id uint) {
-			location.del([]uint32{locationID})
+			location.del([]uint32{_locationID})
 			excludeIDs = append(excludeIDs, id)
 			time.Sleep(time.Millisecond * waitTime) //等待0.2秒
 		}
@@ -256,7 +256,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 				return
 			}
 			location.lockSelf.RLock()
-			_, ok := location.slefLocationMap[locationID]
+			_, ok := location.slefLocationMap[_locationID]
 			location.lockSelf.RUnlock()
 
 			if ok {
@@ -265,7 +265,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 					continue
 				}
 				session := gox.NetWork.GetSessionByAppID(gox.Config.AppID)
-				_, err := protoreg.Call(cmd, gox.Ctx, session, require)
+				_, err := protoreg.Call(cmd, gox.Ctx, session, _require)
 				if err != nil {
 					logger.Warn().Err(err).Uint32("CMD", cmd).Msg("LocationSend 发送消息失败")
 				}
@@ -273,10 +273,10 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 			}
 
 			location.lockOther.RLock()
-			id, ok := location.otherLocationMap[locationID]
+			id, ok := location.otherLocationMap[_locationID]
 			location.lockOther.RUnlock()
 			if !ok {
-				location.updateLocationToAppID(locationID, excludeIDs)
+				location.updateLocationToAppID(_locationID, excludeIDs)
 				continue
 			}
 			session := gox.NetWork.GetSessionByAppID(id)
@@ -285,12 +285,12 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 				continue
 			}
 
-			msgData, err := session.Codec().Marshal(require)
+			msgData, err := session.Codec().Marshal(_require)
 			if err != nil {
 				logger.Warn().Err(err).Uint32("CMD", cmd).Msg("LocationSend 序列化失败")
 				return
 			}
-			tmpResponse := location.relay(session, cmd, locationID, false, msgData)
+			tmpResponse := location.relay(session, cmd, _locationID, false, msgData)
 			if tmpResponse == nil {
 				return
 			}
@@ -300,7 +300,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 			}
 			return
 		}
-	}()
+	}(locationID, require)
 }
 func (location *LocationSystem) Call(locationID uint32, require any, response any) error {
 	if locationID == 0 {

@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/network/service"
 )
@@ -46,7 +45,7 @@ func (channel *TChannel) run() {
 }
 func (channel *TChannel) recvAsync() {
 	defer channel.Wg.Done()
-	readTimeout := gox.Config.Network.ReadTimeout
+	readTimeout := channel.ReadTimeout()
 	if readTimeout > 0 {
 		if err := channel.Conn().SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
 			logger.Error().Str("Addr", channel.RemoteAddr()).Err(err).Msg("tcp 接受数据超时")

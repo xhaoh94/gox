@@ -38,6 +38,7 @@ func (m *GateModule) OnInit() {
 	pb.RegisterILoginGameServer(gox.NetWork.Rpc().GRpcServer(), m)
 	protoreg.RegisterRpcCmd(pb.CMD_C2S_EnterMap, m.EnterGame)
 	protoreg.Register(pb.CMD_C2S_Move, m.Move)
+	// protoreg.Register(111, m.LoginGame)
 
 	protoreg.Register(pb.CMD_Interior_EnterVision, m.InteriorEnterVision)
 	protoreg.Register(pb.CMD_Interior_LeaveVision, m.InteriorLeaveVision)
@@ -54,6 +55,14 @@ func (m *GateModule) OnSessionStop(sid uint32) {
 	}
 	m.muxSession.Unlock()
 }
+
+// func (m *GateModule) LoginGame(ctx context.Context, session types.ISession, req *pb.C2S_LoginGame) {
+// 	token := commonhelper.NewUUID() //创建user对应的token
+// 	logger.Debug().Msgf("创建账号[%s]对应的token[%s]", req.Account, token)
+// 	m.muxToken.Lock()
+// 	m.userToken[req.Account] = UserToken{user: req.Account, token: token, time: time.Now()} //将user、token保存
+// 	m.muxToken.Unlock()
+// }
 
 func (m *GateModule) LoginGame(ctx context.Context, req *pb.C2S_LoginGame) (*pb.S2C_LoginGame, error) {
 	token := commonhelper.NewUUID() //创建user对应的token
@@ -94,12 +103,13 @@ func (m *GateModule) EnterGame(ctx context.Context, session types.ISession, req 
 	if err != nil {
 		logger.Info().Err(err)
 		resp.Error = pb.ErrCode_UnKnown
-		logger.Err(err)
 	} else {
-		logger.Info().Msgf("返回进入地图:%d", resp.Self.RoleId)
+
 		m.muxSession.Lock()
-		m.roleSession[resp.Self.RoleId] = session.ID()
-		m.sessionRole[session.ID()] = resp.Self.RoleId
+		sID := session.ID()
+		logger.Info().Uint32("SID", sID).Msgf("返回进入地图:%d", resp.Self.RoleId)
+		m.roleSession[resp.Self.RoleId] = sID
+		m.sessionRole[sID] = resp.Self.RoleId
 		m.muxSession.Unlock()
 	}
 	return resp, nil
@@ -117,7 +127,6 @@ func (m *GateModule) InteriorEnterVision(ctx context.Context, session types.ISes
 
 	defer m.muxSession.RUnlock()
 	m.muxSession.RLock()
-	logger.Debug().Msgf("广播进入视野:%d", req.Role.RoleId)
 	bcstResp := &pb.Bcst_EnterMap{
 		Role: req.Role,
 	}
@@ -132,7 +141,6 @@ func (m *GateModule) InteriorLeaveVision(ctx context.Context, session types.ISes
 
 	defer m.muxSession.RUnlock()
 	m.muxSession.RLock()
-	logger.Debug().Msgf("广播离开视野:%d", req.RoleId)
 	bcstResp := &pb.Bcst_LeaveMap{
 		RoleId: req.RoleId,
 	}
