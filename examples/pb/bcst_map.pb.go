@@ -20,7 +20,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-//bcst=500200001
+//bcst=999900001
 type Bcst_EnterMap struct {
 	Role                 *Entity  `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -60,7 +60,7 @@ func (m *Bcst_EnterMap) GetRole() *Entity {
 	return nil
 }
 
-//bcst=500200002
+//bcst=999900002
 type Bcst_LeaveMap struct {
 	RoleId               uint32   `protobuf:"varint,1,opt,name=roleId,proto3" json:"roleId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -100,7 +100,7 @@ func (m *Bcst_LeaveMap) GetRoleId() uint32 {
 	return 0
 }
 
-//bcst=500200003
+//bcst=999900003
 type Bcst_Move struct {
 	RoleId               uint32     `protobuf:"varint,1,opt,name=roleId,proto3" json:"roleId,omitempty"`
 	Points               []*Vector3 `protobuf:"bytes,2,rep,name=points,proto3" json:"points,omitempty"`

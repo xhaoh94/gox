@@ -1,21 +1,17 @@
 package location
 
-const (
-	LocationGet      uint32 = 220129
-	LocationRelay    uint32 = 220306
-	LocationRegister uint32 = 230424
+import "github.com/xhaoh94/gox/engine/helper/strhelper"
+
+var (
+	LocationGet      uint32
+	LocationRelay    uint32
+	LocationRegister uint32
 )
 
-func IsLocationCMD(cmd uint32) bool {
-	switch cmd {
-	case LocationGet:
-		return true
-	case LocationRelay:
-		return true
-	case LocationRegister:
-		return true
-	}
-	return false
+func init() {
+	LocationGet = strhelper.StringToHash("LocationGet")
+	LocationRelay = strhelper.StringToHash("LocationRelay")
+	LocationRegister = strhelper.StringToHash("LocationRegister")
 }
 
 type (

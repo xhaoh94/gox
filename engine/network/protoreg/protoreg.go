@@ -14,8 +14,11 @@ import (
 )
 
 var (
-	bingLock  sync.RWMutex
-	bingFnMap map[uint32]reflect.Value = make(map[uint32]reflect.Value)
+	bindCodecLock sync.RWMutex
+	bindCodecMap  map[uint32]types.ICodec = make(map[uint32]types.ICodec)
+
+	bindFnLock sync.RWMutex
+	bindFnMap  map[uint32]reflect.Value = make(map[uint32]reflect.Value)
 
 	cmdType        map[uint32]reflect.Type = make(map[uint32]reflect.Type)
 	cmdLock        sync.RWMutex
@@ -54,9 +57,9 @@ func GetRequireByCmd(cmd uint32) interface{} {
 
 // 绑定事件，一个事件只能绑定一个回调，回调可带返回参数
 func bind(cmd uint32, task interface{}) error {
-	bingLock.Lock()
-	defer bingLock.Unlock()
-	if _, ok := bingFnMap[cmd]; ok {
+	bindFnLock.Lock()
+	defer bindFnLock.Unlock()
+	if _, ok := bindFnMap[cmd]; ok {
 		logger.Error().Interface("CMD", cmd).Interface("Task", task).Msg("重复监听事件")
 		return fmt.Errorf("protoreg.Bind 重复监听事件 cmd:[%d]", cmd)
 	}
@@ -65,17 +68,17 @@ func bind(cmd uint32, task interface{}) error {
 		logger.Error().Interface("CMD", cmd).Interface("Task", task).Msg("监听事件对象不是方法")
 		return fmt.Errorf("监听事件对象不是方法 CMD:[%v]", cmd)
 	}
-	bingFnMap[cmd] = f
+	bindFnMap[cmd] = f
 	return nil
 }
 func unBind(cmd uint32) error {
-	bingLock.Lock()
-	defer bingLock.Unlock()
-	if _, ok := bingFnMap[cmd]; !ok {
+	bindFnLock.Lock()
+	defer bindFnLock.Unlock()
+	if _, ok := bindFnMap[cmd]; !ok {
 		tip := fmt.Sprintf("没有找到监听的事件 CMD:[%v]", cmd)
 		return errors.New(tip)
 	}
-	delete(bingFnMap, cmd)
+	delete(bindFnMap, cmd)
 	return nil
 }
 
@@ -107,9 +110,9 @@ func Call(event uint32, ctx context.Context, session types.ISession, require any
 
 // 发送事件，存在返回参数
 func call(cmd uint32, ctx context.Context, session types.ISession, require any) ([]reflect.Value, error) {
-	bingLock.RLock()
-	fn, ok := bingFnMap[cmd]
-	bingLock.RUnlock()
+	bindFnLock.RLock()
+	fn, ok := bindFnMap[cmd]
+	bindFnLock.RUnlock()
 	if !ok {
 		return nil, errors.New("没有找到监听的事件")
 	}
@@ -128,11 +131,29 @@ func call(cmd uint32, ctx context.Context, session types.ISession, require any) 
 	return fn.Call(in), nil
 }
 
-func HasBind(cmd uint32) bool {
-	bingLock.RLock()
-	defer bingLock.RUnlock()
-	_, ok := bingFnMap[cmd]
+// 是否有注册绑定回调
+func HasBindCallBack(cmd uint32) bool {
+	bindFnLock.RLock()
+	defer bindFnLock.RUnlock()
+	_, ok := bindFnMap[cmd]
 	return ok
+}
+
+// 绑定CMD对应的解码编码器
+func BindCodec(cmd uint32, codec types.ICodec) {
+	bindCodecLock.Lock()
+	bindCodecMap[cmd] = codec
+	bindCodecLock.Unlock()
+}
+
+// 获取CMD对应的解码编码器
+func GetCodec(cmd uint32) types.ICodec {
+	defer bindCodecLock.RUnlock()
+	bindCodecLock.RLock()
+	if _codec, ok := bindCodecMap[cmd]; ok {
+		return _codec
+	}
+	return nil
 }
 
 // 注册协议对应消息体和回调函数
@@ -154,7 +175,7 @@ func Register[T types.ProtoFn[V], V any](cmd uint32, fn T) {
 }
 
 // 注册带CMD的RPC消息
-func RegisterRpcCmd[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](cmd uint32, fn T) {
+func RegisterRpcCmd[T types.ProtoRPCFn[V1, V2], V1 any, V2 any](cmd uint32, fn T) {
 
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
@@ -174,7 +195,7 @@ func RegisterRpcCmd[T func(context.Context, types.ISession, V1) (V2, error), V1 
 }
 
 // 注册RPC消息
-func RegisterRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](fn T) {
+func RegisterRpc[T types.ProtoRPCFn[V1, V2], V1 any, V2 any](fn T) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	out := tFun.Out(0)
@@ -185,7 +206,7 @@ func RegisterRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any
 }
 
 // 注册定位消息
-func AddLocation[T func(context.Context, types.ISession, V), V any](entity types.ILocation, fn T) {
+func AddLocation[T types.ProtoFn[V], V any](entity types.ILocation, fn T) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	in := tFun.In(2)
@@ -203,7 +224,7 @@ func AddLocation[T func(context.Context, types.ISession, V), V any](entity types
 }
 
 // 注册定位RPC消息
-func AddLocationRpc[T func(context.Context, types.ISession, V1) (V2, error), V1 any, V2 any](entity types.ILocation, fn T) {
+func AddLocationRpc[T types.ProtoRPCFn[V1, V2], V1 any, V2 any](entity types.ILocation, fn T) {
 	tVlaue := reflect.ValueOf(fn)
 	tFun := tVlaue.Type()
 	out := tFun.Out(0)

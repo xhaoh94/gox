@@ -79,6 +79,11 @@ func (bytearray *ByteArray) AppendMessage(msg any, codec types.ICodec) error {
 	if msg == nil {
 		return nil
 	}
+	if msgData, ok := msg.([]byte); ok {
+		bytearray.AppendBytes(msgData)
+		return nil
+	}
+
 	msgData, err := codec.Marshal(msg)
 	if err != nil {
 		return err

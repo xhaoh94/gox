@@ -20,4 +20,7 @@ type (
 	ProtoFn[V any] interface {
 		func(context.Context, ISession, V)
 	}
+	ProtoRPCFn[V1 any, V2 any] interface {
+		func(context.Context, ISession, V1) (V2, error)
+	}
 )

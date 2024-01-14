@@ -39,7 +39,7 @@ type (
 	//会话接口
 	ISession interface {
 		ID() uint32
-		Codec() ICodec
+		Codec(uint32) ICodec
 		RemoteAddr() string
 		LocalAddr() string
 		//发送数据

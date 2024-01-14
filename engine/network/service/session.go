@@ -12,8 +12,6 @@ import (
 
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
-	"github.com/xhaoh94/gox/engine/network/codec"
-	"github.com/xhaoh94/gox/engine/network/location"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/network/rpc"
 	"github.com/xhaoh94/gox/engine/types"
@@ -94,7 +92,7 @@ func (session *Session) Send(cmd uint32, require any) bool {
 	defer pkt.Release()
 	pkt.AppendByte(C_S_C)
 	pkt.AppendUint32(cmd)
-	if err := pkt.AppendMessage(require, session.codec(cmd)); err != nil {
+	if err := pkt.AppendMessage(require, session.Codec(cmd)); err != nil {
 		return false
 	}
 	session.sendData(pkt.Data())
@@ -121,7 +119,7 @@ func (session *Session) CallByCmd(cmd uint32, require any, response any) error {
 	pkt.AppendUint32(cmd)
 	rpcID := rpc.AssignID()
 	pkt.AppendUint32(rpcID)
-	if err := pkt.AppendMessage(require, session.codec(cmd)); err != nil {
+	if err := pkt.AppendMessage(require, session.Codec(cmd)); err != nil {
 		return err
 	}
 	rpx := rpc.NewRpx(session.ctx, rpcID, response)
@@ -141,7 +139,7 @@ func (session *Session) reply(cmd uint32, response any, rpcid uint32) bool {
 	pkt.AppendByte(RPC_RESPONSE)
 	pkt.AppendUint32(cmd)
 	pkt.AppendUint32(rpcid)
-	if err := pkt.AppendMessage(response, session.codec(cmd)); err != nil {
+	if err := pkt.AppendMessage(response, session.Codec(cmd)); err != nil {
 		return false
 	}
 	session.sendData(pkt.Data())
@@ -255,7 +253,7 @@ func (session *Session) parseMsg(buf []byte) {
 			logger.Error().Uint32("CMD", cmd).Msg("没有找到注册此协议的结构体")
 			return
 		}
-		if err := pkt.ReadMessage(require, session.codec(cmd)); err != nil {
+		if err := pkt.ReadMessage(require, session.Codec(cmd)); err != nil {
 			logger.Error().Uint32("CMD", cmd).Err(err).Msg("解析网络包体失败")
 			return
 		}
@@ -276,7 +274,7 @@ func (session *Session) parseMsg(buf []byte) {
 			go session.reply(cmd, nil, rpcID)
 			return
 		}
-		if err := pkt.ReadMessage(require, session.codec(cmd)); err != nil {
+		if err := pkt.ReadMessage(require, session.Codec(cmd)); err != nil {
 			logger.Error().Uint32("CMD", cmd).Err(err).Msg("解析网络包体失败")
 			go session.reply(cmd, nil, rpcID)
 			return
@@ -299,7 +297,7 @@ func (session *Session) parseMsg(buf []byte) {
 				return
 			}
 
-			if err := pkt.ReadMessage(response, session.codec(cmd)); err != nil {
+			if err := pkt.ReadMessage(response, session.Codec(cmd)); err != nil {
 				logger.Error().Err(err).Msg("解析网络包体失败")
 				rpx.Run(err)
 				return
@@ -309,18 +307,16 @@ func (session *Session) parseMsg(buf []byte) {
 		return
 	}
 }
-func (session *Session) Codec() types.ICodec {
+func (session *Session) Codec(cmd uint32) types.ICodec {
+	temCodec := protoreg.GetCodec(cmd)
+	if temCodec != nil {
+		return temCodec
+	}
 	return session.service.Codec()
 }
 
 func (session *Session) rpc() *rpc.RPC {
 	return gox.NetWork.Rpc().(*rpc.RPC)
-}
-func (session *Session) codec(cmd uint32) types.ICodec {
-	if location.IsLocationCMD(cmd) {
-		return codec.MsgPack
-	}
-	return session.Codec()
 }
 func (session *Session) endian() binary.ByteOrder {
 	return gox.Config.Network.Endian

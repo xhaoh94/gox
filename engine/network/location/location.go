@@ -10,6 +10,7 @@ import (
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/logger"
+	"github.com/xhaoh94/gox/engine/network/codec"
 	"github.com/xhaoh94/gox/engine/network/protoreg"
 	"github.com/xhaoh94/gox/engine/types"
 )
@@ -42,6 +43,9 @@ func (location *LocationSystem) Init() {
 	location.otherLocationMap = make(map[uint32]uint, 0)
 	location.slefLocationMap = make(map[uint32]uint, 0)
 	if gox.Config.Location {
+		protoreg.BindCodec(LocationRelay, codec.MsgPack)
+		protoreg.BindCodec(LocationGet, codec.MsgPack)
+		protoreg.BindCodec(LocationRegister, codec.MsgPack)
 		protoreg.RegisterRpcCmd(LocationRelay, location.RelayHandler)
 		protoreg.RegisterRpcCmd(LocationGet, location.GetHandler)
 		protoreg.Register(LocationRegister, location.RegisterHandler)
@@ -62,14 +66,14 @@ func (location *LocationSystem) RelayHandler(ctx context.Context, session types.
 	if ok { //如果此实体注册在本服务器，那么进行逻辑处理，不然直接返回
 		cmd := req.CMD
 		require := protoreg.GetRequireByCmd(cmd)
-		if err := session.Codec().Unmarshal(req.Require, require); err != nil {
+		if err := session.Codec(cmd).Unmarshal(req.Require, require); err != nil {
 			return relayResponse, nil
 		}
 		response, err := protoreg.Call(cmd, ctx, session, require)
 		if err != nil || !req.IsCall {
 			return relayResponse, nil
 		}
-		if msgData, err := session.Codec().Marshal(response); err == nil {
+		if msgData, err := session.Codec(cmd).Marshal(response); err == nil {
 			relayResponse.Response = msgData
 		}
 	}
@@ -260,7 +264,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 			location.lockSelf.RUnlock()
 
 			if ok {
-				if !protoreg.HasBind(cmd) { //可能实体转移到其他服务器了，等待一下，再重新请求
+				if !protoreg.HasBindCallBack(cmd) { //可能实体转移到其他服务器了，等待一下，再重新请求
 					logger.Warn().Uint32("CMD", cmd).Msg("LocationSend 发送消息,找不到对应的CMD处理方法")
 					continue
 				}
@@ -285,7 +289,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 				continue
 			}
 
-			msgData, err := session.Codec().Marshal(_require)
+			msgData, err := session.Codec(cmd).Marshal(_require)
 			if err != nil {
 				logger.Warn().Err(err).Uint32("CMD", cmd).Msg("LocationSend 序列化失败")
 				return
@@ -326,7 +330,7 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 		location.lockSelf.RUnlock()
 
 		if ok {
-			if !protoreg.HasBind(cmd) {
+			if !protoreg.HasBindCallBack(cmd) {
 				logger.Warn().Uint32("CMD", cmd).Msg("LocationCall 发送消息,找不到对应的CMD处理方法")
 				continue
 			}
@@ -354,7 +358,7 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 			continue
 		}
 
-		msgData, err := session.Codec().Marshal(require)
+		msgData, err := session.Codec(cmd).Marshal(require)
 		if err != nil {
 			return err
 		}
@@ -371,7 +375,7 @@ func (location *LocationSystem) Call(locationID uint32, require any, response an
 			continue
 		}
 		if len(tmpResponse.Response) > 0 {
-			if err := session.Codec().Unmarshal(tmpResponse.Response, response); err != nil {
+			if err := session.Codec(cmd).Unmarshal(tmpResponse.Response, response); err != nil {
 				return err
 			}
 		}
