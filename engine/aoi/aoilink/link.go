@@ -1,23 +1,25 @@
 package aoilink
 
+import "github.com/xhaoh94/gox/engine/types"
+
 const (
 	xLink = 1
 	yLink = 2
 )
 
 type (
-	AOILink struct {
+	AOILink[T types.AOIKey] struct {
 		linkType int
 		count    int
-		head     *AOINode
-		tail     *AOINode
+		head     *AOINode[T]
+		tail     *AOINode[T]
 	}
 )
 
-func newAOILink(linkType int) *AOILink {
-	return &AOILink{linkType: linkType}
+func newAOILink[T types.AOIKey](linkType int) *AOILink[T] {
+	return &AOILink[T]{linkType: linkType}
 }
-func (link *AOILink) Insert(node *AOINode) {
+func (link *AOILink[T]) Insert(node *AOINode[T]) {
 	insertPos := node.getValue(link.linkType)
 	if link.head != nil {
 		p := link.head
@@ -47,7 +49,7 @@ func (link *AOILink) Insert(node *AOINode) {
 	}
 	link.count++
 }
-func (link *AOILink) Remove(node *AOINode) {
+func (link *AOILink[T]) Remove(node *AOINode[T]) {
 	prev := node.getPrev(link.linkType)
 	next := node.GetNext(link.linkType)
 	if prev != nil {
@@ -64,7 +66,7 @@ func (link *AOILink) Remove(node *AOINode) {
 	}
 	link.count--
 }
-func (link *AOILink) Update(node *AOINode, oldPos float32) {
+func (link *AOILink[T]) Update(node *AOINode[T], oldPos float32) {
 	pos := node.getValue(link.linkType)
 	if pos > oldPos {
 		next := node.GetNext(link.linkType)

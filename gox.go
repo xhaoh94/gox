@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/xhaoh94/gox/engine/logger"
+	"github.com/xhaoh94/gox/engine/mgrs/timemgr"
 	"github.com/xhaoh94/gox/engine/types"
 	"github.com/xhaoh94/gox/engine/xevent"
 
@@ -72,6 +73,7 @@ func Run() {
 	}
 	logger.Info().Uint("ID", Config.AppID).Str("Type", Config.AppType).Str("Version", Config.Version).Msg("服务启动")
 	logger.Info().Msgf("[ByteOrder:%s]", Config.Network.Endian)
+	timemgr.Start(30)
 	NetWork.Init()
 	mainModule.Init(mainModule)
 	NetWork.Start()
@@ -88,6 +90,7 @@ func Run() {
 func shutdown() {
 	__start = false
 	ctxCancelFn()
+	timemgr.Stop()
 	mainModule.Destroy(mainModule)
 	NetWork.Destroy()
 	logger.Info().Msgf("服务退出[sid:%d]", Config.AppID)

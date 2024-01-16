@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/google/uuid"
+	"github.com/xhaoh94/gox/engine/types"
 )
 
 // 获取唯一id
@@ -37,13 +38,14 @@ func ReplaceValue(value any, replace any) {
 	}
 }
 
-type Number interface {
-	int | uint | int16 | uint16 | int32 | uint32 | int64 | uint64
+type SliceElement interface {
+	types.Number | string
 }
 
-func DeleteSlice[T Number | string](list []T, elem T) []T {
+func DeleteSlice[T SliceElement](list []T, elem T) []T {
 	j := 0
 	for _, v := range list {
+
 		if v != elem {
 			list[j] = v
 			j++

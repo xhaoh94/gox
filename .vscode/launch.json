@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/examples/sv",
+            "program": "${workspaceFolder}/examples/uxgame",
             "env": {},
             "args": ["-appConf","app_1.yaml"]
         },
@@ -18,7 +18,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/examples/sv",
+            "program": "${workspaceFolder}/examples/uxgame",
             "env": {},
             "args": ["-appConf","app_2.yaml"]
         },
@@ -27,18 +27,9 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/examples/sv",
+            "program": "${workspaceFolder}/examples/uxgame",
             "env": {},
             "args":["-appConf","app_3.yaml"]
-        },
-        {
-            "name": "TestClient",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/examples/cl/",
-            "env": {},
-            "args": []
         }
     ]
 }

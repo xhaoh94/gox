@@ -1,16 +1,18 @@
 package aoilink
 
+import "github.com/xhaoh94/gox/engine/types"
+
 type (
-	AOINode struct {
-		id           string
+	AOINode[T types.AOIKey] struct {
+		id           T
 		x            float32
 		y            float32
-		xPrev, xNext *AOINode
-		yPrev, yNext *AOINode
+		xPrev, xNext *AOINode[T]
+		yPrev, yNext *AOINode[T]
 	}
 )
 
-func (node *AOINode) getValue(linkType int) float32 {
+func (node *AOINode[T]) getValue(linkType int) float32 {
 	switch linkType {
 	case xLink:
 		return node.x
@@ -20,7 +22,7 @@ func (node *AOINode) getValue(linkType int) float32 {
 	return 0
 }
 
-func (node *AOINode) getPrev(linkType int) *AOINode {
+func (node *AOINode[T]) getPrev(linkType int) *AOINode[T] {
 	switch linkType {
 	case xLink:
 		return node.xPrev
@@ -29,7 +31,7 @@ func (node *AOINode) getPrev(linkType int) *AOINode {
 	}
 	return nil
 }
-func (node *AOINode) setPrev(linkType int, aoi *AOINode) {
+func (node *AOINode[T]) setPrev(linkType int, aoi *AOINode[T]) {
 	switch linkType {
 	case xLink:
 		node.xPrev = aoi
@@ -37,7 +39,7 @@ func (node *AOINode) setPrev(linkType int, aoi *AOINode) {
 		node.yPrev = aoi
 	}
 }
-func (node *AOINode) GetNext(linkType int) *AOINode {
+func (node *AOINode[T]) GetNext(linkType int) *AOINode[T] {
 	switch linkType {
 	case xLink:
 		return node.xNext
@@ -46,7 +48,7 @@ func (node *AOINode) GetNext(linkType int) *AOINode {
 	}
 	return nil
 }
-func (node *AOINode) setNext(linkType int, aoi *AOINode) {
+func (node *AOINode[T]) setNext(linkType int, aoi *AOINode[T]) {
 	switch linkType {
 	case xLink:
 		node.xNext = aoi

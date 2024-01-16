@@ -3,65 +3,78 @@ package aoigrid
 import (
 	"sync"
 
-	"github.com/xhaoh94/gox/engine/aoi/aoibase"
+	"github.com/xhaoh94/gox/engine/types"
 )
 
-var resultPool sync.Pool = sync.Pool{
-	New: func() interface{} {
-		return &AOIResult{}
-	},
+var (
+	pool map[any]bool
+	mux  sync.Mutex
+)
+
+type AOIResult[T types.AOIKey] struct {
+	idMap map[T]bool
 }
 
-type AOIResult struct {
-	idMap map[string]bool
-}
-
-func newResult() *AOIResult {
-	r := resultPool.Get().(*AOIResult)
-	r.idMap = make(map[string]bool)
+func newResult[T types.AOIKey]() *AOIResult[T] {
+	mux.Lock()
+	defer mux.Unlock()
+	if len(pool) > 0 {
+		for k, v := range pool {
+			delete(pool, v)
+			return (k.(*AOIResult[T]))
+		}
+	}
+	r := &AOIResult[T]{}
+	r.idMap = make(map[T]bool)
 	return r
 }
-func (r *AOIResult) get(id string) bool {
+func (r *AOIResult[T]) Has(id T) bool {
 	return r.idMap[id]
 }
-func (r *AOIResult) push(id string) {
+func (r *AOIResult[T]) push(id T) {
 	r.idMap[id] = true
 }
-
-func (r *AOIResult) IDList() []string {
-	ids := make([]string, 0)
+func (r *AOIResult[T]) pushs(ids []T) {
+	for _, id := range ids {
+		r.idMap[id] = true
+	}
+}
+func (r *AOIResult[T]) IDList() []T {
+	ids := make([]T, 0)
 	for id := range r.idMap {
 		ids = append(ids, id)
 	}
 	return ids
 }
-func (r *AOIResult) IDMap() map[string]bool {
+func (r *AOIResult[T]) IDMap() map[T]bool {
 	return r.idMap
 }
-func (r *AOIResult) Range(call func(string)) {
+func (r *AOIResult[T]) Range(call func(T)) {
 	for id := range r.idMap {
 		call(id)
 	}
 }
 
-func (r *AOIResult) Compare(cResult aoibase.IAOIResult) (Complement []string, Minus []string, Intersect []string) {
-	cMap := cResult.IDMap()
-	for id := range cMap {
-		if r.idMap[id] {
+// 对比，Complement 补集（新增的） Minus差集（删除的） Intersect 交集
+func (r *AOIResult[T]) Compare(cResult types.IAOIResult[T]) (Complement []T, Minus []T, Intersect []T) {
+	cResult.Range(func(id T) {
+		if r.Has(id) {
 			Intersect = append(Intersect, id)
 		} else {
 			Minus = append(Minus, id)
 		}
-	}
-	for id := range r.idMap {
-		if !cMap[id] {
+	})
+	r.Range(func(id T) {
+		if !cResult.Has(id) {
 			Complement = append(Complement, id)
 		}
-	}
+	})
 	return
 }
 
-func (r *AOIResult) Reset() {
-	r.idMap = nil
-	resultPool.Put(r)
+func (r *AOIResult[T]) Reset() {
+	clear(r.idMap)
+	mux.Lock()
+	defer mux.Unlock()
+	pool[r] = true
 }
