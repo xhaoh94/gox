@@ -3,6 +3,7 @@ package scene
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/common/vec"
@@ -26,10 +27,11 @@ type (
 
 		aoiResult types.IAOIResult[uint32]
 
-		moveMux   sync.RWMutex
-		isMove    bool
-		moveIndex int
-		points    []*pb.Vector3
+		updatePositionTime time.Time
+		moveMux            sync.RWMutex
+		isMove             bool
+		moveIndex          int
+		points             []*pb.Vector3
 	}
 )
 
@@ -68,11 +70,10 @@ func (unit *Unit) move() {
 	if !unit.isMove {
 		return
 	}
-	cnt := len(unit.points)
-	if cnt == 0 {
+	if unit.points == nil {
 		return
 	}
-	if unit.moveIndex < cnt {
+	if unit.moveIndex < len(unit.points) {
 		point := unit.points[unit.moveIndex]
 		target := vec.CreateVector3(point.X, point.Y, point.Z)
 		dir := target.Sub(unit.Position)
@@ -83,7 +84,7 @@ func (unit *Unit) move() {
 		}
 	} else {
 		unit.isMove = false
-		clear(unit.points)
+		unit.points = nil
 		unit.moveIndex = 0
 	}
 }
@@ -99,8 +100,13 @@ func (unit *Unit) freshAOI() {
 	unit.Scene.interiorUnitMove(Complement, unit, unit.points, unit.moveIndex)
 	//通知差集里的对象，玩家离开视野
 	unit.Scene.interiorUnitOutofView(Minus, unit)
-	//通知交集的对象，玩家更新位置
-	unit.Scene.interiorUnitPosition(Intersect, unit)
+
+	//500毫秒广播更新一下位置
+	if time.Since(unit.updatePositionTime) >= time.Millisecond*500 {
+		//通知交集的对象，玩家更新位置
+		unit.Scene.interiorUnitPosition(Intersect, unit)
+		unit.updatePositionTime = time.Now()
+	}
 }
 
 func (unit *Unit) OnInit() {
@@ -126,6 +132,7 @@ func (unit *Unit) Move(ctx context.Context, session types.ISession, req *pb.C2S_
 	unit.moveMux.Lock()
 	defer unit.moveMux.Unlock()
 
+	unit.updatePositionTime = time.Now()
 	unit.points = req.Points
 	unit.isMove = true
 	unit.moveIndex = 0

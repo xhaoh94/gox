@@ -82,8 +82,7 @@ func (m *GateModule) EnterScene(ctx context.Context, session types.ISession, req
 		delete(m.userToken, req.Account)
 		m.muxToken.Unlock()
 	}()
-	t := time.Now().Sub(ut.time)
-	if t.Seconds() > 5 {
+	if time.Since(ut.time) > 5*time.Second {
 		resp.Error = pb.ErrCode_UnKnown ///token已过期
 		return resp, nil
 	}

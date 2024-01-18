@@ -104,7 +104,7 @@ func (s *Scene) OnLeaveScene(unit *Unit) {
 
 	aoiResult := unit.GetAOIResult()
 	if aoiResult != nil {
-		sessions := s.GetSessions(aoiResult.IDList(), unit.UnitID)
+		sessions := s.GetSessions(aoiResult.IDList())
 		if len(sessions) == 0 {
 			return
 		}
@@ -119,7 +119,7 @@ func (s *Scene) interiorUnitIntoView(ids []uint32, unit *Unit) {
 	if len(ids) == 0 {
 		return
 	}
-	sessions := s.GetSessions(ids, unit.UnitID)
+	sessions := s.GetSessions(ids)
 	if len(sessions) == 0 {
 		return
 	}
@@ -141,7 +141,7 @@ func (s *Scene) interiorUnitOutofView(ids []uint32, unit *Unit) {
 	if len(ids) == 0 {
 		return
 	}
-	sessions := s.GetSessions(ids, unit.UnitID)
+	sessions := s.GetSessions(ids)
 	if len(sessions) == 0 {
 		return
 	}
