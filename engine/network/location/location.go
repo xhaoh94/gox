@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/logger"
@@ -153,7 +154,7 @@ func (location *LocationSystem) Register(entity types.ILocation) {
 }
 func (location *LocationSystem) Registers(entitys []types.ILocation) {
 	if !gox.Config.Location {
-		logger.Error().Msg("没有启动Location的服务器不可以添加实体")
+		logger.Error().Msg("没有启动Location的服务器不可以注册实体")
 		return
 	}
 	datas := make([]uint32, 0)
@@ -175,7 +176,7 @@ func (location *LocationSystem) Registers(entitys []types.ILocation) {
 }
 func (location *LocationSystem) UnRegister(entity types.ILocation) {
 	if !gox.Config.Location {
-		logger.Error().Msg("没有启动Location的服务器不可以删除实体")
+		logger.Error().Msg("没有启动Location的服务器不可以注销实体")
 		return
 	}
 	if len(location.slefLocationMap) == 0 {
@@ -245,6 +246,7 @@ func (location *LocationSystem) Send(locationID uint32, require any) {
 	}
 
 	go func(_locationID uint32, _require any) {
+		defer app.Recover()
 		loopCnt := 0
 		cmd := cmdhelper.ToCmd(_require, nil, _locationID)
 		excludeIDs := make([]uint, 0)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/xhaoh94/gox"
+	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/logger"
 
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
@@ -88,7 +89,7 @@ func (session *Session) Send(cmd uint32, require any) bool {
 	if !session.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(session.endian())
 	defer pkt.Release()
 	pkt.AppendByte(C_S_C)
 	pkt.AppendUint32(cmd)
@@ -113,7 +114,7 @@ func (session *Session) CallByCmd(cmd uint32, require any, response any) error {
 		return errors.New("cmd == 0 ")
 	}
 
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(session.endian())
 	defer pkt.Release()
 	pkt.AppendByte(RPC_REQUIRE)
 	pkt.AppendUint32(cmd)
@@ -131,10 +132,12 @@ func (session *Session) CallByCmd(cmd uint32, require any, response any) error {
 
 // 回应
 func (session *Session) reply(cmd uint32, response any, rpcid uint32) bool {
+	defer app.Recover()
+
 	if !session.isAct() {
 		return false
 	}
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(session.endian())
 	defer pkt.Release()
 	pkt.AppendByte(RPC_RESPONSE)
 	pkt.AppendUint32(cmd)
@@ -150,6 +153,16 @@ func (session *Session) sendData(buf []byte) {
 	if !session.isAct() {
 		return
 	}
+
+	// str := "["
+	// for i, v := range buf {
+	// 	if i > 0 {
+	// 		str += ","
+	// 	}
+	// 	str += strhelper.ValToString(v)
+	// }
+	// str += "]"
+	// logger.Debug().Msg(str)
 	session.channel.Send(buf)
 }
 
@@ -159,6 +172,7 @@ func (s *Session) isAct() bool {
 
 // 心跳
 func (session *Session) onHeartbeat() {
+	defer app.Recover()
 	id := session.id
 	for session.id != 0 && session.id == id {
 		select {
@@ -171,10 +185,11 @@ func (session *Session) onHeartbeat() {
 end:
 }
 func (session *Session) sendHeartbeat(t byte, l uint32) {
+	defer app.Recover()
 	if !session.isAct() {
 		return
 	}
-	pkt := NewByteArray(make([]byte, 0), session.endian())
+	pkt := NewByteArray(session.endian())
 	defer pkt.Release()
 	pkt.AppendByte(t)
 	if l > 0 {
@@ -229,14 +244,14 @@ func (session *Session) parseReader(r io.Reader) (bool, error) {
 
 // parseMsg 解析包
 func (session *Session) parseMsg(buf []byte) {
+	defer app.Recover()
 	if !session.isAct() {
 		return
 	}
 
-	pkt := NewByteArray(buf, session.endian())
+	pkt := NewByteArray(session.endian())
+	pkt.AppendBytes(buf)
 	defer pkt.Release()
-	// pkt.ReadBytes(8) //8位预留的字节
-	// logger.Debug().Bytes("buf", buf).Send()
 	switch pkt.ReadOneByte() {
 	case H_B_S:
 		go session.sendHeartbeat(H_B_R, pkt.RemainLength())
@@ -323,6 +338,7 @@ func (session *Session) endian() binary.ByteOrder {
 }
 
 func (session *Session) emitMessage(cmd uint32, require any, rpcID uint32) {
+	defer app.Recover()
 	if response, err := protoreg.Call(cmd, session.ctx, session, require); err == nil {
 		if rpcID > 0 {
 			session.reply(cmd, response, rpcID)

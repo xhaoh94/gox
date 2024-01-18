@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/mgrs/timemgr"
 	"github.com/xhaoh94/gox/engine/types"
@@ -71,6 +72,8 @@ func Run() {
 		logger.Fatal().Msg("gox: 没有设置主模块")
 		return
 	}
+	defer app.Recover()
+
 	logger.Info().Uint("ID", Config.AppID).Str("Type", Config.AppType).Str("Version", Config.Version).Msg("服务启动")
 	logger.Info().Msgf("[ByteOrder:%s]", Config.Network.Endian)
 	timemgr.Start(30)
@@ -78,6 +81,7 @@ func Run() {
 	mainModule.Init(mainModule)
 	NetWork.Start()
 	mainModule.Start(mainModule)
+
 	logger.Info().Msg("服务启动成功")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

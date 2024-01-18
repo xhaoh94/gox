@@ -13,25 +13,36 @@ var (
 
 type AOIResult[T types.AOIKey] struct {
 	idMap map[T]bool
+	owner T
 }
 
-func newResult[T types.AOIKey]() *AOIResult[T] {
+func newResult[T types.AOIKey](_ower T) *AOIResult[T] {
 	mux.Lock()
 	defer mux.Unlock()
 	if len(pool) > 0 {
 		for k, v := range pool {
 			delete(pool, v)
-			return (k.(*AOIResult[T]))
+			r := (k.(*AOIResult[T]))
+			r.owner = _ower
+			return r
 		}
 	}
 	r := &AOIResult[T]{}
 	r.idMap = make(map[T]bool)
 	return r
 }
+
+func (r *AOIResult[T]) Owner() T {
+	return r.owner
+}
+
 func (r *AOIResult[T]) Has(id T) bool {
 	return r.idMap[id]
 }
 func (r *AOIResult[T]) push(id T) {
+	if r.owner == id {
+		return
+	}
 	r.idMap[id] = true
 }
 

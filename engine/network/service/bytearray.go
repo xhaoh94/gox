@@ -10,18 +10,21 @@ import (
 
 // |------------------------------------------|
 // msglen 包的总长度
-// key    预留8位字节
 // type   包数据类型(0x01:单向请求 0x02:心跳请求 0x03:心跳响应 0x04:rpc请求 0x05:rpc响应)
 // cmd    数据结构对应的cmd
 // rpc    rpc请求或响应时附带的rpcid
 // msg    最终包体数据
 // |-------------------------------------------------|
-// [ 必填 ] [ 必填  ]  [ 必填 ]  [ 必填  ] [ 选填 ] [  选填  ]
-// [msglen] [  key  ] [ type ]  [ cmd  ]  [  rpc ] [  msg  ]
-// [uint16] [[8]byte] [[1]byte] [uint32]  [uint32] [[n]byte]
+// [ 必填 ]   [ 必填 ]  [ 必填 ]  [ 选填 ] [  选填  ]
+// [msglen]  [ type ]  [ cmd  ]  [  rpc ] [  msg  ]
+// [uint16]  [ byte ]  [uint32]  [uint32] [[n]byte]
 // |------------------------------------------------|
 
-var bytePool sync.Pool = sync.Pool{New: func() any { return &ByteArray{} }}
+var bytePool sync.Pool = sync.Pool{New: func() any {
+	return &ByteArray{
+		data: make([]byte, 0),
+	}
+}}
 
 // ByteArray 默认包体格式
 type ByteArray struct {
@@ -30,9 +33,8 @@ type ByteArray struct {
 	endian   binary.ByteOrder
 }
 
-func NewByteArray(data []byte, endian binary.ByteOrder) *ByteArray {
+func NewByteArray(endian binary.ByteOrder) *ByteArray {
 	bytearray := bytePool.Get().(*ByteArray)
-	bytearray.data = data
 	bytearray.position = 0
 	bytearray.endian = endian
 	return bytearray
@@ -172,7 +174,7 @@ func (bytearray *ByteArray) Data() []byte {
 }
 
 func (bytearray *ByteArray) Release() {
-	bytearray.data = nil
+	bytearray.data = bytearray.data[:0]
 	bytearray.position = 0
 	bytearray.endian = nil
 	bytePool.Put(bytearray)

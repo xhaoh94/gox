@@ -4,6 +4,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/helper/strhelper"
 	"github.com/xhaoh94/gox/engine/logger"
 	"github.com/xhaoh94/gox/engine/types"
@@ -54,6 +55,7 @@ func (m *AOIGridManager[T]) Init() {
 	}
 }
 func (m *AOIGridManager[T]) Enter(unit T, x, y float32) {
+	defer app.Recover()
 	if x < m.Left || x > m.Right || y < m.Top || y > m.Bottom {
 		logger.Warn().Str("Key", strhelper.ValToString(unit)).Float32("x", x).Float32("y", y).Msg("AOI_Enter超出边界")
 		return
@@ -69,6 +71,7 @@ func (m *AOIGridManager[T]) Enter(unit T, x, y float32) {
 	m.unitToGridID[unit] = gID
 }
 func (m *AOIGridManager[T]) Leave(unit T) {
+	defer app.Recover()
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if gID, ok := m.unitToGridID[unit]; ok {
@@ -77,6 +80,7 @@ func (m *AOIGridManager[T]) Leave(unit T) {
 	}
 }
 func (m *AOIGridManager[T]) Update(unit T, x, y float32) {
+	defer app.Recover()
 	if x < m.Left || x > m.Right || y < m.Top || y > m.Bottom {
 		logger.Warn().Str("Key", strhelper.ValToString(unit)).Float32("x", x).Float32("y", y).Msg("AOI_Update超出边界")
 		return
@@ -100,16 +104,20 @@ func (m *AOIGridManager[T]) Update(unit T, x, y float32) {
 }
 
 func (m *AOIGridManager[T]) Find(unit T) types.IAOIResult[T] {
+	defer app.Recover()
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	ids := newResult[T]()
+	result := newResult[T](unit)
 	if gID, ok := m.unitToGridID[unit]; ok {
 		grids := m.getSurroundGridsByGid(gID)
 		for i := range grids {
-			ids.pushs(grids[i].GetIDs())
+			ids := grids[i].GetIDs()
+			for _, id := range ids {
+				result.push(id)
+			}
 		}
 	}
-	return ids
+	return result
 }
 
 // 根据格子的gID得到当前周边的九宫格信息

@@ -4,6 +4,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/helper/mathhelper"
 	"github.com/xhaoh94/gox/engine/types"
 )
@@ -25,6 +26,7 @@ func (m *AOILinkManager[T]) Init() {
 }
 
 func (m *AOILinkManager[T]) Enter(id T, x, y float32) {
+	defer app.Recover()
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	node := &AOINode[T]{
@@ -37,6 +39,7 @@ func (m *AOILinkManager[T]) Enter(id T, x, y float32) {
 }
 
 func (m *AOILinkManager[T]) Leave(id T) {
+	defer app.Recover()
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if node, ok := m.nodes[id]; ok {
@@ -47,6 +50,7 @@ func (m *AOILinkManager[T]) Leave(id T) {
 }
 
 func (m *AOILinkManager[T]) Update(id T, x, y float32) {
+	defer app.Recover()
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	if node, ok := m.nodes[id]; ok {
@@ -63,9 +67,10 @@ func (m *AOILinkManager[T]) Update(id T, x, y float32) {
 }
 
 func (m *AOILinkManager[T]) Find(id T) types.IAOIResult[T] {
+	defer app.Recover()
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	result := newResult[T]()
+	result := newResult[T](id)
 	if node, ok := m.nodes[id]; ok {
 		for i := 0; i < 2; i++ {
 			var xNode *AOINode[T]
@@ -110,6 +115,5 @@ func (m *AOILinkManager[T]) Find(id T) types.IAOIResult[T] {
 		}
 	}
 	result.push(id)
-
 	return result
 }

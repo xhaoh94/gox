@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/commonhelper"
 	"github.com/xhaoh94/gox/engine/logger"
@@ -110,6 +111,7 @@ func Call(event uint32, ctx context.Context, session types.ISession, require any
 
 // 发送事件，存在返回参数
 func call(cmd uint32, ctx context.Context, session types.ISession, require any) ([]reflect.Value, error) {
+	defer app.Recover()
 	bindFnLock.RLock()
 	fn, ok := bindFnMap[cmd]
 	bindFnLock.RUnlock()

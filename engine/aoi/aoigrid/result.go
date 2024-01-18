@@ -7,37 +7,43 @@ import (
 )
 
 var (
-	pool map[any]bool
+	pool map[any]bool = make(map[any]bool)
 	mux  sync.Mutex
 )
 
 type AOIResult[T types.AOIKey] struct {
 	idMap map[T]bool
+	owner T
 }
 
-func newResult[T types.AOIKey]() *AOIResult[T] {
+func newResult[T types.AOIKey](_owner T) *AOIResult[T] {
 	mux.Lock()
 	defer mux.Unlock()
 	if len(pool) > 0 {
 		for k, v := range pool {
 			delete(pool, v)
-			return (k.(*AOIResult[T]))
+			r := (k.(*AOIResult[T]))
+			r.owner = _owner
+			return r
 		}
 	}
 	r := &AOIResult[T]{}
 	r.idMap = make(map[T]bool)
+	r.owner = _owner
 	return r
 }
+func (r *AOIResult[T]) Owner() T {
+	return r.owner
+}
+
 func (r *AOIResult[T]) Has(id T) bool {
 	return r.idMap[id]
 }
 func (r *AOIResult[T]) push(id T) {
-	r.idMap[id] = true
-}
-func (r *AOIResult[T]) pushs(ids []T) {
-	for _, id := range ids {
-		r.idMap[id] = true
+	if id == r.owner {
+		return
 	}
+	r.idMap[id] = true
 }
 func (r *AOIResult[T]) IDList() []T {
 	ids := make([]T, 0)

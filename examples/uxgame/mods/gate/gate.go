@@ -110,6 +110,7 @@ func (m *GateModule) Move(ctx context.Context, session types.ISession, req *pb.C
 	m.muxSession.RLock()
 	defer m.muxSession.RUnlock()
 	if rid, ok := m.sessionRole[session.ID()]; ok {
+		logger.Debug().Msgf("玩家移动RID:%d", rid)
 		gox.Location.Send(rid, req)
 	}
 }
@@ -118,6 +119,7 @@ func (m *GateModule) InteriorRelay(ctx context.Context, session types.ISession, 
 
 	defer m.muxSession.RUnlock()
 	m.muxSession.RLock()
+	logger.Debug().Msgf("转发消息CMD:%d", req.CMD)
 	for _, roleId := range req.Roles {
 		if sid, ok := m.roleSession[roleId]; ok {
 			_session := gox.NetWork.GetSessionById(sid)

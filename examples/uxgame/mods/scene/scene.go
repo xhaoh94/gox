@@ -88,23 +88,28 @@ func (s *Scene) OnEnterScene(ctx context.Context, session types.ISession, req *p
 	unit.EnterScene(s)
 	s.mux.Unlock()
 
-	if unit.AOIResult != nil {
-		ids := unit.AOIResult.IDList()
+	aoiResult := unit.GetAOIResult()
+	if aoiResult != nil {
+		ids := aoiResult.IDList()
 		defer s.interiorUnitIntoView(ids, unit)
-		return &pb.S2C_EnterScene{Self: entity, Others: s.GetEntitys(ids, rId)}, nil
+		return &pb.S2C_EnterScene{Self: entity, Others: s.GetEntitys(ids)}, nil
 	}
 	return &pb.S2C_EnterScene{Error: pb.ErrCode_UnKnown}, nil
 }
 
 func (s *Scene) OnLeaveScene(unit *Unit) {
 	s.mux.Lock()
-	delete(s.units, unit.Entity.RoleId)
+	delete(s.units, unit.UnitID)
 	s.mux.Unlock()
 
-	if unit.AOIResult != nil {
-		sessions := s.GetSessions(unit.AOIResult.IDList(), unit.Entity.RoleId)
+	aoiResult := unit.GetAOIResult()
+	if aoiResult != nil {
+		sessions := s.GetSessions(aoiResult.IDList(), unit.UnitID)
+		if len(sessions) == 0 {
+			return
+		}
 		req := &pb.Bcst_UnitOutofView{
-			RoleId: unit.Entity.RoleId,
+			RoleId: unit.UnitID,
 		}
 		s.Bcst(sessions, pb.CMD_Bcst_UnitOutofView, req)
 	}
@@ -114,10 +119,21 @@ func (s *Scene) interiorUnitIntoView(ids []uint32, unit *Unit) {
 	if len(ids) == 0 {
 		return
 	}
-	req := &pb.Bcst_UnitIntoView{
-		Role: unit.Entity,
+	sessions := s.GetSessions(ids, unit.UnitID)
+	if len(sessions) == 0 {
+		return
 	}
-	sessions := s.GetSessions(ids, unit.Entity.RoleId)
+	req := &pb.Bcst_UnitIntoView{
+		Role: &pb.Entity{
+			RoleId:   unit.UnitID,
+			RoleMask: unit.UnitMask,
+			Position: &pb.Vector3{
+				X: unit.Position.X,
+				Y: unit.Position.Y,
+				Z: unit.Position.Z,
+			},
+		},
+	}
 	s.Bcst(sessions, pb.CMD_Bcst_UnitIntoView, req)
 }
 
@@ -125,9 +141,12 @@ func (s *Scene) interiorUnitOutofView(ids []uint32, unit *Unit) {
 	if len(ids) == 0 {
 		return
 	}
-	sessions := s.GetSessions(ids, unit.Entity.RoleId)
+	sessions := s.GetSessions(ids, unit.UnitID)
+	if len(sessions) == 0 {
+		return
+	}
 	req := &pb.Bcst_UnitOutofView{
-		RoleId: unit.Entity.RoleId,
+		RoleId: unit.UnitID,
 	}
 	s.Bcst(sessions, pb.CMD_Bcst_UnitOutofView, req)
 }
@@ -136,9 +155,12 @@ func (s *Scene) interiorUnitMove(ids []uint32, unit *Unit, points []*pb.Vector3,
 	if len(ids) == 0 {
 		return
 	}
-	sessions := s.GetSessions(ids, 0)
+	sessions := s.GetSessions(ids)
+	if len(sessions) == 0 {
+		return
+	}
 	req := &pb.Bcst_UnitMove{
-		RoleId:     unit.Entity.RoleId,
+		RoleId:     unit.UnitID,
 		PointIndex: int32(index),
 		Points:     points,
 	}
@@ -148,10 +170,17 @@ func (s *Scene) interiorUnitPosition(ids []uint32, unit *Unit) {
 	if len(ids) == 0 {
 		return
 	}
-	sessions := s.GetSessions(ids, 0)
+	sessions := s.GetSessions(ids)
+	if len(sessions) == 0 {
+		return
+	}
 	req := &pb.Bcst_UnitUpdatePosition{
-		RoleId: unit.Entity.RoleId,
-		Point:  unit.Entity.Position,
+		RoleId: unit.UnitID,
+		Point: &pb.Vector3{
+			X: unit.Position.X,
+			Y: unit.Position.Y,
+			Z: unit.Position.Z,
+		},
 	}
 	s.Bcst(sessions, pb.CMD_Bcst_UnitUpdatePosition, req)
 }
@@ -182,42 +211,44 @@ func (s *Scene) Bcst(sessions map[uint32][]uint32, cmd uint32, require any) {
 	}
 }
 
-func (s *Scene) GetEntitys(ids []uint32, exclude uint32) []*pb.Entity {
+func (s *Scene) GetEntitys(ids []uint32) []*pb.Entity {
 	defer s.mux.RUnlock()
 	s.mux.RLock()
 
 	entitys := make([]*pb.Entity, 0)
 	for _, id := range ids {
-		if id == exclude {
-			continue
-		}
 		unit, ok := s.units[id]
 		if !ok {
 			continue
 		}
-		entitys = append(entitys, unit.Entity)
+		entitys = append(entitys, &pb.Entity{
+			RoleId:   unit.UnitID,
+			RoleMask: unit.UnitMask,
+			Position: &pb.Vector3{
+				X: unit.Position.X,
+				Y: unit.Position.Y,
+				Z: unit.Position.Z,
+			},
+		})
 	}
 	return entitys
 }
-func (s *Scene) GetSessions(ids []uint32, exclude uint32) map[uint32][]uint32 {
+func (s *Scene) GetSessions(ids []uint32) map[uint32][]uint32 {
 	defer s.mux.RUnlock()
 	s.mux.RLock()
 
 	sessionRoles := make(map[uint32][]uint32)
 	for _, id := range ids {
-		if id == exclude {
-			continue
-		}
 		unit, ok := s.units[id]
 		if !ok {
 			continue
 		}
 
 		if roles, ok := sessionRoles[unit.GateSession]; ok {
-			roles = append(roles, unit.Entity.RoleId)
+			roles = append(roles, unit.UnitID)
 			sessionRoles[unit.GateSession] = roles
 		} else {
-			roles = []uint32{unit.Entity.RoleId}
+			roles = []uint32{unit.UnitID}
 			sessionRoles[unit.GateSession] = roles
 		}
 	}
