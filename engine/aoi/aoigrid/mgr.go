@@ -31,8 +31,8 @@ type (
 func (m *AOIGridManager[T]) Init() {
 	m.grids = make(map[int]*AOIGrid[T], 0)
 	m.unitToGridID = make(map[T]int, 0)
-	m.cntsX = int(math.Ceil(float64(m.Right-m.Left) / float64(m.GridWidth)))
-	m.cntsY = int(math.Ceil(float64(m.Bottom-m.Top) / float64(m.GridHeight)))
+	m.cntsX = int(math.Floor(float64(m.Right-m.Left) / float64(m.GridWidth)))
+	m.cntsY = int(math.Floor(float64(m.Bottom-m.Top) / float64(m.GridHeight)))
 	//给AOI初始化区域中所有的格子
 	for y := 0; y < m.cntsY; y++ {
 		for x := 0; x < m.cntsX; x++ {
@@ -145,7 +145,7 @@ func (m *AOIGridManager[T]) getSurroundGridsByGid(gID int) (grids []*AOIGrid[T])
 
 // 通过横纵坐标获取对应的格子ID
 func (m *AOIGridManager[T]) getGridIDByPos(x, y float32) int {
-	gx := int(math.Ceil(float64(x-m.Left) / float64(m.GridWidth)))
-	gy := int(math.Ceil(float64(y-m.Top) / float64(m.GridWidth)))
+	gx := int(math.Floor(float64(x-m.Left) / float64(m.GridWidth)))
+	gy := int(math.Floor(float64(y-m.Top) / float64(m.GridHeight)))
 	return gy*m.cntsX + gx
 }
