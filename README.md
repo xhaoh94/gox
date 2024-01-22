@@ -160,12 +160,10 @@ replace (
 )
 2、终端执行 go mod tidy，等待拉取代码完毕(如果存在墙的问题，请提前设置好GOPROXY为https://goproxy.cn，具体步骤可以百度)
 3、启动etcd服务
-4、打开examples/sv/的终端 执行 go run main.go -sid 1 -type gate -iAddr 127.0.0.1:10001 -oAddr 127.0.0.1:10002
-  再打开一个examples/sv/的终端 执行 go run main.go -sid 2 -type login -iAddr 127.0.0.1:20001 -oAddr 127.0.0.1:20002
-  再打开一个examples/sv/的终端 执行 go run main.go -sid 3 -type scene -iAddr 127.0.0.1:30001 -oAddr 127.0.0.1:30002
-  如果一些顺利的话，以上启动了3个服务器
-  然后打开examples/cl/的终端(模拟客户端行为) 执行 go run main.go
-  没问题的话，就可以看到打印的日志啦！
+4、打开examples/sv/的终端 执行 go run main.go -appConf="app_1.yaml"
+  再打开一个examples/sv/的终端 执行 go run main.go -appConf="app_2.yaml"
+  再打开一个examples/sv/的终端 执行 go run main.go -appConf="app_3.yaml"
+  如果一些顺利的话，以上启动了3个服务器，就可以看到打印的日志啦！
 ```
 
 
