@@ -8,10 +8,10 @@ gox 的关注点：
 * 支持TCP、WebSocket、KCP。
 * 支持Protobuf、Json、SProto数据格式
 * 通过grpc或内置rpcx系统，轻松搞定跨服务间的通信。
-* 支持Actor,任何对象通过继承network.Actor，且实现了ActorID()，都可以进行Actor注册，之后不管这个对象在哪个服务器，都可以通过ActorID直接发送消息
+* 支持Actor,任何对象通过组合location.Location，且实现了LocationID()，都可以进行定位注册，之后不管这个对象在哪个服务器，都可以通过LocationID()直接发送消息
 
 
-# API的简介
+# API的简介 go版本（1.21.6）
 
 现在让我们来看看如果创建一个服务器：
 ```
@@ -35,13 +35,13 @@ gox 的关注点：
 type (
 //MainModule 主模块
 MainModule struct {
-	gox.Module//必须继承此
+	gox.Module//必须组合次Module
 }
 )
 
 func (m *MainModule) OnInit() {
   //通过服务类型组装不同的模块
-	switch gox.AppConf.EType {
+	switch gox.Config.AppType {
 	case game.Gate:
 		m.Put(&gate.GateModule{})		
 	case game.Login:
@@ -66,55 +66,84 @@ type (
 
 //OnInit 初始化
 func (m *LoginModule) OnInit() {//协议注册得在初始化方法里进行
-	m.RegisterRpc(m.RspToken)//注册rpc回调
-	m.Register(netpack.CMD_C2L_Login, m.RspLogin)//注册协议	
+        //进行登录请求的注册，此方法时RPC放回，需客户端约束为RPC请求
+	protoreg.RegisterRpcCmd(pb.CMD_C2S_LoginGame, m.LoginGame)
+        //如果客户端不是RPC请求，则可以使用protoreg.Register,区别在于，你需要通过Session.Send返回客户端
+        protoreg.Register(pb.CMD_C2S_LoginGame, m.LoginGame_1)
 }
-func (m *LoginModule) RspToken(ctx context.Context, req *netpack.G2L_Login) *netpack.L2G_Login { return &netpack.L2G_Login{Token: token} }
-func (m *LoginModule) RspLogin(ctx context.Context, session types.ISession, req *netpack.C2L_Login){}
-```
-如果发送消息：
-```
-  cfgs := gox.ServiceSystem.GetServiceEntitysByType(game.Login) //获取login服务器配置
-	loginCfg := cfgs[0]
-	session := gox.NetWork.GetSessionByAddr(loginCfg.GetInteriorAddr()) //创建session连接login服务器
-  
-  //发送
-	session.Send(netpack.CMD_C2G_Login, &netpack.C2G_Login{User: "xhaoh94", Password: "123456"})
-  
-  //rpcx请求 b:bool值     
-	Rsp_L2G_Login := &netpack.L2G_Login{}
-	b := session.Call(&netpack.G2L_Login{User: msg.User}, Rsp_L2G_Login).Await()  
+func (m *LoginModule) LoginGame(ctx context.Context, session types.ISession, req *pb.C2S_LoginGame) (*pb.S2C_LoginGame, error) {
+
+	cfgs := gox.NetWork.GetServiceEntitys(types.WithType(game.Gate)) //获取Gate服务器配置
+	if len(cfgs) == 0 {
+		logger.Error().Msgf("没获取到[%s]对应的服务器配置", game.Gate)
+		return &pb.S2C_LoginGame{Error: pb.ErrCode_UnKnown}, nil
+	}
+	gateCfg := cfgs[0]
+	logger.Info().Msgf("[Rpcaddr:%s]", gateCfg.GetRpcAddr())
+	conn := gox.NetWork.Rpc().GetClientConnByAddr(gateCfg.GetRpcAddr()) //创建session连接Gate服务器
+	loginSession := pb.NewILoginGameClient(conn)
+	resp, err := loginSession.LoginGame(ctx, req) //向Gate服务器请求token
+	if err != nil {
+		logger.Debug().Err(err)
+		return &pb.S2C_LoginGame{Error: pb.ErrCode_UnKnown}, nil
+	}
+	return resp, nil //结果返回客户端
+}
+
+func (m *LoginModule) LoginGame_1(ctx context.Context, session types.ISession, req *pb.C2S_LoginGame) {
+
+	cfgs := gox.NetWork.GetServiceEntitys(types.WithType(game.Gate)) //获取Gate服务器配置
+	if len(cfgs) == 0 {
+		logger.Error().Msgf("没获取到[%s]对应的服务器配置", game.Gate)
+		session.Send(pb.CMD_C2S_LoginGame, &pb.S2C_LoginGame{Error: pb.ErrCode_UnKnown})
+		return
+	}
+	gateCfg := cfgs[0]
+	logger.Info().Msgf("[Rpcaddr:%s]", gateCfg.GetRpcAddr())
+	conn := gox.NetWork.Rpc().GetClientConnByAddr(gateCfg.GetRpcAddr()) //创建session连接Gate服务器
+	loginSession := pb.NewILoginGameClient(conn)
+	resp, err := loginSession.LoginGame(ctx, req) //向Gate服务器请求token
+	if err != nil {
+		logger.Debug().Err(err)
+		session.Send(pb.CMD_C2S_LoginGame, &pb.S2C_LoginGame{Error: pb.ErrCode_UnKnown})
+		return
+	}
+	session.Send(pb.CMD_C2S_LoginGame, resp)
+}
 
 ```
-Actor注册和发送
+
+Loc注册和发送
 ```  
 //注册
 type (
 	Scene struct {
-		network.Actor
+		location.Location
 		Id    uint
 	}
 )
 func newScene(id uint) *Scene {	
   scene := &Scene{Id: id}
-	scene.AddActorFn(s.OnUnitEnter) //添加Actor回调
-	gox.ActorSystem.Add(scene) //把场景添加进Actor
+        gox.Location.Register(scene) //把场景添加进Location
 	return scene
 }
+func (s *Scene) OnInit() {
+	protoreg.AddLocationRpc(s, s.OnEnterScene)//添加消息回调
+}
 
-//ActorID 所有Acotr对象都得实现此方法
-func (s *Scene) ActorID() uint32 {
+//所有Location对象都得实现此方法
+func (s *Scene) LocationID() uint32 {
 	return uint32(s.Id)
 }
 
-func (s *Scene) OnUnitEnter(ctx context.Context, req *netpack.L2S_Enter) *netpack.S2L_Enter {
+func (s *Scene) OnEnterScene(ctx context.Context, req *netpack.L2S_Enter) *netpack.S2L_Enter {
 	return &netpack.S2L_Enter{Code: 0}
 }
 //发送
-gox.ActorSystem.Send(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}) 
+gox.Location.Send(locationID, &netpack.L2S_Enter{UnitId: req.UnitId}) 
 //通过rpcx请求 b:bool值
 backRsp := &netpack.S2L_Enter{}
-b := gox.ActorSystem.Call(actorId, &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() 
+b := gox.Location.Call(locationID, &netpack.L2S_Enter{UnitId: req.UnitId}, backRsp).Await() 
 ```
 
 # examples运行
