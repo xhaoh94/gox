@@ -353,8 +353,8 @@ func (session *Session) release() {
 	logger.Debug().Uint32("ID", session.id).
 		Str("Remote", session.RemoteAddr()).Str("Local", session.LocalAddr()).
 		Str("Tag", session.GetTagName()).Msg("Session 断开")
-	session.ctxCancelFunc()
 	session.service.delSession(session)
+	session.ctxCancelFunc()
 	session.ctx = nil
 	session.ctxCancelFunc = nil
 	session.tag = 0

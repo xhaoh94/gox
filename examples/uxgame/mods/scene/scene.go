@@ -91,7 +91,7 @@ func (s *Scene) OnEnterScene(ctx context.Context, session types.ISession, req *p
 	aoiResult := unit.GetAOIResult()
 	if aoiResult != nil {
 		ids := aoiResult.IDList()
-		defer s.interiorUnitIntoView(ids, unit)
+		defer s.interiorUnitIntoView(ids, unit, false)
 		return &pb.S2C_EnterScene{Self: entity, Others: s.GetEntitys(ids)}, nil
 	}
 	return &pb.S2C_EnterScene{Error: pb.ErrCode_UnKnown}, nil
@@ -104,51 +104,52 @@ func (s *Scene) OnLeaveScene(unit *Unit) {
 
 	aoiResult := unit.GetAOIResult()
 	if aoiResult != nil {
-		sessions := s.GetSessions(aoiResult.IDList())
-		if len(sessions) == 0 {
-			return
-		}
-		req := &pb.Bcst_UnitOutofView{
-			RoleId: unit.UnitID,
-		}
-		s.Bcst(sessions, pb.CMD_Bcst_UnitOutofView, req)
+		s.interiorUnitOutofView(aoiResult.IDList(), unit, false)
 	}
 }
 
-func (s *Scene) interiorUnitIntoView(ids []uint32, unit *Unit) {
+func (s *Scene) interiorUnitIntoView(ids []uint32, unit *Unit, bcstSelf bool) {
 	if len(ids) == 0 {
 		return
 	}
+
+	if bcstSelf {
+		sessionRoles := make(map[uint32][]uint32)
+		sessionRoles[unit.GateSession] = []uint32{unit.UnitID}
+		s.Bcst(sessionRoles, pb.CMD_Bcst_UnitIntoView, &pb.Bcst_UnitIntoView{
+			Roles: s.GetEntitys(ids),
+		})
+	}
+
 	sessions := s.GetSessions(ids)
 	if len(sessions) == 0 {
 		return
 	}
 	req := &pb.Bcst_UnitIntoView{
-		Role: &pb.Entity{
-			RoleId:   unit.UnitID,
-			RoleMask: unit.UnitMask,
-			Position: &pb.Vector3{
-				X: unit.Position.X,
-				Y: unit.Position.Y,
-				Z: unit.Position.Z,
-			},
-		},
+		Roles: s.GetEntitys([]uint32{unit.UnitID}),
 	}
 	s.Bcst(sessions, pb.CMD_Bcst_UnitIntoView, req)
 }
 
-func (s *Scene) interiorUnitOutofView(ids []uint32, unit *Unit) {
+func (s *Scene) interiorUnitOutofView(ids []uint32, unit *Unit, bcstSelf bool) {
 	if len(ids) == 0 {
 		return
 	}
+	if bcstSelf {
+		sessionRoles := make(map[uint32][]uint32)
+		sessionRoles[unit.GateSession] = []uint32{unit.UnitID}
+		s.Bcst(sessionRoles, pb.CMD_Bcst_UnitOutofView, &pb.Bcst_UnitOutofView{
+			Roles: ids,
+		})
+	}
+
 	sessions := s.GetSessions(ids)
 	if len(sessions) == 0 {
 		return
 	}
-	req := &pb.Bcst_UnitOutofView{
-		RoleId: unit.UnitID,
-	}
-	s.Bcst(sessions, pb.CMD_Bcst_UnitOutofView, req)
+	s.Bcst(sessions, pb.CMD_Bcst_UnitOutofView, &pb.Bcst_UnitOutofView{
+		Roles: []uint32{unit.UnitID},
+	})
 }
 
 func (s *Scene) interiorUnitMove(ids []uint32, unit *Unit, points []*pb.Vector3, index int) {

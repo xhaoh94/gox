@@ -18,9 +18,9 @@ type (
 
 		addr           string
 		idToSession    map[uint32]*Session //Accept Map
-		idMutex        sync.Mutex
+		idMutex        sync.RWMutex
 		addrToSession  map[string]*Session //Connect Map
-		addrMutex      sync.Mutex
+		addrMutex      sync.RWMutex
 		sessionWg      sync.WaitGroup
 		delSessionFunc func(uint32)
 	}
@@ -62,24 +62,28 @@ func (service *Service) OnAccept(channel types.IChannel) {
 	}
 }
 
-// GetSessionById 通过id获取Session
+// 通过id获取Session
 func (service *Service) GetSessionById(sid uint32) types.ISession {
-	defer service.idMutex.Unlock()
-	service.idMutex.Lock()
-	session, ok := service.idToSession[sid]
-	if ok {
+	defer service.idMutex.RUnlock()
+	service.idMutex.RLock()
+
+	if session, ok := service.idToSession[sid]; ok {
 		return session
 	}
 	return nil
 }
 
-// GetSessionByAddr 通过addr地址获取Session
+// 通过addr地址获取Session
 func (service *Service) GetSessionByAddr(addr string) types.ISession {
-	defer service.addrMutex.Unlock()
-	service.addrMutex.Lock()
-	if s, ok := service.addrToSession[addr]; ok {
+
+	service.addrMutex.RLock()
+	s, ok := service.addrToSession[addr]
+	service.addrMutex.RUnlock()
+
+	if ok {
 		return s
 	}
+
 	session := service.onConnect(addr)
 	if session == nil {
 		logger.Error().Str("Addr", addr).Msg("创建Session失败")
@@ -88,7 +92,9 @@ func (service *Service) GetSessionByAddr(addr string) types.ISession {
 	service.idMutex.Lock()
 	service.idToSession[session.ID()] = session
 	service.idMutex.Unlock()
+	service.addrMutex.Lock()
 	service.addrToSession[addr] = session
+	service.addrMutex.Unlock()
 	session.start()
 	return session
 }

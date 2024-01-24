@@ -61,22 +61,31 @@ func (m *AOIGridManager[T]) Enter(unit T, x, y float32) {
 		return
 	}
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if gID, ok := m.unitToGridID[unit]; ok {
+	m.lock.RLock()
+	gID, ok := m.unitToGridID[unit]
+	m.lock.RUnlock()
+
+	if ok {
 		m.grids[gID].Remove(unit)
 	}
-	gID := m.getGridIDByPos(x, y)
+	gID = m.getGridIDByPos(x, y)
 	m.grids[gID].Add(unit)
+
+	m.lock.Lock()
 	m.unitToGridID[unit] = gID
+	m.lock.Unlock()
 }
 func (m *AOIGridManager[T]) Leave(unit T) {
 	defer app.Recover()
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if gID, ok := m.unitToGridID[unit]; ok {
+	m.lock.RLock()
+	gID, ok := m.unitToGridID[unit]
+	m.lock.RUnlock()
+
+	if ok {
 		m.grids[gID].Remove(unit)
+		m.lock.Lock()
 		delete(m.unitToGridID, unit)
+		m.lock.Unlock()
 	}
 }
 func (m *AOIGridManager[T]) Update(unit T, x, y float32) {
@@ -86,9 +95,11 @@ func (m *AOIGridManager[T]) Update(unit T, x, y float32) {
 		return
 	}
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if oldID, ok := m.unitToGridID[unit]; ok {
+	m.lock.RLock()
+	oldID, ok := m.unitToGridID[unit]
+	m.lock.RUnlock()
+
+	if ok {
 		newID := m.getGridIDByPos(x, y)
 		if oldID != newID {
 			_, ok := m.grids[newID]
@@ -98,17 +109,20 @@ func (m *AOIGridManager[T]) Update(unit T, x, y float32) {
 			}
 			m.grids[oldID].Remove(unit)
 			m.grids[newID].Add(unit)
+			m.lock.Lock()
 			m.unitToGridID[unit] = newID
+			m.lock.Unlock()
 		}
 	}
 }
 
 func (m *AOIGridManager[T]) Find(unit T) types.IAOIResult[T] {
 	defer app.Recover()
-	m.lock.RLock()
-	defer m.lock.RUnlock()
 	result := newResult[T](unit)
-	if gID, ok := m.unitToGridID[unit]; ok {
+	m.lock.RLock()
+	gID, ok := m.unitToGridID[unit]
+	m.lock.RUnlock()
+	if ok {
 		grids := m.getSurroundGridsByGid(gID)
 		for i := range grids {
 			ids := grids[i].GetIDs()

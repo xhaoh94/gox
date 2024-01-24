@@ -25,6 +25,7 @@ type (
 		GateSession uint32
 		Scene       *Scene
 
+		aoiMux    sync.RWMutex
 		aoiResult types.IAOIResult[uint32]
 
 		updatePositionTime time.Time
@@ -52,12 +53,16 @@ func (unit *Unit) LocationID() uint32 {
 }
 
 func (unit *Unit) SetAOIResult(result types.IAOIResult[uint32]) {
+	defer unit.aoiMux.Unlock()
+	unit.aoiMux.Lock()
 	if unit.aoiResult != nil {
 		unit.aoiResult.Reset()
 	}
 	unit.aoiResult = result
 }
 func (unit *Unit) GetAOIResult() types.IAOIResult[uint32] {
+	defer unit.aoiMux.RUnlock()
+	unit.aoiMux.RLock()
 	return unit.aoiResult
 }
 
@@ -96,10 +101,10 @@ func (unit *Unit) freshAOI() {
 	Complement, Minus, Intersect := newAOIResult.Compare(oldAOIResult)
 	unit.SetAOIResult(newAOIResult)
 	//通知补集里的对象，玩家进入视野，并且玩家正在行走
-	unit.Scene.interiorUnitIntoView(Complement, unit)
+	unit.Scene.interiorUnitIntoView(Complement, unit, true)
 	unit.Scene.interiorUnitMove(Complement, unit, unit.points, unit.moveIndex)
 	//通知差集里的对象，玩家离开视野
-	unit.Scene.interiorUnitOutofView(Minus, unit)
+	unit.Scene.interiorUnitOutofView(Minus, unit, true)
 
 	//500毫秒广播更新一下位置
 	if time.Since(unit.updatePositionTime) >= time.Millisecond*500 {
@@ -138,13 +143,14 @@ func (unit *Unit) Move(ctx context.Context, session types.ISession, req *pb.C2S_
 	unit.moveIndex = 0
 	oldAOIResult := unit.GetAOIResult()
 	newAOIResult := unit.Scene.aoiMgr.Find(unit.UnitID)
+
 	//获取AOI的补集、差集、交集
 	Complement, Minus, Intersect := newAOIResult.Compare(oldAOIResult)
 	unit.SetAOIResult(newAOIResult)
 	//通知补集里的对象，玩家进入视野
-	unit.Scene.interiorUnitIntoView(Complement, unit)
+	unit.Scene.interiorUnitIntoView(Complement, unit, true)
 	//通知差集里的对象，玩家离开视野
-	unit.Scene.interiorUnitOutofView(Minus, unit)
+	unit.Scene.interiorUnitOutofView(Minus, unit, true)
 	//通知补集和交集的对象，玩家开始行走
 	ids := append(Complement, Intersect...)
 	ids = append(ids, unit.UnitID)

@@ -27,33 +27,37 @@ func (m *AOILinkManager[T]) Init() {
 
 func (m *AOILinkManager[T]) Enter(id T, x, y float32) {
 	defer app.Recover()
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	node := &AOINode[T]{
 		id: id,
 	}
 	node.x, node.y = x, y
 	m.xLink.Insert(node)
 	m.yLink.Insert(node)
+	m.lock.Lock()
 	m.nodes[id] = node
+	m.lock.Unlock()
 }
 
 func (m *AOILinkManager[T]) Leave(id T) {
 	defer app.Recover()
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if node, ok := m.nodes[id]; ok {
+	m.lock.RLock()
+	node, ok := m.nodes[id]
+	m.lock.RUnlock()
+	if ok {
 		m.xLink.Remove(node)
 		m.yLink.Remove(node)
+		m.lock.Lock()
 		delete(m.nodes, id)
+		m.lock.Unlock()
 	}
 }
 
 func (m *AOILinkManager[T]) Update(id T, x, y float32) {
 	defer app.Recover()
 	m.lock.RLock()
-	defer m.lock.RUnlock()
-	if node, ok := m.nodes[id]; ok {
+	node, ok := m.nodes[id]
+	m.lock.RUnlock()
+	if ok {
 		oldX := node.x
 		oldY := node.y
 		node.x, node.y = x, y
@@ -69,9 +73,10 @@ func (m *AOILinkManager[T]) Update(id T, x, y float32) {
 func (m *AOILinkManager[T]) Find(id T) types.IAOIResult[T] {
 	defer app.Recover()
 	m.lock.RLock()
-	defer m.lock.RUnlock()
+	node, ok := m.nodes[id]
+	m.lock.RUnlock()
 	result := newResult[T](id)
-	if node, ok := m.nodes[id]; ok {
+	if ok {
 		for i := 0; i < 2; i++ {
 			var xNode *AOINode[T]
 			if i == 0 {

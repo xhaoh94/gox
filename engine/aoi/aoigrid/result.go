@@ -20,8 +20,8 @@ func newResult[T types.AOIKey](_owner T) *AOIResult[T] {
 	mux.Lock()
 	defer mux.Unlock()
 	if len(pool) > 0 {
-		for k, v := range pool {
-			delete(pool, v)
+		for k := range pool {
+			delete(pool, k)
 			r := (k.(*AOIResult[T]))
 			r.owner = _owner
 			return r
