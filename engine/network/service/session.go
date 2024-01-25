@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
 	"github.com/xhaoh94/gox"
 	"github.com/xhaoh94/gox/engine/app"
 	"github.com/xhaoh94/gox/engine/logger"
+	"github.com/xhaoh94/gox/examples/pb"
+	"github.com/xhaoh94/gox/examples/uxgame/game"
 
 	"github.com/xhaoh94/gox/engine/helper/cmdhelper"
 	"github.com/xhaoh94/gox/engine/helper/codechelper"
@@ -238,7 +241,7 @@ func (session *Session) parseReader(r io.Reader) (bool, error) {
 	// str += "]"
 	// logger.Debug().Msg(str)
 
-	go session.parseMsg(buf)
+	session.parseMsg(buf)
 	return false, nil
 }
 
@@ -254,13 +257,13 @@ func (session *Session) parseMsg(buf []byte) {
 	defer pkt.Release()
 	switch pkt.ReadOneByte() {
 	case H_B_S:
-		go session.sendHeartbeat(H_B_R, pkt.RemainLength())
+		session.sendHeartbeat(H_B_R, pkt.RemainLength())
 		return
 	case C_S_C:
 		cmd := pkt.ReadUint32()
 		msgLen := pkt.RemainLength()
 		if msgLen == 0 {
-			go session.emitMessage(cmd, nil, 0)
+			session.emitMessage(cmd, nil, 0)
 			return
 		}
 		require := protoreg.GetRequireByCmd(cmd)
@@ -272,7 +275,13 @@ func (session *Session) parseMsg(buf []byte) {
 			logger.Error().Uint32("CMD", cmd).Err(err).Msg("解析网络包体失败")
 			return
 		}
-		go session.emitMessage(cmd, require, 0)
+		if cc, ok := require.(*game.Interior_Relay); ok {
+			if cc.CMD == pb.CMD_Bcst_UnitIntoView || cc.CMD == pb.CMD_Bcst_UnitMove {
+				fmt.Printf("CMD:%d\n", cc.CMD)
+			}
+			// logger.Debug().Uint32("CMD", cc.CMD)
+		}
+		session.emitMessage(cmd, require, 0)
 		return
 	case RPC_REQUIRE:
 		cmd := pkt.ReadUint32()
@@ -280,38 +289,37 @@ func (session *Session) parseMsg(buf []byte) {
 		msgLen := pkt.RemainLength()
 		// xlog.Debug("rpcs:cmd:%d,rpcID:%d,msgLen:%d", cmd, rpcID, msgLen)
 		if msgLen == 0 {
-			go session.emitMessage(cmd, nil, rpcID)
+			session.emitMessage(cmd, nil, rpcID)
 			return
 		}
 		require := protoreg.GetRequireByCmd(cmd)
 		if require == nil {
 			logger.Error().Uint32("CMD", cmd).Msg("没有找到注册此协议的结构体")
-			go session.reply(cmd, nil, rpcID)
+			session.reply(cmd, nil, rpcID)
 			return
 		}
 		if err := pkt.ReadMessage(require, session.Codec(cmd)); err != nil {
 			logger.Error().Uint32("CMD", cmd).Err(err).Msg("解析网络包体失败")
-			go session.reply(cmd, nil, rpcID)
+			session.reply(cmd, nil, rpcID)
 			return
 		}
-		go session.emitMessage(cmd, require, rpcID)
+		session.emitMessage(cmd, require, rpcID)
 		return
 	case RPC_RESPONSE:
 		cmd := pkt.ReadUint32()
 		rpcID := pkt.ReadUint32()
 		rpx := session.rpc().Get(rpcID)
 		if rpx != nil {
-			msgLen := pkt.RemainLength()
-			if msgLen == 0 {
-				rpx.Run(errors.New("response len == 0"))
-				return
-			}
 			response := rpx.GetResponse()
 			if response == nil {
 				rpx.Run(nil)
 				return
 			}
-
+			msgLen := pkt.RemainLength()
+			if msgLen == 0 {
+				rpx.Run(errors.New("response len == 0"))
+				return
+			}
 			if err := pkt.ReadMessage(response, session.Codec(cmd)); err != nil {
 				logger.Error().Err(err).Msg("解析网络包体失败")
 				rpx.Run(err)
@@ -338,7 +346,6 @@ func (session *Session) endian() binary.ByteOrder {
 }
 
 func (session *Session) emitMessage(cmd uint32, require any, rpcID uint32) {
-	defer app.Recover()
 	if response, err := protoreg.Call(cmd, session.ctx, session, require); err == nil {
 		if rpcID > 0 {
 			session.reply(cmd, response, rpcID)

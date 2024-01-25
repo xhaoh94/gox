@@ -60,7 +60,7 @@ func update() {
 		}
 		muxSync.RLock()
 		for _, v := range fns {
-			go v()
+			v()
 		}
 		muxSync.RUnlock()
 	}
